@@ -8,6 +8,7 @@
     "./adapters": "./src/adapters.ts",
     "./types": "./src/types.ts",
     "./date": "./src/date.ts",
+    "./reminders": "./src/reminders.ts",
     "./ai": "./src/ai/complete.ts"
   },
   "scripts": {
