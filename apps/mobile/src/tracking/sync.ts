@@ -46,6 +46,17 @@ function sweep(db: Db, nowMs: number): void {
   for (const table of ['sessions', 'pickups', 'mood_log']) db.run(`DELETE FROM ${table} WHERE day < ?`, [cutoff]);
 }
 
+/** Phone time between fromMs and nowMs: finished sessions clipped to the window, plus the open app. */
+export function phoneMsSince(db: Db, fromMs: number, nowMs: number): number {
+  const done = db.get<{ ms: number | null }>(
+    'SELECT SUM(MIN(end_ms, ?) - MAX(start_ms, ?)) AS ms FROM sessions WHERE end_ms > ? AND start_ms < ?',
+    [nowMs, fromMs, fromMs, nowMs]
+  )?.ms ?? 0;
+  const s = loadState(db);
+  if (s.openPkg === null || s.openStartMs === null) return done;
+  return done + Math.max(0, nowMs - Math.max(s.openStartMs, fromMs));
+}
+
 export async function sync(db: Db, native: SyncNative, nowMs: number): Promise<'ok' | 'no_access'> {
   if (!native.hasUsageAccess()) return 'no_access';
   let state = loadState(db);

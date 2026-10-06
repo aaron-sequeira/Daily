@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { makeTestDb } from '../db/testDb';
 import { setSetting } from '../db/settings';
 import type { RawEvent } from './ingest';
-import { loadState, phoneMsForDay, sync, type SyncNative } from './sync';
+import { loadState, phoneMsForDay, phoneMsSince, sync, type SyncNative } from './sync';
 
 const at = (h: number, m = 0, d = 6) => new Date(2026, 9, d, h, m).getTime();
 
@@ -121,5 +121,16 @@ describe('sync', () => {
     ];
     await sync(db, fakeNative(events), now);
     expect(db.all<{ package: string }>('SELECT package FROM sessions').map((r) => r.package)).toEqual(['com.b']);
+  });
+
+  it('measures phone time since a moment, clipping sessions and counting the open app', async () => {
+    const db = await makeTestDb();
+    await sync(db, fakeNative([
+      { type: 'resumed', pkg: 'com.a', ts: at(9) },
+      { type: 'paused', pkg: 'com.a', ts: at(9, 30) },
+      { type: 'resumed', pkg: 'com.b', ts: at(10) }
+    ]), at(10, 20));
+    expect(phoneMsSince(db, at(9, 10), at(10, 20))).toBe((20 + 20) * 60_000);
+    expect(phoneMsSince(db, at(10, 10), at(10, 20))).toBe(10 * 60_000);
   });
 });
