@@ -42,6 +42,22 @@ describe('handleReminderAction', () => {
     expect(await handleReminderAction(db, n, open, at(13, 2))).toBeNull();
   });
 
+  it('two concurrent deliveries of the same tap log one glass', async () => {
+    const { db, n, id } = await setup();
+    const a = { actionId: 'water', reminderId: id('water'), notificationKey: 'now-1', firedAtMs: at(11) };
+    const results = await Promise.all([handleReminderAction(db, n, a, at(11, 1)), handleReminderAction(db, n, a, at(11, 1))]);
+    expect(waterToday(db, at(12))).toBe(1);
+    expect(results).toEqual([null, null]);
+    expect(n.dismissed).toEqual(['now-1']);
+  });
+
+  it('still clears the notification when the reminder no longer exists', async () => {
+    const { db, n } = await setup();
+    await handleReminderAction(db, n, { actionId: 'snooze', reminderId: 999, notificationKey: 'snooze-999', firedAtMs: 5 }, at(16));
+    expect(n.dismissed).toEqual(['snooze-999']);
+    expect(n.scheduled.size).toBe(0);
+  });
+
   it('snoozes for 15 minutes under its own key', async () => {
     const { db, n, id } = await setup();
     await handleReminderAction(db, n, { actionId: 'snooze', reminderId: id('tea'), notificationKey: 'rem-t', firedAtMs: at(16) }, at(16, 1));

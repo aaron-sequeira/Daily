@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeTestDb } from '../db/testDb';
+import { setSetting } from '../db/settings';
 import { deleteEverything } from '../settings/data';
 import { FakeNotifier } from './fakeNotifier';
 import { listReminders, saveReminder, setEnabled } from './store';
@@ -9,6 +10,7 @@ const at = (h: number, m = 0, d = 6) => new Date(2026, 9, d, h, m).getTime();
 
 async function setup() {
   const db = await makeTestDb();
+  setSetting(db, 'onboarded', 1);
   const n = new FakeNotifier();
   const byName = (b: string) => listReminders(db).find((r) => r.builtin === b)!;
   return { db, n, byName };
@@ -26,6 +28,26 @@ describe('tickReminders', () => {
     resetArmedForTests();
     expect((await tickReminders(db, n, at(10, 2))).replanned).toBe(true);
     expect(n.scheduled.has(`rem-${byName('lunch').id}-2026-10-06`)).toBe(true);
+  });
+
+  it('schedules nothing before onboarding and cancels leftover reminder alarms', async () => {
+    const { db, n, byName } = await setup();
+    setSetting(db, 'onboarded', 0);
+    const c = { reminderId: 1, title: 't', body: 'b', category: 'break' as const };
+    await n.scheduleAt('rem-1-2026-10-06', c, at(13));
+    await n.scheduleAt('snooze-1', c, at(11));
+    const r = await tickReminders(db, n, at(10));
+    expect(r).toEqual({ replanned: false, fired: [] });
+    expect(n.scheduled.size).toBe(0);
+    setSetting(db, 'onboarded', 1);
+    expect((await tickReminders(db, n, at(10, 1))).replanned).toBe(true);
+    expect(n.scheduled.has(`rem-${byName('lunch').id}-2026-10-06`)).toBe(true);
+  });
+
+  it('serializes overlapping ticks', async () => {
+    const { db, n } = await setup();
+    const [a, b] = await Promise.all([tickReminders(db, n, at(10)), tickReminders(db, n, at(10))]);
+    expect([a.replanned, b.replanned]).toEqual([true, false]);
   });
 
   it('schedules the 7-day clock plan once and leaves it alone while unchanged', async () => {
@@ -72,6 +94,7 @@ describe('tickReminders', () => {
     const { db, n } = await setup();
     await tickReminders(db, n, at(10));
     deleteEverything(db, at(10, 5));
+    setSetting(db, 'onboarded', 1); // finishing onboarding again
     expect((await tickReminders(db, n, at(10, 6))).replanned).toBe(true);
     const lunch = listReminders(db).find((r) => r.builtin === 'lunch')!;
     expect(n.scheduled.has(`rem-${lunch.id}-2026-10-06`)).toBe(true);

@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import * as Notifications from 'expo-notifications';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +19,8 @@ const STEPS = 4;
 export default function Onboarding() {
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState(0);
+  const finishing = useRef(false);
+  const [busy, setBusy] = useState(false);
   const [goal, setGoal] = useState(() => getNumber(getDb(), 'goal_min'));
 
   // Coming back from Android Settings with access granted moves on by itself.
@@ -29,6 +31,9 @@ export default function Onboarding() {
   }, [step]);
 
   const finish = async () => {
+    if (finishing.current) return;
+    finishing.current = true;
+    setBusy(true);
     const db = getDb();
     setSetting(db, 'goal_min', goal);
     setSetting(db, 'onboarded', '1');
@@ -89,8 +94,8 @@ export default function Onboarding() {
         {step === 2 && <Primary label="Next" onPress={() => setStep(3)} />}
         {step === 3 && (
           <>
-            <Primary label="Turn on reminders" onPress={async () => { await Notifications.requestPermissionsAsync().catch(() => null); await finish(); }} />
-            <Pressable onPress={finish} accessibilityRole="button" style={s.secondary}><Text style={s.secondaryText}>Not now</Text></Pressable>
+            <Primary label="Turn on reminders" disabled={busy} onPress={async () => { if (finishing.current) return; await Notifications.requestPermissionsAsync().catch(() => null); await finish(); }} />
+            <Pressable onPress={finish} disabled={busy} accessibilityRole="button" style={s.secondary}><Text style={s.secondaryText}>Not now</Text></Pressable>
           </>
         )}
       </View>
@@ -98,8 +103,8 @@ export default function Onboarding() {
   );
 }
 
-function Primary({ label, onPress }: { label: string; onPress: () => void }) {
-  return <Pressable onPress={onPress} accessibilityRole="button" style={s.primary}><Text style={s.primaryText}>{label}</Text></Pressable>;
+function Primary({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) {
+  return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" style={s.primary}><Text style={s.primaryText}>{label}</Text></Pressable>;
 }
 
 const s = StyleSheet.create({

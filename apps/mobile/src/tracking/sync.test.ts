@@ -85,9 +85,11 @@ describe('sync', () => {
     setSetting(db, 'retention_days', 30);
     db.run("INSERT INTO sessions (package, start_ms, end_ms, day) VALUES ('old', 1, 2, '2026-08-01')");
     db.run("INSERT INTO pickups (ts_ms, day) VALUES (1, '2026-08-01')");
+    db.run("INSERT INTO water_log (ts_ms, day) VALUES (1, '2026-08-01')");
     await sync(db, fakeNative(morning), at(9));
     expect(db.all("SELECT * FROM sessions WHERE package = 'old'")).toEqual([]);
     expect(db.all("SELECT * FROM pickups WHERE day = '2026-08-01'")).toEqual([]);
+    expect(db.all("SELECT * FROM water_log WHERE day = '2026-08-01'")).toEqual([]);
   });
 
   it('keeps syncing when appInfo fails: label falls back to the package', async () => {

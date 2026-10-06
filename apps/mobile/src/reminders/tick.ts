@@ -12,7 +12,25 @@ export function resetArmedForTests(): void { armedThisProcess = false; }
 
 /** Keeps the OS alarms equal to the 7-day clock plan (touching them only when the plan changed) and fires any
  * phone-time reminder that is due. Called after every sync. */
-export async function tickReminders(db: Db, notifier: Notifier, nowMs: number): Promise<{ replanned: boolean; fired: number[] }> {
+type TickResult = { replanned: boolean; fired: number[] };
+let chain: Promise<unknown> = Promise.resolve();
+/** Ticks run one at a time: overlapping syncs must not interleave cancel/schedule or double-fire. */
+export function tickReminders(db: Db, notifier: Notifier, nowMs: number): Promise<TickResult> {
+  const run = chain.then(() => tickBody(db, notifier, nowMs));
+  chain = run.catch(() => {});
+  return run;
+}
+
+async function tickBody(db: Db, notifier: Notifier, nowMs: number): Promise<TickResult> {
+  if (getSetting(db, 'onboarded') !== '1') {
+    try {
+      for (const key of await notifier.scheduledKeys()) if (key.startsWith('rem-') || key.startsWith('snooze-')) await notifier.cancel(key);
+    } catch (e) {
+      console.warn('daily: clearing reminders failed', e);
+    }
+    setSetting(db, 'clock_plan', '');
+    return { replanned: false, fired: [] };
+  }
   const reminders = listReminders(db);
   const states = getStates(db);
   const byId = new Map(reminders.map((r) => [r.id, r]));

@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getDb } from '../../src/db/expoDb';
+import { expoNotifier } from '../../src/reminders/expoNotifier';
 import { applyReminders } from '../../src/reminders/apply';
 import { ANIM_LOOK, MOBILE_ANIMATIONS } from '../../src/reminders/defaults';
 import { BREAK_CHOICES, breakLabel, formFrom, stepMinutes, stepTime, toggleDay, toInput, type Form } from '../../src/reminders/form';
@@ -37,7 +38,7 @@ export default function ReminderEditor() {
   });
   const remove = () => Alert.alert('Delete this reminder?', undefined, [
     { text: 'Cancel', style: 'cancel' },
-    { text: 'Delete', style: 'destructive', onPress: () => guarded(async () => { deleteReminder(getDb(), existing!.id); await applyReminders(); router.back(); }) }
+    { text: 'Delete', style: 'destructive', onPress: () => guarded(async () => { deleteReminder(getDb(), existing!.id); await expoNotifier.cancel(`snooze-${existing!.id}`).catch((e) => console.warn('daily: cancelling snooze failed', e)); await applyReminders(); router.back(); }) }
   ]);
 
   const chip = (on: boolean) => [s.chip, on && { backgroundColor: C.ink }];

@@ -35,6 +35,14 @@ describe('planClockSlots', () => {
       expect(new Date(kolkata).toISOString()).toBe('2026-10-06T07:30:00.000Z');
       expect(new Date(london).toISOString()).toBe('2026-10-06T12:00:00.000Z');
     });
+    it('keeps 13:00 local across the US fall-back change (25 h between slots)', () => {
+      process.env.TZ = 'America/New_York';
+      const everyDay: Reminder = { ...lunch, schedule: { type: 'time', time: '13:00', days: [1, 2, 3, 4, 5, 6, 7] } };
+      const slots = planClockSlots([everyDay], none, new Date(2026, 9, 31, 10, 0).getTime()).slice(0, 3);
+      expect(slots.map((s) => s.atMs)).toEqual([new Date(2026, 9, 31, 13).getTime(), new Date(2026, 10, 1, 13).getTime(), new Date(2026, 10, 2, 13).getTime()]);
+      expect(slots[1].atMs - slots[0].atMs).toBe(25 * 3_600_000);
+      expect(slots[2].atMs - slots[1].atMs).toBe(24 * 3_600_000);
+    });
   });
 });
 

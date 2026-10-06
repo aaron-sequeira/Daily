@@ -43,7 +43,7 @@ function logMood(db: Db, nowMs: number): void {
 
 function sweep(db: Db, nowMs: number): void {
   const cutoff = localDate(nowMs - getNumber(db, 'retention_days') * DAY_MS);
-  for (const table of ['sessions', 'pickups', 'mood_log']) db.run(`DELETE FROM ${table} WHERE day < ?`, [cutoff]);
+  for (const table of ['sessions', 'pickups', 'mood_log', 'water_log']) db.run(`DELETE FROM ${table} WHERE day < ?`, [cutoff]);
 }
 
 /** Phone time between fromMs and nowMs: finished sessions clipped to the window, plus the open app. */

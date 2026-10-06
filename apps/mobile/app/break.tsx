@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
@@ -28,6 +28,8 @@ export default function Break() {
   const total = reminder?.breakSec || 60;
   const [start] = useState(() => Date.now());
   const [left, setLeft] = useState(total);
+  const done = useRef(false);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     const t = setInterval(() => setLeft(secondsLeft(start, total, Date.now())), 500);
@@ -47,13 +49,21 @@ export default function Break() {
   const look = ANIM_LOOK[kind];
   const isWater = reminder.builtin === 'water';
 
+  const lock = () => {
+    if (done.current) return false;
+    done.current = true;
+    setBusy(true);
+    return true;
+  };
   const finish = () => {
+    if (!lock()) return;
     const db = getDb();
     if (isWater) logWater(db, Date.now());
     markDone(db, reminder.id, Date.now());
     leave();
   };
   const snooze = () => {
+    if (!lock()) return;
     expoNotifier.scheduleAt(`snooze-${reminder.id}`, reminderContent(reminder), Date.now() + SNOOZE_MS)
       .catch((e) => console.warn('daily: snooze failed', e))
       .finally(leave);
@@ -70,12 +80,12 @@ export default function Break() {
         </Svg>
         <Scene kind={kind} size={200} />
       </View>
-      <Text style={s.clock} accessibilityLabel={`${Math.ceil(left / 60)} minutes left`}>{formatClock(left)}</Text>
+      <Text style={s.clock} accessibilityLabel={`${formatClock(left)} left`}>{formatClock(left)}</Text>
       <Text style={s.title}>{left === 0 ? 'Nice. Back to it' : look.breakTitle}</Text>
       <Text style={s.body}>{reminder.message}</Text>
       <View style={s.actions}>
-        <Pressable onPress={finish} accessibilityRole="button" style={s.primary}><Text style={s.primaryText}>{isWater ? 'I had some' : 'I’m back'}</Text></Pressable>
-        <Pressable onPress={snooze} accessibilityRole="button" style={s.secondary}><Text style={s.secondaryText}>Snooze 15 min</Text></Pressable>
+        <Pressable onPress={finish} disabled={busy} accessibilityRole="button" style={s.primary}><Text style={s.primaryText}>{isWater ? 'I had some' : 'I’m back'}</Text></Pressable>
+        <Pressable onPress={snooze} disabled={busy} accessibilityRole="button" style={s.secondary}><Text style={s.secondaryText}>Snooze 15 min</Text></Pressable>
       </View>
     </View>
   );

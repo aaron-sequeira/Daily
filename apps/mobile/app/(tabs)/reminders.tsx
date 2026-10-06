@@ -3,7 +3,7 @@ import { clock12, reminderSummary } from '@worksight/core/reminders';
 import * as Notifications from 'expo-notifications';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { AppState, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { AppState, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DailyNative from '../../modules/daily-native';
@@ -92,7 +92,14 @@ export default function RemindersTab() {
         <Animated.View entering={rise(1)} style={s.card}>
           <Text style={s.cardTitle}>Notifications are off</Text>
           <Text style={s.cardBody}>Daily can’t remind you until you allow notifications.</Text>
-          <Pressable onPress={async () => { await Notifications.requestPermissionsAsync(); refresh(); }} accessibilityRole="button" style={s.cardBtn}><Text style={s.cardBtnText}>Allow notifications</Text></Pressable>
+          <Pressable onPress={async () => {
+            try {
+              // Android 12 and older show no dialog, and 13+ shows none after a permanent denial: open Daily's settings page.
+              const p = await Notifications.requestPermissionsAsync();
+              if (!p.granted) await Linking.openSettings();
+            } catch (e) { console.warn('daily: notification permission failed', e); }
+            refresh();
+          }} accessibilityRole="button" style={s.cardBtn}><Text style={s.cardBtnText}>Allow notifications</Text></Pressable>
         </Animated.View>
       )}
       {vm.notifications && clockOn && !vm.exact && (

@@ -1,5 +1,6 @@
 import { File, Paths } from 'expo-file-system';
 import { Link, router } from 'expo-router';
+import * as Notifications from 'expo-notifications';
 import * as Sharing from 'expo-sharing';
 import { useState, type ReactNode } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -39,6 +40,8 @@ export default function Settings() {
   const wipe = async () => {
     await runSync().catch(() => {}); // let any sync that already started finish, so none can write after the delete
     deleteEverything(db, Date.now());
+    await Notifications.cancelAllScheduledNotificationsAsync().catch((e) => console.warn('daily: cancelling alarms failed', e));
+    await Notifications.dismissAllNotificationsAsync().catch((e) => console.warn('daily: dismissing notifications failed', e));
     try {
       const file = new File(Paths.cache, 'daily-export.json');
       if (file.exists) file.delete();
