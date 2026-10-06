@@ -81,17 +81,16 @@ class DailyNativeModule : Module() {
 
   private fun appInfo(pkg: String): Map<String, Any?> {
     val pm = context.packageManager
-    return try {
-      val ai = pm.getApplicationInfo(pkg, 0)
-      mapOf(
-        "pkg" to pkg,
-        "label" to pm.getApplicationLabel(ai).toString(),
-        "category" to (if (Build.VERSION.SDK_INT >= 26) ai.category else -1),
-        "icon" to iconPng(pm.getApplicationIcon(ai))
-      )
-    } catch (e: PackageManager.NameNotFoundException) {
-      mapOf("pkg" to pkg, "label" to pkg, "category" to -1, "icon" to null)
+    val ai = try {
+      pm.getApplicationInfo(pkg, 0)
+    } catch (e: Exception) {
+      return mapOf("pkg" to pkg, "label" to pkg, "category" to -1, "icon" to null)
     }
+    // One bad package must never fail the whole batch: fall back per field.
+    val label = try { pm.getApplicationLabel(ai).toString() } catch (e: Exception) { pkg }
+    val icon = try { iconPng(pm.getApplicationIcon(ai)) } catch (e: Exception) { null }
+    val category = try { if (Build.VERSION.SDK_INT >= 26) ai.category else -1 } catch (e: Exception) { -1 }
+    return mapOf("pkg" to pkg, "label" to label, "category" to category, "icon" to icon)
   }
 
   private fun iconPng(d: Drawable): String {

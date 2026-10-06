@@ -31,7 +31,7 @@ export function splitAtMidnight(pkg: string, startMs: number, endMs: number): Se
 /**
  * Turns Android usage events into finished sessions and pickups. Pure: the caller stores the result and the new state.
  * ponytail: events with a timestamp equal to the cursor are treated as already seen; Android rarely writes two events
- * in the same millisecond across a query boundary, and the sessions unique index catches any repeat.
+ * in the same millisecond across a query boundary, so one could be DROPPED (not repeated); the sessions unique index only guards repeats.
  */
 export function ingest(events: RawEvent[], state: IngestState, ignore: ReadonlySet<string>) {
   const sessions: Session[] = [];

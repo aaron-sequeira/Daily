@@ -28,3 +28,12 @@ Alternative: emulator Pixel_9 (API 36 Google Play image), started with
 - [ ] Accessibility → Remove animations → no rise-ins, Sunny still
 - [ ] TalkBack reads Sunny's mood, tab names and the mood bar ("Mood 3 of 5")
 - [ ] Database-failure screen (verified on the emulator only; not yet seen on the phone)
+
+## Version pins
+
+- react and react-dom are pinned to 19.2.3 in apps/web, apps/consumer and apps/agent, and via root `pnpm.overrides`, because RN 0.86 (Expo SDK 57) requires exactly 19.2.3 and `node-linker=hoisted` shares one copy.
+- On an Expo SDK bump move all five places together (root overrides for react and react-dom, plus the three app pins), run `pnpm install`, then `pnpm --filter @worksight/web build`, `npx electron-vite build` in apps/consumer, and `pnpm test`.
+
+## Database-failure trigger recipe
+
+Temporarily append a broken SQL migration to `src/db/schema.ts`, rebuild, see the fatal screen, tap Start fresh, then revert. Never commit the broken migration.

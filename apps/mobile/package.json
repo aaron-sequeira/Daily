@@ -1,7 +1,7 @@
 {
   "name": "@worksight/mobile",
   "version": "0.1.0",
-  "main": "expo-router/entry",
+  "main": "index.ts",
   "dependencies": {
     "@expo-google-fonts/dm-sans": "^0.4.2",
     "@worksight/core": "workspace:^",

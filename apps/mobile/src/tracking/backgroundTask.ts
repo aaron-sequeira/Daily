@@ -4,12 +4,13 @@ import { runSync } from './runSync';
 
 export const SYNC_TASK = 'daily-sync';
 
-// Must run at module load (imported from the root layout) so Android can wake the task with the app closed.
+// Must run at module load (imported from index.ts) so Android can wake the task with the app closed.
 TaskManager.defineTask(SYNC_TASK, async () => {
   try {
     await runSync();
     return BackgroundTask.BackgroundTaskResult.Success;
-  } catch {
+  } catch (e) {
+    console.warn('daily: background sync failed', e);
     return BackgroundTask.BackgroundTaskResult.Failed;
   }
 });

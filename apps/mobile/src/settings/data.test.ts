@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { sync } from '../tracking/sync';
 import { makeTestDb } from '../db/testDb';
 import { getSetting, setSetting } from '../db/settings';
 import { loadToday } from '../today/load';
@@ -17,13 +18,35 @@ describe('settings data', () => {
     expect(out.settings).toEqual([{ key: 'goal_min', value: '180' }]);
   });
 
-  it('deletes everything and resets onboarding', async () => {
+  it('deletes everything, resets onboarding and parks the sync cursor at now', async () => {
     const db = await makeTestDb();
     seedSampleDay(db, now);
     setSetting(db, 'onboarded', '1');
-    deleteEverything(db);
-    for (const t of ['sessions', 'pickups', 'apps', 'ingest_state', 'mood_log', 'settings']) expect(db.all(`SELECT * FROM ${t}`)).toEqual([]);
+    db.run('INSERT INTO ingest_state (id, last_event_ms, open_pkg, open_start_ms) VALUES (1, 5, ?, 6)', ['com.a']);
+    deleteEverything(db, now);
+    for (const t of ['sessions', 'pickups', 'apps', 'mood_log', 'settings']) expect(db.all(`SELECT * FROM ${t}`)).toEqual([]);
+    expect(db.all('SELECT * FROM ingest_state')).toEqual([{ id: 1, last_event_ms: now, open_pkg: null, open_start_ms: null }]);
     expect(getSetting(db, 'onboarded')).toBe('0');
+  });
+
+  it('does not backfill old history after deleting everything', async () => {
+    const db = await makeTestDb();
+    const events = [
+      { type: 'resumed' as const, pkg: 'com.a', ts: now - 86_400_000 },
+      { type: 'paused' as const, pkg: 'com.a', ts: now - 86_400_000 + 600_000 },
+      { type: 'resumed' as const, pkg: 'com.a', ts: now - 3 * 86_400_000 },
+      { type: 'paused' as const, pkg: 'com.a', ts: now - 3 * 86_400_000 + 600_000 }
+    ];
+    const native = {
+      packageName: () => 'com.aaronalex.daily',
+      defaultLauncher: () => 'launcher',
+      hasUsageAccess: () => true,
+      queryEvents: async (from: number, to: number) => events.filter((e) => e.ts >= from && e.ts < to),
+      appInfo: async (pkgs: string[]) => pkgs.map((pkg) => ({ pkg, label: pkg, category: -1, icon: null }))
+    };
+    deleteEverything(db, now);
+    expect(await sync(db, native, now + 60_000)).toBe('ok');
+    expect(db.all('SELECT * FROM sessions')).toEqual([]);
   });
 
   it('overrides and resets an app category', async () => {

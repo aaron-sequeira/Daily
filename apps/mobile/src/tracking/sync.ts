@@ -48,7 +48,9 @@ function sweep(db: Db, nowMs: number): void {
 
 export async function sync(db: Db, native: SyncNative, nowMs: number): Promise<'ok' | 'no_access'> {
   if (!native.hasUsageAccess()) return 'no_access';
-  const state = loadState(db);
+  let state = loadState(db);
+  // An app "open" since before the gap must not be closed by the first event after it.
+  if (state.lastEventMs < nowMs - BACKFILL_MS) state = { ...state, openPkg: null, openStartMs: null };
   const events = await native.queryEvents(Math.max(state.lastEventMs, nowMs - BACKFILL_MS), nowMs);
   const ignore = new Set([native.packageName(), 'com.android.systemui', native.defaultLauncher() ?? '']);
   const res = ingest(events, state, ignore);
@@ -57,7 +59,16 @@ export async function sync(db: Db, native: SyncNative, nowMs: number): Promise<'
   const seen = new Set(res.sessions.map((s) => s.pkg));
   if (res.state.openPkg) seen.add(res.state.openPkg);
   const fresh = [...seen].filter((p) => !known.has(p));
-  const infos = fresh.length > 0 ? await native.appInfo(fresh) : [];
+  let infos: Awaited<ReturnType<SyncNative['appInfo']>> = [];
+  if (fresh.length > 0) {
+    try {
+      infos = await native.appInfo(fresh);
+    } catch (e) {
+      // ponytail: these rows keep label = package forever (INSERT OR IGNORE); a later sync could refresh label/icon for rows whose label equals the package.
+      console.warn('daily: appInfo failed', e);
+      infos = fresh.map((pkg) => ({ pkg, label: pkg, category: -1, icon: null }));
+    }
+  }
 
   db.tx(() => {
     for (const s of res.sessions) {

@@ -12,9 +12,18 @@ export function useToday() {
   const [access, setAccess] = useState(true);
 
   const refresh = useCallback(async () => {
-    const result = await runSync().catch(() => 'ok' as const); // a failed sync still shows what's stored
-    setAccess(result !== 'no_access' && DailyNative.hasUsageAccess());
-    setView(loadToday(getDb(), Date.now()));
+    try {
+      let result: 'ok' | 'no_access' = 'ok';
+      try {
+        result = await runSync();
+      } catch (e) {
+        console.warn('daily: sync failed', e); // a failed sync still shows what's stored
+      }
+      setAccess(result !== 'no_access' && DailyNative.hasUsageAccess());
+      setView(loadToday(getDb(), Date.now()));
+    } catch (e) {
+      console.warn('daily: refresh failed', e); // keep the previous view
+    }
   }, []);
 
   useFocusEffect(useCallback(() => {

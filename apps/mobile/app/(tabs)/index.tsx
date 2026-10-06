@@ -20,9 +20,10 @@ export default function Today() {
   const insets = useSafeAreaInsets();
   const { view, access } = useToday();
   const [filter, setFilter] = useState<Category | 'all'>('all');
+  const active = view && (filter === 'all' || view.categories.some((c) => c.id === filter)) ? filter : 'all';
   if (!view) return <View style={{ flex: 1, backgroundColor: C.bg }} />;
 
-  const shown = filter === 'all' ? view.categories : view.categories.filter((c) => c.id === filter);
+  const shown = active === 'all' ? view.categories : view.categories.filter((c) => c.id === active);
   const now = Date.now();
 
   return (
@@ -55,7 +56,7 @@ export default function Today() {
       {view.categories.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20, marginBottom: 20 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}>
           {(['all', ...view.categories.map((c) => c.id)] as const).map((id, i) => {
-            const on = filter === id;
+            const on = active === id;
             return (
               <Animated.View key={id} entering={rise(3 + i)}>
                 <Pressable onPress={() => setFilter(id)} accessibilityRole="button" accessibilityState={{ selected: on }} style={[s.pill, on && { backgroundColor: C.ink }]}>
@@ -74,7 +75,7 @@ export default function Today() {
         <>
           {shown.length > 0 && <Text style={s.sec}>Where your time went</Text>}
           <View style={s.grid}>{shown.map((c, i) => <CategoryCard key={c.id} cat={c} index={i} />)}</View>
-          {filter !== 'all' && shown[0] && (
+          {active !== 'all' && shown[0] && (
             <View style={s.list}>
               {shown[0].apps.map((a) => (
                 <View key={a.pkg} style={s.row}><Text style={s.rowLabel}>{a.label}</Text><Text style={s.rowMin}>{formatDuration(a.minutes)}</Text></View>

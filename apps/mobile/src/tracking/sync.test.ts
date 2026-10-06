@@ -89,4 +89,37 @@ describe('sync', () => {
     expect(db.all("SELECT * FROM sessions WHERE package = 'old'")).toEqual([]);
     expect(db.all("SELECT * FROM pickups WHERE day = '2026-08-01'")).toEqual([]);
   });
+
+  it('keeps syncing when appInfo fails: label falls back to the package', async () => {
+    const db = await makeTestDb();
+    const native = fakeNative(morning);
+    native.appInfo.mockRejectedValue(new Error('boom'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(await sync(db, native, at(9))).toBe('ok');
+    warn.mockRestore();
+    expect(db.all('SELECT * FROM sessions')).toHaveLength(2);
+    expect(db.all('SELECT package, label, category FROM apps ORDER BY package')).toEqual([
+      { package: 'com.instagram.android', label: 'com.instagram.android', category: 'social' },
+      { package: 'com.whatsapp', label: 'com.whatsapp', category: 'messages' }
+    ]);
+    expect(loadState(db).lastEventMs).toBe(at(8, 45));
+    const other = fakeNative([{ type: 'resumed', pkg: 'com.unknown', ts: at(10) }, { type: 'screen_off', pkg: 'android', ts: at(10, 5) }]);
+    other.appInfo.mockRejectedValue(new Error('boom'));
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await sync(db, other, at(11));
+    expect(db.get<{ category: string }>("SELECT category FROM apps WHERE package = 'com.unknown'")?.category).toBe('other');
+    vi.restoreAllMocks();
+  });
+
+  it('does not close an app left open before a gap longer than the backfill window', async () => {
+    const db = await makeTestDb();
+    const now = at(12);
+    db.run('INSERT INTO ingest_state (id, last_event_ms, open_pkg, open_start_ms) VALUES (1, ?, ?, ?)', [now - 10 * 86_400_000, 'com.a', now - 10 * 86_400_000]);
+    const events: RawEvent[] = [
+      { type: 'resumed', pkg: 'com.b', ts: now - 3_600_000 },
+      { type: 'paused', pkg: 'com.b', ts: now - 3_000_000 }
+    ];
+    await sync(db, fakeNative(events), now);
+    expect(db.all<{ package: string }>('SELECT package FROM sessions').map((r) => r.package)).toEqual(['com.b']);
+  });
 });

@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getDb } from '../../src/db/expoDb';
 import { getNumber, setSetting } from '../../src/db/settings';
 import { deleteEverything, exportJson, RETENTION_CHOICES, seedSampleDay } from '../../src/settings/data';
+import { runSync } from '../../src/tracking/runSync';
 import { Sunny } from '../../src/sunny/Sunny';
 import { C, F } from '../../src/theme';
 import { GoalStepper } from '../../src/ui/GoalStepper';
@@ -31,9 +32,18 @@ export default function Settings() {
     file.write(exportJson(db));
     await Sharing.shareAsync(file.uri, { mimeType: 'application/json' });
   };
+  const wipe = async () => {
+    await runSync().catch(() => {}); // let any sync that already started finish, so none can write after the delete
+    deleteEverything(db, Date.now());
+    try {
+      const file = new File(Paths.cache, 'daily-export.json');
+      if (file.exists) file.delete();
+    } catch { /* the cached export is best effort */ }
+    router.replace('/onboarding');
+  };
   const confirmDelete = () => Alert.alert('Delete everything?', 'This removes all of Daily’s history from this phone. It can’t be undone.', [
     { text: 'Cancel', style: 'cancel' },
-    { text: 'Delete', style: 'destructive', onPress: () => { deleteEverything(db); router.replace('/onboarding'); } }
+    { text: 'Delete', style: 'destructive', onPress: () => { void wipe(); } }
   ]);
 
   return (

@@ -15,9 +15,11 @@ export function exportJson(db: Db): string {
   }, null, 2);
 }
 
-export function deleteEverything(db: Db): void {
+export function deleteEverything(db: Db, nowMs: number): void {
   db.tx(() => {
     for (const t of ['sessions', 'pickups', 'apps', 'ingest_state', 'mood_log', 'settings']) db.run(`DELETE FROM ${t}`);
+    // Park the cursor at now so the next sync does not backfill the 7 days we just deleted.
+    db.run('INSERT INTO ingest_state (id, last_event_ms, open_pkg, open_start_ms) VALUES (1, ?, NULL, NULL)', [nowMs]);
   });
 }
 
