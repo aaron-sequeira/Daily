@@ -95,9 +95,7 @@ apps/mobile/
 
 - [ ] **Step 1: Branch**
 
-```bash
-git checkout main && git checkout -b feat/daily-m2
-```
+The branch `feat/daily-m2` already exists (it holds this plan). Confirm: `git branch --show-current` → `feat/daily-m2`.
 
 - [ ] **Step 2: Move the file and re-export it**
 
