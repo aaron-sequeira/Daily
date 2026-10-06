@@ -1,0 +1,42 @@
+{
+  "name": "@worksight/mobile",
+  "version": "0.1.0",
+  "main": "expo-router/entry",
+  "dependencies": {
+    "@expo-google-fonts/dm-sans": "^0.4.2",
+    "@worksight/core": "workspace:^",
+    "expo": "~57.0.26",
+    "expo-background-task": "~57.0.21",
+    "expo-constants": "~57.0.20",
+    "expo-file-system": "~57.0.7",
+    "expo-font": "~57.0.4",
+    "expo-linking": "~57.0.11",
+    "expo-router": "~57.0.24",
+    "expo-sharing": "~57.0.22",
+    "expo-splash-screen": "~57.0.9",
+    "expo-sqlite": "~57.0.3",
+    "expo-status-bar": "~57.0.1",
+    "expo-task-manager": "~57.0.21",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-reanimated": "4.5.1",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0",
+    "react-native-svg": "15.15.4",
+    "react-native-worklets": "0.10.1"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "@types/sql.js": "^1.4.11",
+    "sql.js": "^1.14.2",
+    "typescript": "~6.0.3",
+    "vitest": "^2.1.8"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "private": true
+}
