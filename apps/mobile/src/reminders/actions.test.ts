@@ -55,4 +55,23 @@ describe('handleReminderAction', () => {
     expect(await handleReminderAction(db, n, { actionId: 'open', reminderId: id('tea'), notificationKey: 'b', firedAtMs: 2 }, at(16))).toEqual({ route: '/reminders' });
     expect(await handleReminderAction(db, n, { actionId: 'open', reminderId: 999, notificationKey: 'c', firedAtMs: 3 }, at(16))).toBeNull();
   });
+
+  it('retries a failed snooze on the next identical call (tag recorded only after success)', async () => {
+    const { db, n, id } = await setup();
+    const action = { actionId: 'snooze', reminderId: id('tea'), notificationKey: 'rem-t', firedAtMs: at(16) };
+    let shouldFail = true;
+    const originalScheduleAt = n.scheduleAt.bind(n);
+    n.scheduleAt = async (key, content, atMs) => {
+      if (shouldFail && key === `snooze-${id('tea')}`) {
+        shouldFail = false;
+        throw new Error('network error');
+      }
+      return originalScheduleAt(key, content, atMs);
+    };
+    // First call rejects
+    await expect(handleReminderAction(db, n, action, at(16, 1))).rejects.toThrow('network error');
+    // Second identical call succeeds because tag wasn't recorded by the failed attempt
+    await handleReminderAction(db, n, action, at(16, 2));
+    expect(n.scheduled.get(`snooze-${id('tea')}`)?.atMs).toBe(at(16, 2) + SNOOZE_MS);
+  });
 });

@@ -10,6 +10,7 @@ export interface Notifier {
   cancel(key: string): Promise<void>;
   scheduledKeys(): Promise<string[]>;
   dismiss(key: string): Promise<void>;
+  canNotify(): Promise<boolean>;
 }
 
 export function reminderContent(r: Reminder): ReminderContent {

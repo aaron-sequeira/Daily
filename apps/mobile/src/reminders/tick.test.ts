@@ -63,4 +63,48 @@ describe('tickReminders', () => {
     const lunch = listReminders(db).find((r) => r.builtin === 'lunch')!;
     expect(n.scheduled.has(`rem-${lunch.id}-2026-10-06`)).toBe(true);
   });
+
+  it('respects canNotify permission: does not fire when denied, fires when allowed later', async () => {
+    const { db, n, byName } = await setup();
+    db.run("INSERT INTO sessions (package, start_ms, end_ms, day) VALUES ('com.a', ?, ?, '2026-10-06')", [at(9), at(10, 5)]);
+    n.allowed = false;
+    const first = await tickReminders(db, n, at(10, 10));
+    expect(first.fired).toEqual([]);
+    expect(n.shown).toEqual([]);
+    n.allowed = true;
+    const second = await tickReminders(db, n, at(10, 11));
+    expect(second.fired).toEqual([byName('water').id]);
+    expect(n.shown.map((s) => s.content.category)).toEqual(['water']);
+  });
+
+  it('handles scheduleAt rejection gracefully: replanned stays false, due reminder still fires', async () => {
+    const { db, n, byName } = await setup();
+    db.run("INSERT INTO sessions (package, start_ms, end_ms, day) VALUES ('com.a', ?, ?, '2026-10-06')", [at(9), at(10, 5)]);
+    const originalScheduleAt = n.scheduleAt.bind(n);
+    n.scheduleAt = async () => { throw new Error('scheduling failed'); };
+    const result = await tickReminders(db, n, at(10, 10));
+    expect(result.replanned).toBe(false);
+    expect(result.fired).toEqual([byName('water').id]);
+    expect(n.shown.map((s) => s.content.category)).toEqual(['water']);
+  });
+
+  it('handles showNow rejection: reminder not marked fired, can retry next tick', async () => {
+    const { db, n, byName } = await setup();
+    db.run("INSERT INTO sessions (package, start_ms, end_ms, day) VALUES ('com.a', ?, ?, '2026-10-06')", [at(9), at(10, 5)]);
+    let shouldFail = true;
+    const originalShowNow = n.showNow.bind(n);
+    n.showNow = async (...args) => {
+      if (shouldFail) {
+        shouldFail = false;
+        throw new Error('show failed');
+      }
+      return originalShowNow(...args);
+    };
+    const first = await tickReminders(db, n, at(10, 10));
+    expect(first.fired).toEqual([]);
+    expect(n.shown).toEqual([]);
+    const second = await tickReminders(db, n, at(10, 11));
+    expect(second.fired).toEqual([byName('water').id]);
+    expect(n.shown.length).toBe(1);
+  });
 });

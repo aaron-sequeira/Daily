@@ -17,17 +17,31 @@ export async function tickReminders(db: Db, notifier: Notifier, nowMs: number): 
     const c = reminderContent(byId.get(s.reminderId)!);
     return `${s.key}@${s.atMs}:${c.title}|${c.body}|${c.category}`;
   }).join('\n');
-  const replanned = signature !== getSetting(db, 'clock_plan');
+  let replanned = signature !== getSetting(db, 'clock_plan');
   if (replanned) {
-    for (const key of await notifier.scheduledKeys()) if (key.startsWith('rem-')) await notifier.cancel(key);
-    for (const s of slots) await notifier.scheduleAt(s.key, reminderContent(byId.get(s.reminderId)!), s.atMs);
-    setSetting(db, 'clock_plan', signature);
+    try {
+      for (const key of await notifier.scheduledKeys()) if (key.startsWith('rem-')) await notifier.cancel(key);
+      for (const s of slots) await notifier.scheduleAt(s.key, reminderContent(byId.get(s.reminderId)!), s.atMs);
+      setSetting(db, 'clock_plan', signature);
+    } catch (e) {
+      console.warn('daily: re-planning reminders failed', e);
+      replanned = false;
+    }
   }
 
   const due = dueIntervalReminders(reminders, states, nowMs, (fromMs) => phoneMsSince(db, fromMs, nowMs));
-  for (const r of due) {
-    await notifier.showNow(`now-${r.id}`, reminderContent(r));
-    markFired(db, r.id, nowMs);
+  const canNotify = await notifier.canNotify().catch(() => false);
+  const fired: number[] = [];
+  if (canNotify) {
+    for (const r of due) {
+      try {
+        await notifier.showNow(`now-${r.id}`, reminderContent(r));
+        markFired(db, r.id, nowMs);
+        fired.push(r.id);
+      } catch (e) {
+        console.warn('daily: showing reminder failed', e);
+      }
+    }
   }
-  return { replanned, fired: due.map((r) => r.id) };
+  return { replanned, fired };
 }
