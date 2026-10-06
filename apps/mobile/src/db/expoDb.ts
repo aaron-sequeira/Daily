@@ -16,7 +16,12 @@ export function getDb(): Db {
     get: <T>(sql: string, params: Param[] = []) => raw.getFirstSync<T>(sql, params) ?? null,
     tx: (fn) => raw.withTransactionSync(fn)
   };
-  migrate(wrapped);
+  try {
+    migrate(wrapped);
+  } catch (e) {
+    raw.closeSync(); // a handle left open would block deleteDatabaseSync in "Start fresh"
+    throw e;
+  }
   db = wrapped;
   return db;
 }

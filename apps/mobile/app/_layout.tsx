@@ -28,8 +28,10 @@ export default function RootLayout() {
     return (
       <FatalScreen
         error={dbError}
-        onExport={() => Sharing.shareAsync(new File(Paths.document, 'SQLite', DB_NAME).uri)}
-        onReset={() => { deleteDatabaseSync(DB_NAME); setDbError(openDb()); }}
+        onExport={() => { Sharing.shareAsync(new File(Paths.document, 'SQLite', DB_NAME).uri).catch((e) => setDbError(String(e))); }}
+        onReset={() => {
+          try { deleteDatabaseSync(DB_NAME); setDbError(openDb()); } catch (e) { setDbError(String(e)); }
+        }}
       />
     );
   }
