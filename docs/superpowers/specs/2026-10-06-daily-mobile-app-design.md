@@ -86,7 +86,7 @@ supabase-daily/             Supabase project for Daily: migrations + functions/d
 
 - **Shared with desktop:** `@worksight/core/date` and the reminder types/validation only. Desktop report/coach code is built on PC windows and screen reads, so the phone has its own simpler modules. `core`'s `complete()` is **not** used: the server talks to OpenRouter directly because it needs OpenRouter-only options (fallback models, provider data policy).
 - **Monorepo:** Metro resolves workspace packages. If Metro cannot resolve under pnpm's isolated layout, use Expo's documented pnpm setup for `apps/mobile` only — never a repo-wide change that would break Electron's native rebuilds.
-- **Package id:** `com.setace.daily` (permanent once uploaded to Play).
+- **Package id:** `com.aaronalex.daily` (permanent once uploaded to Play).
 - **Dev loop:** Android Studio emulator (Google Play image) → `pnpm --filter @worksight/mobile android` (= `expo run:android`) → Metro hot reload. A debug-only "Seed a sample day" action in Settings fills the DB for UI work.
 
 ## 6. Data Model (SQLite on the phone)
@@ -216,7 +216,7 @@ Onboarding (4 steps, as the mockup): Welcome + Sunny → **Usage access** (Setti
 - **Vitest (apps/mobile, pure TS):** `moodFor` + `mood.cases.json`; `ingest` (pairing, screen-off close, midnight split, idempotency, ignored packages); categories precedence; reminder scheduling (weekly triggers, time-zone change, phone-time counters); nudge rules + manners gate; `buildReportInput`, `plainReport`, week math.
 - **Kotlin JVM tests:** event → record mapping; `moodFor` against `mood.cases.json`.
 - **Edge Function (Deno test):** auth, entitlement cache, rate limits, schema rejection (free-form prompt refused), fallback model on error, grounding failure → retry → `invalid`; OpenRouter and RevenueCat mocked.
-- **Emulator checklists per phase**, using adb: `appops set com.setace.daily GET_USAGE_STATS allow`, `cmd notification`, time/zone changes, `am kill` to test service restart, Doze (`dumpsys deviceidle force-idle`).
+- **Emulator checklists per phase**, using adb: `appops set com.aaronalex.daily GET_USAGE_STATS allow`, `cmd notification`, time/zone changes, `am kill` to test service restart, Doze (`dumpsys deviceidle force-idle`).
 - **Billing:** Play internal testing track + license testers; RevenueCat sandbox.
 - Existing desktop tests stay green after moving the reminder types into core (`pnpm test`).
 
