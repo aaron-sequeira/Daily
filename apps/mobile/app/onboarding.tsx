@@ -1,0 +1,103 @@
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import DailyNative from '../modules/daily-native';
+import { getDb } from '../src/db/expoDb';
+import { getNumber, setSetting } from '../src/db/settings';
+import { Sunny } from '../src/sunny/Sunny';
+import { C, F } from '../src/theme';
+import { GoalStepper } from '../src/ui/GoalStepper';
+import { Icon } from '../src/ui/icons';
+import { rise } from '../src/ui/motion';
+
+const STEPS = 3;
+
+export default function Onboarding() {
+  const insets = useSafeAreaInsets();
+  const [step, setStep] = useState(0);
+  const [goal, setGoal] = useState(() => getNumber(getDb(), 'goal_min'));
+
+  // Coming back from Android Settings with access granted moves on by itself.
+  useEffect(() => {
+    if (step !== 1) return;
+    const sub = AppState.addEventListener('change', (s) => { if (s === 'active' && DailyNative.hasUsageAccess()) setStep(2); });
+    return () => sub.remove();
+  }, [step]);
+
+  const finish = () => {
+    const db = getDb();
+    setSetting(db, 'goal_min', goal);
+    setSetting(db, 'onboarded', '1');
+    router.replace('/');
+  };
+
+  return (
+    <View style={[s.root, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }]}>
+      <View style={s.steps}>
+        {Array.from({ length: STEPS }, (_, i) => <View key={i} style={[s.bar, i === step && { backgroundColor: C.ink }]} />)}
+        <Text style={s.stepText}>Step {step + 1} of {STEPS}</Text>
+      </View>
+
+      <Animated.View key={step} entering={rise(0)} style={{ flex: 1 }}>
+        {step === 0 && (
+          <View style={s.body}>
+            <View style={s.hero}><Sunny face="glowing" size={170} /></View>
+            <Text style={s.h1}>Meet Sunny</Text>
+            <Text style={s.p}>Sunny glows when your phone time stays low and dims as it climbs past your goal. Daily keeps everything on this phone.</Text>
+          </View>
+        )}
+        {step === 1 && (
+          <View style={s.body}>
+            <View style={[s.hero, { backgroundColor: '#D8D2FC' }]}><Sunny face="happy" size={120} /></View>
+            <Text style={s.h1}>Let Daily see which apps you use</Text>
+            <Text style={s.p}>Android asks once. Turn on Daily on the next screen, then come back.</Text>
+            <View style={s.point}><View style={s.pointIco}><Icon name="lock" size={15} /></View><Text style={s.pointText}>Stays on this phone. No account, no cloud copy.</Text></View>
+            <View style={s.point}><View style={s.pointIco}><Icon name="eyeOff" size={15} /></View><Text style={s.pointText}>Only app names and minutes. Never your messages, photos or screen.</Text></View>
+          </View>
+        )}
+        {step === 2 && (
+          <View style={s.body}>
+            <Text style={s.h1}>Pick a daily phone goal</Text>
+            <Text style={s.p}>Sunny stays happy under half of it and starts to fade once you pass it. You can change it any time.</Text>
+            <View style={{ alignItems: 'center', marginTop: 28 }}><GoalStepper value={goal} onChange={setGoal} /></View>
+          </View>
+        )}
+      </Animated.View>
+
+      <View style={{ gap: 8 }}>
+        {step === 0 && <Primary label="Get started" onPress={() => setStep(1)} />}
+        {step === 1 && (
+          <>
+            <Primary label="Open settings" onPress={() => DailyNative.openUsageAccessSettings()} />
+            <Pressable onPress={() => setStep(2)} style={s.secondary}><Text style={s.secondaryText}>Not now, just reminders</Text></Pressable>
+          </>
+        )}
+        {step === 2 && <Primary label="Start Daily" onPress={finish} />}
+      </View>
+    </View>
+  );
+}
+
+function Primary({ label, onPress }: { label: string; onPress: () => void }) {
+  return <Pressable onPress={onPress} style={s.primary}><Text style={s.primaryText}>{label}</Text></Pressable>;
+}
+
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: C.bg, paddingHorizontal: 24 },
+  steps: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  bar: { width: 22, height: 6, borderRadius: 9, backgroundColor: '#D8CFC7' },
+  stepText: { marginLeft: 'auto', fontFamily: F.regular, fontSize: 12, color: C.muted },
+  body: { flex: 1, paddingTop: 28 },
+  hero: { backgroundColor: '#FFEFD4', borderRadius: 28, alignItems: 'center', justifyContent: 'center', paddingVertical: 26, marginBottom: 22 },
+  h1: { fontFamily: F.medium, fontSize: 30, lineHeight: 33, letterSpacing: -0.6, color: C.ink, marginBottom: 10 },
+  p: { fontFamily: F.regular, fontSize: 15, lineHeight: 22, color: C.body, marginBottom: 16 },
+  point: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginBottom: 12 },
+  pointIco: { width: 30, height: 30, borderRadius: 15, backgroundColor: C.white, alignItems: 'center', justifyContent: 'center' },
+  pointText: { flex: 1, fontFamily: F.regular, fontSize: 14, lineHeight: 20, color: C.ink },
+  primary: { minHeight: 54, borderRadius: 999, backgroundColor: C.ink, alignItems: 'center', justifyContent: 'center' },
+  primaryText: { fontFamily: F.semi, fontSize: 16, color: C.white },
+  secondary: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },
+  secondaryText: { fontFamily: F.medium, fontSize: 14, color: C.body }
+});

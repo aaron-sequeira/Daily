@@ -1,11 +1,13 @@
 import { DMSans_400Regular, DMSans_500Medium, DMSans_600SemiBold, useFonts } from '@expo-google-fonts/dm-sans';
 import { File, Paths } from 'expo-file-system';
-import { Stack } from 'expo-router';
+import { Redirect, Stack, useSegments } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import * as SplashScreen from 'expo-splash-screen';
 import { deleteDatabaseSync } from 'expo-sqlite';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { DB_NAME, getDb } from '../src/db/expoDb';
+import { getSetting } from '../src/db/settings';
 import { registerSyncTask } from '../src/tracking/backgroundTask';
 import { C } from '../src/theme';
 import { FatalScreen } from '../src/ui/FatalScreen';
@@ -35,5 +37,17 @@ export default function RootLayout() {
       />
     );
   }
-  return <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.bg } }} />;
+  return <Gate />;
+}
+
+function Gate() {
+  const segments = useSegments();
+  const onboarded = getSetting(getDb(), 'onboarded') === '1';
+  if (!onboarded && segments[0] !== 'onboarding') return <Redirect href="/onboarding" />;
+  return (
+    <>
+      <StatusBar style="dark" />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.bg } }} />
+    </>
+  );
 }
