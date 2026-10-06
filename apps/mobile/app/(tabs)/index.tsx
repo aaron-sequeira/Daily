@@ -36,7 +36,7 @@ export default function Today() {
           <Text style={s.statusText}>{access ? 'Tracking' : 'Paused'}</Text>
         </View>
         <Link href="/settings" asChild>
-          <Pressable accessibilityLabel="Settings" style={s.round}><Icon name="gear" size={19} /></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Settings" style={s.round}><Icon name="gear" size={19} /></Pressable>
         </Link>
       </Animated.View>
 
@@ -49,7 +49,7 @@ export default function Today() {
         <Animated.View entering={rise(3)} style={s.banner}>
           <Text style={s.bannerTitle}>Turn on usage access</Text>
           <Text style={s.bannerBody}>Daily needs it to see which apps you use. Only app names and minutes, kept on this phone.</Text>
-          <Pressable onPress={() => DailyNative.openUsageAccessSettings()} style={s.bannerBtn}><Text style={s.bannerBtnText}>Open settings</Text></Pressable>
+          <Pressable onPress={() => DailyNative.openUsageAccessSettings()} accessibilityRole="button" accessibilityLabel="Open usage access settings" style={s.bannerBtn}><Text style={s.bannerBtnText}>Open settings</Text></Pressable>
         </Animated.View>
       )}
 

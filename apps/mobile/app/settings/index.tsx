@@ -24,8 +24,12 @@ export default function Settings() {
   const changeGoal = (min: number) => { setGoal(min); setSetting(db, 'goal_min', min); };
   const cycleRetention = () => {
     const next = RETENTION_CHOICES[(RETENTION_CHOICES.indexOf(retention as (typeof RETENTION_CHOICES)[number]) + 1) % RETENTION_CHOICES.length];
-    setRetention(next);
-    setSetting(db, 'retention_days', next);
+    const apply = () => { setRetention(next); setSetting(db, 'retention_days', next); };
+    if (next >= retention) { apply(); return; }
+    Alert.alert(`Keep only ${next} days?`, `History older than ${next} days will be deleted the next time Daily updates.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: `Keep ${next} days`, style: 'destructive', onPress: apply }
+    ]);
   };
   const exportData = async () => {
     const file = new File(Paths.cache, 'daily-export.json');
@@ -49,7 +53,7 @@ export default function Settings() {
   return (
     <ScrollView style={{ backgroundColor: C.bg }} contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: insets.bottom + 24 }}>
       <Animated.View entering={rise(0)} style={s.head}>
-        <Pressable onPress={() => router.back()} accessibilityLabel="Back to Today" style={s.round}><Icon name="back" size={18} /></Pressable>
+        <Pressable accessibilityRole="button" onPress={() => router.back()} accessibilityLabel="Back to Today" style={s.round}><Icon name="back" size={18} /></Pressable>
         <Text style={s.h1}>Settings</Text>
       </Animated.View>
 
@@ -62,16 +66,16 @@ export default function Settings() {
       </Group>
 
       <Group i={2} label="Privacy">
-        <Link href="/settings/categories" asChild><Pressable style={s.row}><Text style={s.rowText}>App categories</Text><Text style={s.value}>Edit</Text></Pressable></Link>
-        <Pressable onPress={cycleRetention} style={s.row}><Text style={s.rowText}>Keep history for</Text><Text style={s.value}>{retention} days</Text></Pressable>
-        <Pressable onPress={exportData} style={s.row}><Text style={s.rowText}>Export my data</Text></Pressable>
-        <Pressable onPress={confirmDelete} style={s.row}><Text style={[s.rowText, { color: C.danger }]}>Delete everything</Text></Pressable>
+        <Link href="/settings/categories" asChild><Pressable accessibilityRole="button" style={s.row}><Text style={s.rowText}>App categories</Text><Text style={s.value}>Edit</Text></Pressable></Link>
+        <Pressable accessibilityRole="button" onPress={cycleRetention} style={s.row}><Text style={s.rowText}>Keep history for</Text><Text style={s.value}>{retention} days</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={exportData} style={s.row}><Text style={s.rowText}>Export my data</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={confirmDelete} style={s.row}><Text style={[s.rowText, { color: C.danger }]}>Delete everything</Text></Pressable>
       </Group>
 
       {__DEV__ && (
         <Group i={3} label="Developer">
-          <Pressable onPress={() => { seedSampleDay(db, Date.now()); router.back(); }} style={s.row}><Text style={s.rowText}>Seed a sample day</Text></Pressable>
-          <Link href="/dev/sunny" asChild><Pressable style={s.row}><Text style={s.rowText}>Sunny gallery</Text></Pressable></Link>
+          <Pressable accessibilityRole="button" onPress={() => { seedSampleDay(db, Date.now()); router.back(); }} style={s.row}><Text style={s.rowText}>Seed a sample day</Text></Pressable>
+          <Link href="/dev/sunny" asChild><Pressable accessibilityRole="button" style={s.row}><Text style={s.rowText}>Sunny gallery</Text></Pressable></Link>
         </Group>
       )}
 

@@ -1,3 +1,4 @@
+import { Redirect } from 'expo-router';
 import { ScrollView, Text, View } from 'react-native';
 import { Sunny } from '../../src/sunny/Sunny';
 import type { SunnyFace } from '../../src/sunny/look';
@@ -6,6 +7,7 @@ import { C, F } from '../../src/theme';
 const FACES: SunnyFace[] = ['glowing', 'happy', 'alright', 'fading', 'sad', 'unknown'];
 
 export default function SunnyGallery() {
+  if (!__DEV__) return <Redirect href="/" />;
   return (
     <ScrollView style={{ backgroundColor: C.bg }} contentContainerStyle={{ padding: 20, gap: 18 }}>
       {FACES.map((f) => (
