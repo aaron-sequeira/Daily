@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeTestDb } from '../db/testDb';
 import { deleteEverything } from '../settings/data';
 import { FakeNotifier } from './fakeNotifier';
 import { listReminders, saveReminder, setEnabled } from './store';
-import { tickReminders } from './tick';
+import { resetArmedForTests, tickReminders } from './tick';
 
 const at = (h: number, m = 0, d = 6) => new Date(2026, 9, d, h, m).getTime();
 
@@ -15,6 +15,19 @@ async function setup() {
 }
 
 describe('tickReminders', () => {
+  beforeEach(() => resetArmedForTests());
+  afterEach(() => vi.restoreAllMocks());
+
+  it('re-arms the plan once in a new process even though the plan is unchanged (force-stop cancels alarms)', async () => {
+    const { db, n, byName } = await setup();
+    expect((await tickReminders(db, n, at(10))).replanned).toBe(true);
+    expect((await tickReminders(db, n, at(10, 1))).replanned).toBe(false);
+    n.scheduled.clear(); // what a force-stop does to the real alarms
+    resetArmedForTests();
+    expect((await tickReminders(db, n, at(10, 2))).replanned).toBe(true);
+    expect(n.scheduled.has(`rem-${byName('lunch').id}-2026-10-06`)).toBe(true);
+  });
+
   it('schedules the 7-day clock plan once and leaves it alone while unchanged', async () => {
     const { db, n, byName } = await setup();
     const first = await tickReminders(db, n, at(10));
@@ -80,10 +93,11 @@ describe('tickReminders', () => {
   it('handles scheduleAt rejection gracefully: replanned stays false, due reminder still fires', async () => {
     const { db, n, byName } = await setup();
     db.run("INSERT INTO sessions (package, start_ms, end_ms, day) VALUES ('com.a', ?, ?, '2026-10-06')", [at(9), at(10, 5)]);
-    const originalScheduleAt = n.scheduleAt.bind(n);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     n.scheduleAt = async () => { throw new Error('scheduling failed'); };
     const result = await tickReminders(db, n, at(10, 10));
     expect(result.replanned).toBe(false);
+    expect(warn).toHaveBeenCalled();
     expect(result.fired).toEqual([byName('water').id]);
     expect(n.shown.map((s) => s.content.category)).toEqual(['water']);
   });
@@ -91,6 +105,7 @@ describe('tickReminders', () => {
   it('handles showNow rejection: reminder not marked fired, can retry next tick', async () => {
     const { db, n, byName } = await setup();
     db.run("INSERT INTO sessions (package, start_ms, end_ms, day) VALUES ('com.a', ?, ?, '2026-10-06')", [at(9), at(10, 5)]);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     let shouldFail = true;
     const originalShowNow = n.showNow.bind(n);
     n.showNow = async (...args) => {
@@ -102,6 +117,7 @@ describe('tickReminders', () => {
     };
     const first = await tickReminders(db, n, at(10, 10));
     expect(first.fired).toEqual([]);
+    expect(warn).toHaveBeenCalled();
     expect(n.shown).toEqual([]);
     const second = await tickReminders(db, n, at(10, 11));
     expect(second.fired).toEqual([byName('water').id]);
