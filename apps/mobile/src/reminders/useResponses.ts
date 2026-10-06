@@ -1,0 +1,25 @@
+import * as Notifications from 'expo-notifications';
+import { router } from 'expo-router';
+import { useEffect } from 'react';
+import { getDb } from '../db/expoDb';
+import { fromResponse, handleReminderAction } from './actions';
+import { applyReminders } from './apply';
+import { expoNotifier } from './expoNotifier';
+
+/** Taps that reach the running app (and the one that cold-started it). handleReminderAction remembers the last
+ * response, so a re-render or an app restart never handles the same tap twice. */
+export function useReminderResponses(): void {
+  const response = Notifications.useLastNotificationResponse();
+  useEffect(() => {
+    if (!response) return;
+    const a = fromResponse(response);
+    if (!a) return;
+    handleReminderAction(getDb(), expoNotifier, a, Date.now())
+      .then((open) => {
+        if (open?.route === '/break') router.push({ pathname: '/break', params: { id: String(open.reminderId) } });
+        else if (open?.route === '/reminders') router.push('/reminders');
+        return applyReminders();
+      })
+      .catch((e) => console.warn('daily: reminder action failed', e));
+  }, [response]);
+}

@@ -8,6 +8,9 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { DB_NAME, getDb } from '../src/db/expoDb';
 import { getSetting } from '../src/db/settings';
+import { setupNotifications } from '../src/reminders/expoNotifier';
+import { registerResponseTask } from '../src/reminders/responseTask';
+import { useReminderResponses } from '../src/reminders/useResponses';
 import { registerSyncTask } from '../src/tracking/backgroundTask';
 import { C } from '../src/theme';
 import { FatalScreen } from '../src/ui/FatalScreen';
@@ -23,7 +26,11 @@ export default function RootLayout() {
   const [dbError, setDbError] = useState<string | null>(openDb);
 
   useEffect(() => { if (fontsLoaded) SplashScreen.hideAsync(); }, [fontsLoaded]);
-  useEffect(() => { if (!dbError) registerSyncTask().catch(() => {}); }, [dbError]);
+  useEffect(() => {
+    if (dbError) return;
+    registerSyncTask().catch(() => {});
+    setupNotifications().then(registerResponseTask).catch((e) => console.warn('daily: notification setup failed', e));
+  }, [dbError]);
 
   if (!fontsLoaded) return null;
   if (dbError) {
@@ -41,13 +48,16 @@ export default function RootLayout() {
 }
 
 function Gate() {
+  useReminderResponses();
   const segments = useSegments();
   const onboarded = getSetting(getDb(), 'onboarded') === '1';
   if (!onboarded && segments[0] !== 'onboarding') return <Redirect href="/onboarding" />;
   return (
     <>
       <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.bg } }} />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.bg } }}>
+        <Stack.Screen name="break" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
+      </Stack>
     </>
   );
 }

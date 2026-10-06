@@ -25,7 +25,8 @@
       "expo-sqlite",
       "expo-font",
       "expo-background-task",
-      "expo-sharing"
+      "expo-sharing",
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true

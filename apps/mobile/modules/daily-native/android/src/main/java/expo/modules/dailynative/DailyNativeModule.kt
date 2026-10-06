@@ -1,6 +1,7 @@
 package expo.modules.dailynative
 
 import android.Manifest
+import android.app.AlarmManager
 import android.app.AppOpsManager
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
@@ -10,6 +11,7 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.Drawable
+import android.net.Uri
 import android.os.Build
 import android.os.Process
 import android.provider.Settings
@@ -32,6 +34,20 @@ class DailyNativeModule : Module() {
 
     Function("openUsageAccessSettings") {
       context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+
+    Function("canScheduleExactAlarms") {
+      if (Build.VERSION.SDK_INT < 31) true
+      else (context.getSystemService(Context.ALARM_SERVICE) as AlarmManager).canScheduleExactAlarms()
+    }
+
+    Function("openExactAlarmSettings") {
+      if (Build.VERSION.SDK_INT >= 31) {
+        context.startActivity(
+          Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + context.packageName))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+      }
     }
 
     Function("defaultLauncher") {

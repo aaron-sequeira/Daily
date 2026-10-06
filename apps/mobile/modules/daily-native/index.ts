@@ -10,6 +10,8 @@ export type DailyNativeApi = {
   defaultLauncher(): string | null;
   queryEvents(fromMs: number, toMs: number): Promise<NativeEvent[]>;
   appInfo(packages: string[]): Promise<NativeAppInfo[]>;
+  canScheduleExactAlarms(): boolean;
+  openExactAlarmSettings(): void;
 };
 
 export default requireNativeModule<DailyNativeApi>('DailyNative');
