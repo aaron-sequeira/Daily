@@ -2,8 +2,8 @@ import initSqlJs from 'sql.js';
 import type { Db, Param } from './db';
 import { migrate } from './schema';
 
-/** In-memory migrated database for tests (sql.js — no native build needed). */
-export async function makeTestDb(): Promise<Db> {
+/** In-memory database without migrations (for upgrade tests). */
+export async function makeRawTestDb(): Promise<Db> {
   const SQL = await initSqlJs();
   const raw = new SQL.Database();
   const all = <T>(sql: string, params: Param[] = []): T[] => {
@@ -24,6 +24,12 @@ export async function makeTestDb(): Promise<Db> {
       try { fn(); raw.exec('COMMIT'); } catch (e) { raw.exec('ROLLBACK'); throw e; }
     }
   };
+  return db;
+}
+
+/** In-memory migrated database for tests (sql.js — no native build needed). */
+export async function makeTestDb(): Promise<Db> {
+  const db = await makeRawTestDb();
   migrate(db);
   return db;
 }

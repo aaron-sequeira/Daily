@@ -13,7 +13,7 @@ describe('settings data', () => {
     db.run("INSERT INTO apps (package, label, category, icon_png) VALUES ('com.a', 'A', 'fun', 'BIGICON')");
     setSetting(db, 'goal_min', 180);
     const out = JSON.parse(exportJson(db));
-    expect(Object.keys(out).sort()).toEqual(['apps', 'exportedAt', 'mood_log', 'pickups', 'sessions', 'settings']);
+    expect(Object.keys(out).sort()).toEqual(['apps', 'exportedAt', 'mood_log', 'pickups', 'reminder_state', 'reminders', 'sessions', 'settings', 'water_log']);
     expect(out.apps[0]).toEqual({ package: 'com.a', label: 'A', category: 'fun', user_category: null });
     expect(out.settings).toEqual([{ key: 'goal_min', value: '180' }]);
   });
@@ -24,7 +24,7 @@ describe('settings data', () => {
     setSetting(db, 'onboarded', '1');
     db.run('INSERT INTO ingest_state (id, last_event_ms, open_pkg, open_start_ms) VALUES (1, 5, ?, 6)', ['com.a']);
     deleteEverything(db, now);
-    for (const t of ['sessions', 'pickups', 'apps', 'mood_log', 'settings']) expect(db.all(`SELECT * FROM ${t}`)).toEqual([]);
+    for (const t of ['sessions', 'pickups', 'apps', 'mood_log', 'settings', 'reminders', 'reminder_state', 'water_log']) expect(db.all(`SELECT * FROM ${t}`)).toEqual([]);
     expect(db.all('SELECT * FROM ingest_state')).toEqual([{ id: 1, last_event_ms: now, open_pkg: null, open_start_ms: null }]);
     expect(getSetting(db, 'onboarded')).toBe('0');
   });

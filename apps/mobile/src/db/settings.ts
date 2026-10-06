@@ -3,7 +3,9 @@ import type { Db } from './db';
 export const DEFAULTS = {
   goal_min: '240',
   retention_days: '90',
-  onboarded: '0'
+  onboarded: '0',
+  clock_plan: '',
+  last_response: ''
 } as const;
 
 export type SettingKey = keyof typeof DEFAULTS;
