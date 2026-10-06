@@ -1,0 +1,22 @@
+[
+  { "min": 0, "goal": 240, "mood": "glowing" },
+  { "min": 119, "goal": 240, "mood": "glowing" },
+  { "min": 120, "goal": 240, "mood": "happy" },
+  { "min": 191, "goal": 240, "mood": "happy" },
+  { "min": 192, "goal": 240, "mood": "alright" },
+  { "min": 239, "goal": 240, "mood": "alright" },
+  { "min": 240, "goal": 240, "mood": "fading" },
+  { "min": 311, "goal": 240, "mood": "fading" },
+  { "min": 312, "goal": 240, "mood": "sad" },
+  { "min": 1000, "goal": 240, "mood": "sad" },
+  { "min": 29.9, "goal": 60, "mood": "glowing" },
+  { "min": 30, "goal": 60, "mood": "happy" },
+  { "min": 47.9, "goal": 60, "mood": "happy" },
+  { "min": 48, "goal": 60, "mood": "alright" },
+  { "min": 59.9, "goal": 60, "mood": "alright" },
+  { "min": 60, "goal": 60, "mood": "fading" },
+  { "min": 77.9, "goal": 60, "mood": "fading" },
+  { "min": 78, "goal": 60, "mood": "sad" },
+  { "min": 360, "goal": 720, "mood": "happy" },
+  { "min": 576, "goal": 720, "mood": "alright" }
+]
