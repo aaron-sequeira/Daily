@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { validateReminder, type Reminder } from '@worksight/core/reminders';
-import { breakLabel, BREAK_CHOICES, formFrom, stepMinutes, stepTime, toggleDay, toInput } from './form';
+import { breakLabel, BREAK_CHOICES, formFrom, nextUpLeft, nextUpWhen, stepMinutes, stepTime, toggleDay, toInput } from './form';
 
 describe('reminder form', () => {
   it('starts a new reminder as a valid-once-named phone-time nudge', () => {
@@ -32,5 +32,21 @@ describe('reminder form', () => {
 
   it('labels break lengths', () => {
     expect(BREAK_CHOICES.map(breakLabel)).toEqual(['No break', '30 s', '1 min', '5 min', '15 min', '30 min']);
+  });
+
+  it('words when the next clock reminder is due', () => {
+    const now = Date.parse('2026-10-06T04:30:00Z'); // Tue 10:00 in Asia/Kolkata
+    expect(nextUpWhen(now + 30_000, now)).toBe('now');
+    expect(nextUpWhen(now + 45 * 60_000, now)).toBe('in 45m');
+    expect(nextUpWhen(now + 125 * 60_000, now)).toBe('in 2h 5m');
+    const late = Date.parse('2026-10-06T17:30:00Z'); // Tue 23:00
+    expect(nextUpWhen(late + 90 * 60_000, late)).toBe('tomorrow');
+    expect(nextUpWhen(now + 3 * 24 * 60 * 60_000, now)).toBe('on Friday');
+  });
+
+  it('words the phone-time wait', () => {
+    expect(nextUpLeft(0)).toBe('due now');
+    expect(nextUpLeft(-5)).toBe('due now');
+    expect(nextUpLeft(60)).toBe('after 1h more of phone time');
   });
 });

@@ -1,4 +1,5 @@
 import { LIMITS, type Reminder, type ReminderInput } from '@worksight/core/reminders';
+import { formatDuration } from '../format';
 import { sceneKind, type MobileAnimation } from './defaults';
 
 export type Form = { name: string; message: string; animation: MobileAnimation; type: 'time' | 'interval'; time: string; days: number[]; minutes: number; breakSec: number };
@@ -42,4 +43,21 @@ export function toggleDay(days: number[], d: number): number[] {
 
 export function stepMinutes(min: number, delta: number): number {
   return Math.min(LIMITS.intervalMax, Math.max(LIMITS.intervalMin, min + delta));
+}
+
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const dayStart = (ms: number) => { const d = new Date(ms); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
+
+/** When the next clock reminder fires, in plain words, in the phone's local time. */
+export function nextUpWhen(atMs: number, nowMs: number): string {
+  const mins = Math.floor((atMs - nowMs) / 60_000);
+  if (mins < 1) return 'now';
+  const dayDiff = Math.round((dayStart(atMs) - dayStart(nowMs)) / 86_400_000);
+  if (dayDiff === 0) return `in ${formatDuration(mins)}`;
+  if (dayDiff === 1) return 'tomorrow';
+  return `on ${WEEKDAYS[new Date(atMs).getDay()]}`;
+}
+
+export function nextUpLeft(leftMin: number): string {
+  return leftMin <= 0 ? 'due now' : `after ${formatDuration(leftMin)} more of phone time`;
 }

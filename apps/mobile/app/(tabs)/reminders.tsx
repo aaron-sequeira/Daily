@@ -3,14 +3,14 @@ import { clock12, reminderSummary } from '@worksight/core/reminders';
 import * as Notifications from 'expo-notifications';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { AppState, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DailyNative from '../../modules/daily-native';
 import { getDb } from '../../src/db/expoDb';
-import { formatDuration } from '../../src/format';
 import { applyReminders } from '../../src/reminders/apply';
 import { ANIM_LOOK, sceneKind } from '../../src/reminders/defaults';
+import { nextUpLeft, nextUpWhen } from '../../src/reminders/form';
 import { nextUp, type NextUp } from '../../src/reminders/plan';
 import { getStates, listReminders, setEnabled, skipToday } from '../../src/reminders/store';
 import { C, F } from '../../src/theme';
@@ -30,12 +30,11 @@ function load(): ViewModel {
 
 function nextLine(n: NextUp): { title: string; sub: string } {
   if (n.kind === 'clock') {
-    const mins = Math.max(0, Math.round((n.atMs - Date.now()) / 60_000));
     const t = new Date(n.atMs);
     const hhmm = `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
-    return { title: `${n.reminder.name} at ${clock12(hhmm)}`, sub: mins < 24 * 60 ? `in ${formatDuration(mins)}` : 'later this week' };
+    return { title: `${n.reminder.name} at ${clock12(hhmm)}`, sub: nextUpWhen(n.atMs, Date.now()) };
   }
-  return { title: n.reminder.name, sub: n.leftMin === 0 ? 'due now' : `after ${formatDuration(n.leftMin)} more phone time` };
+  return { title: n.reminder.name, sub: nextUpLeft(n.leftMin) };
 }
 
 export default function RemindersTab() {
@@ -49,11 +48,15 @@ export default function RemindersTab() {
       setVm({ ...base, notifications: perm.granted });
     } catch (e) { console.warn('daily: loading reminders failed', e); }
   }, []);
-  useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
+  useFocusEffect(useCallback(() => {
+    refresh();
+    const sub = AppState.addEventListener('change', (st) => { if (st === 'active') refresh(); });
+    return () => sub.remove();
+  }, [refresh]));
 
   if (!vm) return <View style={{ flex: 1, backgroundColor: C.bg }} />;
-  const toggle = async (r: Reminder, on: boolean) => { setEnabled(getDb(), r.id, on); await applyReminders(); refresh(); };
-  const skip = async (r: Reminder) => { skipToday(getDb(), r.id, Date.now()); await applyReminders(); refresh(); };
+  const toggle = async (r: Reminder, on: boolean) => { try { setEnabled(getDb(), r.id, on); await applyReminders(); } catch (e) { console.warn('daily: toggling reminder failed', e); } finally { refresh(); } };
+  const skip = async (r: Reminder) => { try { skipToday(getDb(), r.id, Date.now()); await applyReminders(); } catch (e) { console.warn('daily: skipping reminder failed', e); } finally { refresh(); } };
   const builtins = vm.reminders.filter((r) => r.builtin);
   const mine = vm.reminders.filter((r) => !r.builtin);
   const clockOn = vm.reminders.some((r) => r.enabled && r.schedule.type === 'time');
@@ -70,7 +73,7 @@ export default function RemindersTab() {
             <Text style={s.rowSub}>{reminderSummary(r)}{r.breakSec ? ` · ${Math.round(r.breakSec / 60) || 1}-min break` : ' · just a nudge'}</Text>
           </View>
         </Pressable>
-        <Switch value={r.enabled} onValueChange={(on) => toggle(r, on)} accessibilityLabel={`${r.name} ${r.enabled ? 'on' : 'off'}`}
+        <Switch value={r.enabled} onValueChange={(on) => toggle(r, on)} accessibilityLabel={r.name}
           trackColor={{ false: C.line, true: C.ink }} thumbColor={C.white} />
       </Animated.View>
     );

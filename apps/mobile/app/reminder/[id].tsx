@@ -1,6 +1,6 @@
 import { clock12 } from '@worksight/core/reminders';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getDb } from '../../src/db/expoDb';
@@ -20,17 +20,24 @@ export default function ReminderEditor() {
   const existing = id === 'new' ? null : getReminder(getDb(), Number(id));
   const [f, setF] = useState<Form>(() => formFrom(existing));
   const [error, setError] = useState<string | null>(null);
-  const set = (patch: Partial<Form>) => setF((cur) => ({ ...cur, ...patch }));
+  const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const set = (patch: Partial<Form>) => { setError(null); setF((cur) => ({ ...cur, ...patch })); };
+  const guarded = async (fn: () => Promise<void>) => {
+    if (busyRef.current) return;
+    busyRef.current = true; setBusy(true);
+    try { await fn(); } finally { busyRef.current = false; setBusy(false); }
+  };
 
-  const save = async () => {
+  const save = () => guarded(async () => {
     const result = saveReminder(getDb(), toInput(f, existing?.id));
     if (!result.ok) { setError(result.error); return; }
     await applyReminders();
     router.back();
-  };
+  });
   const remove = () => Alert.alert('Delete this reminder?', undefined, [
     { text: 'Cancel', style: 'cancel' },
-    { text: 'Delete', style: 'destructive', onPress: async () => { deleteReminder(getDb(), existing!.id); await applyReminders(); router.back(); } }
+    { text: 'Delete', style: 'destructive', onPress: () => guarded(async () => { deleteReminder(getDb(), existing!.id); await applyReminders(); router.back(); }) }
   ]);
 
   const chip = (on: boolean) => [s.chip, on && { backgroundColor: C.ink }];
@@ -99,9 +106,9 @@ export default function ReminderEditor() {
       </View>
 
       {error && <Text style={s.error} accessibilityLiveRegion="assertive">{error}</Text>}
-      <Pressable onPress={save} accessibilityRole="button" style={s.primary}><Text style={s.primaryText}>Save</Text></Pressable>
+      <Pressable onPress={save} disabled={busy} accessibilityRole="button" accessibilityState={{ disabled: busy }} style={[s.primary, busy && { opacity: 0.5 }]}><Text style={s.primaryText}>Save</Text></Pressable>
       {existing && !existing.builtin && (
-        <Pressable onPress={remove} accessibilityRole="button" style={s.secondary}><Text style={[s.primaryText, { color: C.danger }]}>Delete</Text></Pressable>
+        <Pressable onPress={remove} disabled={busy} accessibilityRole="button" accessibilityState={{ disabled: busy }} style={[s.secondary, busy && { opacity: 0.5 }]}><Text style={[s.primaryText, { color: C.danger }]}>Delete</Text></Pressable>
       )}
     </ScrollView>
   );
@@ -114,7 +121,7 @@ const s = StyleSheet.create({
   label: { fontFamily: F.regular, fontSize: 13, color: C.muted, marginBottom: -6, marginLeft: 2 },
   input: { backgroundColor: C.white, borderRadius: 16, paddingHorizontal: 16, minHeight: 48, fontFamily: F.regular, fontSize: 15, color: C.ink },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { minHeight: 40, paddingHorizontal: 14, borderRadius: 999, backgroundColor: C.white, justifyContent: 'center' },
+  chip: { minHeight: 44, paddingHorizontal: 14, borderRadius: 999, backgroundColor: C.white, justifyContent: 'center' },
   chipText: { fontFamily: F.medium, fontSize: 13, color: C.ink },
   day: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.white, alignItems: 'center', justifyContent: 'center' },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 18, alignSelf: 'center' },
