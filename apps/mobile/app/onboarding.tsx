@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import * as Notifications from 'expo-notifications';
 import { useEffect, useState } from 'react';
 import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -6,13 +7,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DailyNative from '../modules/daily-native';
 import { getDb } from '../src/db/expoDb';
 import { getNumber, setSetting } from '../src/db/settings';
+import { applyReminders } from '../src/reminders/apply';
 import { Sunny } from '../src/sunny/Sunny';
 import { C, F } from '../src/theme';
 import { GoalStepper } from '../src/ui/GoalStepper';
 import { Icon } from '../src/ui/icons';
 import { rise } from '../src/ui/motion';
 
-const STEPS = 3;
+const STEPS = 4;
 
 export default function Onboarding() {
   const insets = useSafeAreaInsets();
@@ -26,10 +28,11 @@ export default function Onboarding() {
     return () => sub.remove();
   }, [step]);
 
-  const finish = () => {
+  const finish = async () => {
     const db = getDb();
     setSetting(db, 'goal_min', goal);
     setSetting(db, 'onboarded', '1');
+    await applyReminders();
     router.replace('/');
   };
 
@@ -64,6 +67,15 @@ export default function Onboarding() {
             <View style={{ alignItems: 'center', marginTop: 28 }}><GoalStepper value={goal} onChange={setGoal} /></View>
           </View>
         )}
+        {step === 3 && (
+          <View style={s.body}>
+            <View style={[s.hero, { backgroundColor: '#CFE6FB' }]}><Sunny face="happy" size={120} /></View>
+            <Text style={s.h1}>Reminders that look after you</Text>
+            <Text style={s.p}>Daily nudges you when it’s time for a break. You can change or turn off any of them.</Text>
+            <View style={s.point}><View style={s.pointIco}><Icon name="drop" size={15} /></View><Text style={s.pointText}>Water after every hour of phone time.</Text></View>
+            <View style={s.point}><View style={s.pointIco}><Icon name="cup" size={15} /></View><Text style={s.pointText}>Lunch at 1 pm and tea at 4 pm on weekdays.</Text></View>
+          </View>
+        )}
       </Animated.View>
 
       <View style={{ gap: 8 }}>
@@ -71,17 +83,23 @@ export default function Onboarding() {
         {step === 1 && (
           <>
             <Primary label="Open settings" onPress={() => DailyNative.openUsageAccessSettings()} />
-            <Pressable onPress={() => setStep(2)} style={s.secondary}><Text style={s.secondaryText}>Not now, just reminders</Text></Pressable>
+            <Pressable onPress={() => setStep(2)} accessibilityRole="button" style={s.secondary}><Text style={s.secondaryText}>Not now, just reminders</Text></Pressable>
           </>
         )}
-        {step === 2 && <Primary label="Start Daily" onPress={finish} />}
+        {step === 2 && <Primary label="Next" onPress={() => setStep(3)} />}
+        {step === 3 && (
+          <>
+            <Primary label="Turn on reminders" onPress={async () => { await Notifications.requestPermissionsAsync().catch(() => null); await finish(); }} />
+            <Pressable onPress={finish} accessibilityRole="button" style={s.secondary}><Text style={s.secondaryText}>Not now</Text></Pressable>
+          </>
+        )}
       </View>
     </View>
   );
 }
 
 function Primary({ label, onPress }: { label: string; onPress: () => void }) {
-  return <Pressable onPress={onPress} style={s.primary}><Text style={s.primaryText}>{label}</Text></Pressable>;
+  return <Pressable onPress={onPress} accessibilityRole="button" style={s.primary}><Text style={s.primaryText}>{label}</Text></Pressable>;
 }
 
 const s = StyleSheet.create({
