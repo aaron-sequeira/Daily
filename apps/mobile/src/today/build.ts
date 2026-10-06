@@ -56,7 +56,8 @@ export function buildToday(input: TodayInput): TodayView {
   }).sort((a, b) => b.minutes - a.minutes);
 
   const firstHour = spans.length ? Math.floor((Math.min(...spans.map((s) => s.start)) - dayStart) / HOUR) : 7;
-  const startH = Math.min(7, firstHour);
+  const nowHour = input.nowMs >= dayStart && input.nowMs < dayEnd ? Math.floor((input.nowMs - dayStart) / HOUR) : 24;
+  const startH = Math.min(7, firstHour, nowHour);
   const span = 24 - startH;
   const pct = (ms: number) => ((ms - dayStart) / HOUR - startH) / span * 100;
   const segments = spans.map((s) => ({ left: pct(s.start), width: ((s.end - s.start) / HOUR / span) * 100, category: categoryOf(s.pkg) }));

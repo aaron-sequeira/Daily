@@ -72,4 +72,10 @@ describe('buildToday', () => {
     expect(v.categories).toEqual([]);
     expect(v.mood).toBe('glowing');
   });
+
+  it('positions now at 0 on an empty day before 7am', () => {
+    const v = buildToday({ ...base, sessions: [], pickups: [], nowMs: at(3) });
+    expect(v.timeline.startH).toBe(3);
+    expect(v.timeline.nowAt).toBeCloseTo(0);
+  });
 });
