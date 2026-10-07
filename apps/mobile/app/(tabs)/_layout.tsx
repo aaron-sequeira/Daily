@@ -6,6 +6,7 @@ export default function TabsLayout() {
     <Tabs tabBar={(p) => <TabBar {...p} />} screenOptions={{ headerShown: false }}>
       <Tabs.Screen name="index" options={{ title: 'Today' }} />
       <Tabs.Screen name="report" options={{ title: 'Report' }} />
+      <Tabs.Screen name="week" options={{ title: 'Week' }} />
       <Tabs.Screen name="reminders" options={{ title: 'Reminders' }} />
     </Tabs>
   );
