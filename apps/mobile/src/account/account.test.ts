@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const auth = { getSession: vi.fn(), linkIdentity: vi.fn(), signInWithIdToken: vi.fn(), signOut: vi.fn() };
+const auth = { getSession: vi.fn(), linkIdentity: vi.fn(), signInWithIdToken: vi.fn(), signOut: vi.fn(), refreshSession: vi.fn() };
 const googleSignIn = vi.fn();
 const plusAfterUserChange = vi.fn();
 const ensureUserId = vi.fn();
@@ -31,6 +31,19 @@ describe('signInWithGoogle', () => {
     expect(auth.linkIdentity).toHaveBeenCalledWith(cred);
     expect(auth.signInWithIdToken).not.toHaveBeenCalled();
     expect(plusAfterUserChange).not.toHaveBeenCalled();
+  });
+
+  it('after linking, refreshes the session: the one the link returns lists the user without the new Google identity', async () => {
+    auth.linkIdentity.mockResolvedValue({ data: {}, error: null });
+    auth.refreshSession.mockResolvedValue({ data: {}, error: null });
+    expect(await signInWithGoogle()).toBe('linked');
+    expect(auth.refreshSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('a failed refresh after linking still counts as linked', async () => {
+    auth.linkIdentity.mockResolvedValue({ data: {}, error: null });
+    auth.refreshSession.mockResolvedValue({ data: {}, error: { name: 'AuthRetryableFetchError' } });
+    expect(await signInWithGoogle()).toBe('linked');
   });
 
   it('identity exists → switches to that user and moves Plus (restoring this phone’s purchase)', async () => {

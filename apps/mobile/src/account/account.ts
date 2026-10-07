@@ -40,7 +40,13 @@ export async function signInWithGoogle(): Promise<SignInResult> {
     // starts one), so that sign-up can't land after ours and overwrite the Google session.
     if (await ensureUserId()) {
       const { error } = await sb.auth.linkIdentity(cred);
-      if (!error) return 'linked';
+      if (!error) {
+        // The session the link returns describes the user as it was before the link (no Google identity, still
+        // anonymous), so account() would see no one. A refresh stores the user as it is now; if it fails, the next
+        // automatic refresh fixes it.
+        await sb.auth.refreshSession();
+        return 'linked';
+      }
       if (error.code !== 'identity_already_exists' && error.code !== 'email_exists') return failure(error);
     }
     const { error } = await sb.auth.signInWithIdToken(cred);
