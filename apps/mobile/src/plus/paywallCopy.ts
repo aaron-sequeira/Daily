@@ -17,3 +17,11 @@ export function finePrint(o: Offer | undefined): string {
 export function day7Label(o: Offer | undefined): string {
   return o ? `${o.priceString} ${per(o)} starts` : '';
 }
+
+export function reminderDayLabel(o: Offer | undefined): string {
+  return o?.trialDays ? `Day ${Math.max(1, o.trialDays - 2)}` : '';
+}
+
+export function endDayLabel(o: Offer | undefined): string {
+  return o?.trialDays ? `Day ${o.trialDays}` : '';
+}

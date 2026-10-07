@@ -8,7 +8,7 @@ import { getDb } from '../src/db/expoDb';
 import { purchaseMessage, savePercent, type Offer, type PlanId } from '../src/plus/billing';
 import { saveEntitlement } from '../src/plus/entitlement';
 import { getBilling } from '../src/plus/getBilling';
-import { ctaLabel, day7Label, finePrint } from '../src/plus/paywallCopy';
+import { ctaLabel, day7Label, endDayLabel, finePrint, reminderDayLabel } from '../src/plus/paywallCopy';
 import { expoNotifier } from '../src/reminders/expoNotifier';
 import { Sunny } from '../src/sunny/Sunny';
 import { C, F } from '../src/theme';
@@ -37,12 +37,22 @@ export default function Paywall() {
   const [loadFailed, setLoadFailed] = useState(false);
   const [plan, setPlan] = useState<PlanId>('yearly');
   const [buying, setBuying] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [note, setNote] = useState<string | null>(null);
   const busy = useRef(false);
 
   const load = useCallback(() => {
-    setLoadFailed(false);
-    getBilling().offers().then((o) => { setOffers(o); setLoadFailed(o.length === 0); }).catch(() => setLoadFailed(true));
+    setLoading(true);
+    getBilling().offers()
+      .then((o) => {
+        setOffers(o);
+        setLoadFailed(o.length === 0);
+        if (o.length && !o.some((x) => x.plan === plan)) setPlan(o[0].plan);
+      })
+      .catch(() => setLoadFailed(true))
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(load, [load]);
 
@@ -69,7 +79,7 @@ export default function Paywall() {
     try {
       const r = await getBilling().purchase(offer.plan);
       if (r.ok) {
-        await saveEntitlement(getDb(), r.ent, expoNotifier, Date.now());
+        try { await saveEntitlement(getDb(), r.ent, expoNotifier, Date.now()); } catch (e) { console.warn('daily: saving entitlement failed', e); }
         leave();
       } else if (!r.cancelled) setNote(r.message);
     } catch {
@@ -83,6 +93,7 @@ export default function Paywall() {
   async function restore() {
     if (busy.current) return;
     busy.current = true;
+    setRestoring(true);
     setNote(null);
     try {
       const ent = await getBilling().restore();
@@ -93,6 +104,7 @@ export default function Paywall() {
       setNote(purchaseMessage(null));
     } finally {
       busy.current = false;
+      setRestoring(false);
     }
   }
 
@@ -101,8 +113,8 @@ export default function Paywall() {
   return (
     <ScrollView style={s.root} contentContainerStyle={{ paddingTop: insets.top + 18, paddingBottom: insets.bottom + 20, paddingHorizontal: 20 }}>
       <Animated.View entering={rise(0)} style={s.top}>
-        <Pressable onPress={restore} accessibilityRole="button" style={s.restoreBtn}>
-          <Text style={[s.link, { color: C.ink, fontSize: 13 }]}>Restore</Text>
+        <Pressable onPress={restore} disabled={restoring || buying} accessibilityRole="button" style={s.restoreBtn}>
+          {restoring ? <ActivityIndicator size="small" color={C.ink} /> : <Text style={[s.link, { color: C.ink, fontSize: 13 }]}>Restore</Text>}
         </Pressable>
         <Pressable onPress={leave} accessibilityRole="button" accessibilityLabel="Close" style={s.close}>
           <Svg width={16} height={16} viewBox="0 0 24 24" fill="none"><Path d="M6 6l12 12M18 6 6 18" stroke={C.ink} strokeWidth={2.2} strokeLinecap="round" /></Svg>
@@ -117,7 +129,7 @@ export default function Paywall() {
         <Animated.View entering={FadeInDown.duration(800).delay(450)} style={s.storyChip}>
           <View style={s.storyInner}>
             <Text style={s.chipKicker}>YOUR DAY, WRITTEN</Text>
-            <Text style={s.chipBody}>A calmer day: <Text style={{ fontFamily: F.semi }}>2h 48m</Text>, 34m under your average.</Text>
+            <Text style={s.chipBody}>A calmer day: <Text style={{ fontFamily: F.semi }}>2h 48m</Text>, 34m under your average.</Text>
           </View>
         </Animated.View>
         <Animated.View entering={FadeInDown.duration(800).delay(600)} style={s.breakWrap}>
@@ -151,7 +163,7 @@ export default function Paywall() {
       </Animated.View>
 
       <Animated.View entering={rise(6)} style={s.plans} accessibilityRole="radiogroup">
-        <PlanCard name="Yearly" line={`${yearly?.perMonthString ?? ''} a month, billed once a year`.trim()} price={yearly?.priceString ?? ''} on={plan === 'yearly'} badge={save !== null ? `SAVE ${save}%` : null} onPress={() => setPlan('yearly')} />
+        <PlanCard name="Yearly" line={yearly?.perMonthString ? `${yearly.perMonthString} a month, billed once a year` : ''} price={yearly?.priceString ?? ''} on={plan === 'yearly'} badge={save !== null ? `SAVE ${save}%` : null} onPress={() => setPlan('yearly')} />
         <PlanCard name="Monthly" line="Billed every month" price={monthly?.priceString ?? ''} on={plan === 'monthly'} badge={null} onPress={() => setPlan('monthly')} />
       </Animated.View>
 
@@ -159,29 +171,31 @@ export default function Paywall() {
         <Animated.View entering={rise(8)} style={s.timeline}>
           <View style={s.tlLine} />
           <TimelineCol dot="done" title="Today" line="Everything unlocks" />
-          <TimelineCol dot="next" title="Day 5" line="We remind you" />
-          <TimelineCol dot="later" title="Day 7" line={day7Label(offer)} />
+          <TimelineCol dot="next" title={reminderDayLabel(offer)} line="We remind you" />
+          <TimelineCol dot="later" title={endDayLabel(offer)} line={day7Label(offer)} />
         </Animated.View>
       ) : null}
 
       {loadFailed ? (
         <View style={s.noteBox}>
           <Text style={s.note}>Couldn’t load prices. Check your connection.</Text>
-          <Pressable onPress={load} accessibilityRole="button" style={s.retry}><Text style={s.retryText}>Try again</Text></Pressable>
+          <Pressable onPress={load} disabled={loading} accessibilityRole="button" style={s.retry}>
+            {loading ? <ActivityIndicator size="small" color={C.ink} /> : <Text style={s.retryText}>Try again</Text>}
+          </Pressable>
         </View>
       ) : null}
       {note ? <Text style={[s.note, { marginTop: 12 }]}>{note}</Text> : null}
 
       <Animated.View entering={rise(9)} style={{ marginTop: 18 }}>
         <Animated.View pointerEvents="none" style={[s.ring, ringStyle]} />
-        <Pressable onPress={buy} disabled={!offer || buying} accessibilityRole="button" accessibilityState={{ disabled: !offer || buying }} style={[s.cta, (!offer || buying) && { opacity: 0.6 }]}>
-          {buying ? <ActivityIndicator color="#fff" /> : <Text style={s.ctaText}>{ctaLabel(offer)}</Text>}
+        <Pressable onPress={buy} disabled={!offer || buying || restoring} accessibilityRole="button" accessibilityState={{ disabled: !offer || buying || restoring }} style={[s.cta, (!offer || buying || restoring) && { opacity: 0.6 }]}>
+          {buying || restoring ? <ActivityIndicator color="#fff" /> : <Text style={s.ctaText}>{ctaLabel(offer)}</Text>}
         </Pressable>
       </Animated.View>
       <Animated.Text entering={rise(10)} style={s.fine}>{finePrint(offer)}</Animated.Text>
 
       <Animated.View entering={rise(11)} style={s.footer}>
-        <Pressable onPress={restore} accessibilityRole="button" style={s.footBtn}><Text style={s.link}>Restore purchases</Text></Pressable>
+        <Pressable onPress={restore} disabled={restoring || buying} accessibilityRole="button" style={s.footBtn}><Text style={s.link}>Restore purchases</Text></Pressable>
         <Text style={s.dotSep}>·</Text>
         <Pressable onPress={() => open(TERMS)} accessibilityRole="link" style={s.footBtn}><Text style={s.link}>Terms</Text></Pressable>
         <Text style={s.dotSep}>·</Text>
@@ -199,7 +213,7 @@ function PlanCard({ name, line, price, on, badge, onPress }: { name: string; lin
       </View>
       <View style={{ flex: 1 }}>
         <Text style={s.planName}>{name}</Text>
-        <Text style={s.planLine}>{line}</Text>
+        {line ? <Text style={s.planLine}>{line}</Text> : null}
       </View>
       <Text style={s.planPrice}>{price}</Text>
       {badge ? <Text style={s.save}>{badge}</Text> : null}
@@ -228,7 +242,7 @@ const s = StyleSheet.create({
   hero: { height: 172, marginTop: 2 },
   halo: { position: 'absolute', left: '50%', top: 10, width: 150, height: 150, marginLeft: -75, borderRadius: 75, backgroundColor: '#FFE9C2' },
   sunny: { position: 'absolute', left: '50%', top: 29, marginLeft: -56, width: 112, height: 112 },
-  storyChip: { position: 'absolute', right: -4, top: 16, width: 134 },
+  storyChip: { position: 'absolute', right: -4, top: 16, width: 140 },
   storyInner: { backgroundColor: '#D8D2FC', borderRadius: 16, paddingVertical: 10, paddingHorizontal: 11, transform: [{ rotate: '5deg' }], elevation: 3 },
   chipKicker: { fontFamily: F.semi, fontSize: 8.5, letterSpacing: 0.5, color: 'rgba(0,0,0,0.55)' },
   chipBody: { fontFamily: F.regular, fontSize: 11, lineHeight: 15, marginTop: 4, color: C.ink },
