@@ -55,7 +55,9 @@ export default function RemindersTab() {
   }, [refresh]));
 
   if (!vm) return <View style={{ flex: 1, backgroundColor: C.bg }} />;
-  const toggle = async (r: Reminder, on: boolean) => { try { setEnabled(getDb(), r.id, on); await applyReminders(); } catch (e) { console.warn('daily: toggling reminder failed', e); } finally { refresh(); } };
+  const toggle = async (r: Reminder, on: boolean) => {
+    setVm((cur) => cur && { ...cur, reminders: cur.reminders.map((x) => (x.id === r.id ? { ...x, enabled: on } : x)) });
+    try { setEnabled(getDb(), r.id, on); await applyReminders(); } catch (e) { console.warn('daily: toggling reminder failed', e); } finally { refresh(); } };
   const skip = async (r: Reminder) => { try { skipToday(getDb(), r.id, Date.now()); await applyReminders(); } catch (e) { console.warn('daily: skipping reminder failed', e); } finally { refresh(); } };
   const builtins = vm.reminders.filter((r) => r.builtin);
   const mine = vm.reminders.filter((r) => !r.builtin);
@@ -117,6 +119,11 @@ export default function RemindersTab() {
             <Text style={s.nextTitle}>{next.title}</Text>
             <Text style={s.nextKicker}>{next.sub}</Text>
           </View>
+          {vm.next.reminder.breakSec > 0 && (
+            <Pressable onPress={() => router.push({ pathname: '/break', params: { id: String(vm.next!.reminder.id) } })} accessibilityRole="button" accessibilityLabel={`Start a ${vm.next.reminder.name} break now`} style={s.skip}>
+              <Text style={s.skipText}>Break now</Text>
+            </Pressable>
+          )}
           {vm.next.kind === 'clock' && (
             <Pressable onPress={() => skip(vm.next!.reminder)} accessibilityRole="button" style={s.skip}><Text style={s.skipText}>Skip today</Text></Pressable>
           )}

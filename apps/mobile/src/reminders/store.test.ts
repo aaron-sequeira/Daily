@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { makeTestDb } from '../db/testDb';
 import { deleteEverything } from '../settings/data';
 import {
-  deleteReminder, getReminder, getStates, listReminders, logWater, markDone, markFired, saveReminder, setEnabled, skipToday, waterToday
+  deleteReminder, getReminder, getStates, listReminders, logWater, markDone, markFired, saveReminder, setEnabled, skipToday, turnOffBuiltins, waterToday
 } from './store';
 
 const at = (h: number, m = 0, d = 6) => new Date(2026, 9, d, h, m).getTime();
@@ -67,5 +67,14 @@ describe('reminder store', () => {
     saveReminder(db, custom);
     deleteEverything(db, at(12));
     expect(listReminders(db).map((r) => r.builtin)).toEqual(['water', 'lunch', 'tea', 'dinner']);
+  });
+
+  it('can switch all built-ins off (onboarding "Not now")', async () => {
+    const db = await makeTestDb();
+    saveReminder(db, custom);
+    turnOffBuiltins(db);
+    const all = listReminders(db);
+    expect(all.filter((r) => r.builtin).every((r) => !r.enabled)).toBe(true);
+    expect(all.find((r) => !r.builtin)!.enabled).toBe(true);
   });
 });

@@ -8,6 +8,7 @@ import DailyNative from '../modules/daily-native';
 import { getDb } from '../src/db/expoDb';
 import { getNumber, setSetting } from '../src/db/settings';
 import { applyReminders } from '../src/reminders/apply';
+import { turnOffBuiltins } from '../src/reminders/store';
 import { syncSunnyService } from '../src/sunny/service';
 import { Sunny } from '../src/sunny/Sunny';
 import { C, F } from '../src/theme';
@@ -104,7 +105,7 @@ export default function Onboarding() {
         {step === 3 && (
           <>
             <Primary label="Turn on reminders" disabled={busy} onPress={async () => { if (finishing.current) return; await Notifications.requestPermissionsAsync().catch(() => null); await finish(); }} />
-            <Pressable onPress={finish} disabled={busy} accessibilityRole="button" style={s.secondary}><Text style={s.secondaryText}>Not now</Text></Pressable>
+            <Pressable onPress={async () => { if (finishing.current) return; turnOffBuiltins(getDb()); await finish(); }} disabled={busy} accessibilityRole="button" style={s.secondary}><Text style={s.secondaryText}>Not now</Text></Pressable>
           </>
         )}
       </View>
