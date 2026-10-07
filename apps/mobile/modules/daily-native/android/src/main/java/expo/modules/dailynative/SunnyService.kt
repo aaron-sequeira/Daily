@@ -44,6 +44,7 @@ class SunnyService : Service() {
 
   override fun onDestroy() {
     handler.removeCallbacks(tick)
+    Bubble.hide(applicationContext)
     super.onDestroy()
   }
 

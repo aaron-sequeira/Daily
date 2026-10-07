@@ -17,6 +17,12 @@ export type DailyNativeApi = {
   stopSunnyService(): void;
   updateChip(title: string, short: string, text: string, mood: string): void;
   openBatterySettings(): void;
+  canDrawOverlays(): boolean;
+  openOverlaySettings(): void;
+  updateBubble(visible: boolean, mood: string): void;
+  showBubbleSpeech(title: string, body: string): void;
+  takeBubbleActions(): string[];
+  bubbleHiddenDay(): string | null;
 };
 
 export default requireNativeModule<DailyNativeApi>('DailyNative');

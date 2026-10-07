@@ -51,7 +51,7 @@ object Chip {
     }
   }
 
-  private fun moodImage(mood: String): Int = when (mood) {
+  internal fun moodImage(mood: String): Int = when (mood) {
     "glowing" -> R.drawable.sunny_glowing
     "happy" -> R.drawable.sunny_happy
     "alright" -> R.drawable.sunny_alright

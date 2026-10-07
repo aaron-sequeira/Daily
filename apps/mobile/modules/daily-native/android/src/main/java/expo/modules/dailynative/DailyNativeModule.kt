@@ -88,6 +88,27 @@ class DailyNativeModule : Module() {
       }
     }
 
+    Function("canDrawOverlays") { Settings.canDrawOverlays(context) }
+
+    Function("openOverlaySettings") {
+      try {
+        context.startActivity(
+          Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + context.packageName))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+      } catch (e: ActivityNotFoundException) {
+        context.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+      }
+    }
+
+    Function("updateBubble") { visible: Boolean, mood: String -> Bubble.update(context, visible, mood) }
+
+    Function("showBubbleSpeech") { title: String, body: String -> Bubble.speak(context, title, body) }
+
+    Function("takeBubbleActions") { Bubble.takeActions(context) }
+
+    Function("bubbleHiddenDay") { Bubble.hiddenDay(context) }
+
     AsyncFunction("queryEvents") { fromMs: Double, toMs: Double -> queryEvents(fromMs.toLong(), toMs.toLong()) }
 
     AsyncFunction("appInfo") { packages: List<String> -> packages.map { appInfo(it) } }
