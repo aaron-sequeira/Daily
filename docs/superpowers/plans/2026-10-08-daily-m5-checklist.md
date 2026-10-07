@@ -63,3 +63,18 @@
 - [ ] Rotate: with Daily in the background (not swiped away) and Floating Sunny on, open a landscape app (YouTube full-screen excluded, it hides the bubble; use Chrome or Photos) → the bubble stays on screen at an edge
 - [ ] Reboot with Floating Sunny on, don't open Daily → the bubble appears within a minute after unlocking
 - [ ] Still open from M2–M4: run those checklists on this build
+
+## D. Sign-in (Google)
+
+Setup, once:
+- [ ] Supabase → Authentication → Sign In / Providers: **Anonymous sign-ins** on; **Google** on with the Web client ID (`827080583200-0ncj…`, "Daily webAuth") and its client secret (typed in the dashboard, never in chat); "Skip nonce checks" off
+- [ ] Supabase → Authentication → Settings: **Allow manual linking** on (`linkIdentity` needs it)
+- [ ] Google Cloud: the Android OAuth client ("Daily", `2bgb…`) is for `com.aaronalex.daily` with SHA-1 `5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25` (debug.keystore, which also signs today's release builds)
+- [ ] After the first Play upload: add Play Console → App integrity → App signing key SHA-1 as a second Android OAuth client, or sign-in fails for Play-installed copies
+
+On the phone:
+- [ ] Fresh onboarding → step 5 "Keep Sunny with you" → Continue with Google → account sheet → "Signed in as …" → Today
+- [ ] Supabase `auth.users`: still one user for this phone, `is_anonymous = false`, with a Google identity
+- [ ] Settings shows photo, name, email; Sign out → confirm → "Sign in with Google" row; sign in again → same user
+- [ ] Skip for now → Today; Settings offers "Sign in with Google"
+- [ ] Reinstall → sign in with the same Google account → switched to the earlier user; Plus back after Restore
