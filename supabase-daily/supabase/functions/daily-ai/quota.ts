@@ -1,8 +1,9 @@
 import type { AiRequest } from './contract.ts';
 import { service, timeout, type Rest } from './supabase-rest.ts';
 
-/** Spec §11: 1 automatic report + 3 rewrites a day; 1 week sentence + 2 rewrites a week. */
-export const LIMITS = { auto: 1, rewrite: 3, weekAuto: 1, weekRewrite: 2 } as const;
+/** Spec §11: 1 automatic report + 3 rewrites a day; 1 week sentence + 2 rewrites a week. An automatic report gets a
+ * second slot, so a lost response or an outage day can't leave that day's story stuck on 'limit' (DAILY_CEILING still bounds it). */
+export const LIMITS = { auto: 2, rewrite: 3, weekAuto: 1, weekRewrite: 2 } as const;
 
 export type Quota = { use(userId: string, bucket: string, limit: number): Promise<'yes' | 'no' | 'error'>; refund(userId: string, bucket: string): Promise<void> };
 

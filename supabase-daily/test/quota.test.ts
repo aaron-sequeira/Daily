@@ -56,7 +56,8 @@ describe('quota', () => {
 
   it('keys buckets by the report day or week (spec §11 limits)', () => {
     const report = { ...(sample as never as { kind: 'report'; input: { day: string } }), mode: 'auto' as const };
-    expect(bucketFor(report as never, '2026-10-07')).toEqual({ bucket: 'report:2026-10-06', limit: LIMITS.auto });
+    expect(bucketFor(report as never, '2026-10-07')).toEqual({ bucket: 'report:2026-10-06', limit: 2 });
+    expect(LIMITS.auto).toBe(2); // a lost response or an outage day gets one more try; still under DAILY_CEILING
     expect(bucketFor({ ...report, mode: 'rewrite' } as never, '2026-10-07')).toEqual({ bucket: 'rewrite:2026-10-07', limit: LIMITS.rewrite });
     const week = { kind: 'week', mode: 'auto', input: { weekStart: '2026-09-28' } };
     expect(bucketFor(week as never, '2026-10-07')).toEqual({ bucket: 'week:2026-09-28', limit: LIMITS.weekAuto });

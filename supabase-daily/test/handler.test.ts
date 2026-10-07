@@ -80,7 +80,7 @@ describe('daily-ai handler (spec §11)', () => {
     expect(await json(await handle(post(sample), deps))).toEqual({ status: 429, body: { ok: false, error: 'limit' } });
     expect(fetchFn).not.toHaveBeenCalled();
     expect(quota.use).toHaveBeenNthCalledWith(1, 'u1', 'all:2026-10-07', DAILY_CEILING);
-    expect(quota.use).toHaveBeenNthCalledWith(2, 'u1', 'report:2026-10-06', 1);
+    expect(quota.use).toHaveBeenNthCalledWith(2, 'u1', 'report:2026-10-06', 2);
   });
 
   it('gives the slot back after failed or invalid, keeps it after success (Review Focus 3)', async () => {
@@ -142,7 +142,7 @@ describe('daily-ai handler (spec §11)', () => {
   it('refunds exactly once on a 502 and on the time-skip failed', async () => {
     const a = setup(new Error('down'));
     expect((await json(await handle(post(sample), a.deps))).status).toBe(502);
-    expect(a.quota.refund).toHaveBeenCalledTimes(1);
+    expect(a.quota.refund.mock.calls).toEqual([['u1', 'report:2026-10-06']]); // the per-type bucket only, never all:
     let t = T0;
     const invented = { ...good, headline: 'You spent 5 hours on your phone.' };
     const b = setup(answer(invented));
