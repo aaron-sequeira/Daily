@@ -85,7 +85,7 @@ describe('buildReportInput', () => {
     expect(input.moods).toHaveLength(12);
     expect(input.water).toBe(100);
     expect(Math.max(...input.hourly)).toBe(60);
-    const body = { kind: 'report', input };
+    const body = { kind: 'report', mode: 'rewrite', input };
     expect(parseRequest(body)).toEqual(body);
     expect(JSON.stringify(body).length).toBeLessThan(MAX_BODY_BYTES);
   });

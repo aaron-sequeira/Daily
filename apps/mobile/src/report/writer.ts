@@ -13,7 +13,7 @@ import { buildWeek, weekInput, type WeekInput } from './week';
 export type WriterDeps = {
   isPlus: boolean;
   notifier: Notifier;
-  aiReport(input: ReportInput): Promise<AiResult<ReportOut>>;
+  aiReport(input: ReportInput, mode: 'auto' | 'rewrite'): Promise<AiResult<ReportOut>>;
   aiWeek(input: WeekInput): Promise<AiResult<WeekOut>>;
   /** The clock at save time, after the AI answers. Without one, saves are stamped with the start time. */
   now?: () => number;
@@ -45,7 +45,7 @@ function compose(day: string, nowMs: number, input: ReportInput, ai: AiResult<Re
  * everything ran while the AI was writing. Whatever was saved meanwhile is merged, not overwritten. */
 export async function writeReport(db: Db, day: string, nowMs: number, deps: WriterDeps): Promise<StoredReport | null> {
   const input = buildReportInput(db, day, nowMs);
-  const ai = deps.isPlus ? await deps.aiReport(input) : null;
+  const ai = deps.isPlus ? await deps.aiReport(input, 'auto') : null;
   if (!stillOnboarded(db)) return null;
   const cur = loadReport(db, day);
   const fresh = { ...compose(day, nowMs, input, ai), createdMs: savedAt(deps, nowMs) };
@@ -60,7 +60,7 @@ export async function writeReport(db: Db, day: string, nowMs: number, deps: Writ
 /** "Rewrite" / "Write it now" (Plus). A new story replaces the report; if the AI can't, the report the user has stays (spec §13). */
 export async function rewriteReport(db: Db, day: string, nowMs: number, deps: WriterDeps): Promise<AiError | null> {
   const input = buildReportInput(db, day, nowMs);
-  const ai = await deps.aiReport(input);
+  const ai = await deps.aiReport(input, 'rewrite');
   if (!stillOnboarded(db)) return ai.ok ? null : ai.error;
   const cur = loadReport(db, day);
   if (ai.ok || !cur) {
@@ -75,7 +75,7 @@ export async function rewriteReport(db: Db, day: string, nowMs: number, deps: Wr
  * The draft is re-read after the AI answers, so ticks made meanwhile count. */
 async function rewriteDraft(db: Db, day: string, nowMs: number, deps: WriterDeps, draft: StoredReport): Promise<StoredReport | null> {
   const input = buildReportInput(db, day, nowMs);
-  const ai = deps.isPlus ? await deps.aiReport(input) : null;
+  const ai = deps.isPlus ? await deps.aiReport(input, 'auto') : null;
   if (!stillOnboarded(db)) return null;
   const cur = loadReport(db, day) ?? draft;
   const fresh = compose(day, nowMs, input, ai);

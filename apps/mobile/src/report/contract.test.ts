@@ -10,8 +10,8 @@ describe('app ↔ daily-ai contract', () => {
     const db = await makeTestDb();
     seedReportDay(db);
     const input = buildReportInput(db, '2026-10-06', at(10, 0, 7));
-    expect(parseRequest({ kind: 'report', input })).toEqual({ kind: 'report', input });
+    expect(parseRequest({ kind: 'report', mode: 'auto', input })).toEqual({ kind: 'report', mode: 'auto', input });
     const week = weekInput(buildWeek(db, '2026-10-05', at(10, 0, 7)))!;
-    expect(parseRequest({ kind: 'week', input: week })).toEqual({ kind: 'week', input: week });
+    expect(parseRequest({ kind: 'week', mode: 'auto', input: week })).toEqual({ kind: 'week', mode: 'auto', input: week });
   });
 });

@@ -21,7 +21,8 @@ export type ReportInput = {
   yesterdayPlan: { text: string; done: boolean }[];
 };
 export type WeekInput = { weekStart: string; avgMin: number; lastAvgMin: number | null; days: { day: string; phoneMin: number }[]; topApps: { name: string; minutes: number }[] };
-export type AiRequest = { kind: 'report'; input: ReportInput } | { kind: 'week'; input: WeekInput };
+export type Mode = 'auto' | 'rewrite';
+export type AiRequest = { kind: 'report'; mode: Mode; input: ReportInput } | { kind: 'week'; mode: Mode; input: WeekInput };
 export type ReportOut = { headline: string; story: string; tomorrow: string[] };
 export type WeekOut = { sentence: string };
 
@@ -73,8 +74,9 @@ function weekInput(raw: unknown): WeekInput {
 export function parseRequest(raw: unknown): AiRequest | null {
   try {
     const v = obj(raw);
-    if (v.kind === 'report') return { kind: 'report', input: reportInput(v.input) };
-    if (v.kind === 'week') return { kind: 'week', input: weekInput(v.input) };
+    const mode = oneOf(['auto', 'rewrite'] as const, v.mode);
+    if (v.kind === 'report') return { kind: 'report', mode, input: reportInput(v.input) };
+    if (v.kind === 'week') return { kind: 'week', mode, input: weekInput(v.input) };
     return null;
   } catch (e) {
     if (e instanceof Bad) return null;

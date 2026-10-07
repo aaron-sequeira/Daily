@@ -2,13 +2,21 @@ import { describe, expect, it } from 'vitest';
 import { parseRequest } from '../supabase/functions/daily-ai/contract.ts';
 import sample from './sample-request.json';
 
-const week = { kind: 'week', input: { weekStart: '2026-10-05', avgMin: 40, lastAvgMin: 90, days: [{ day: '2026-10-05', phoneMin: 60 }], topApps: [{ name: 'Instagram', minutes: 30 }] } };
+const week = { kind: 'week', mode: 'auto', input: { weekStart: '2026-10-05', avgMin: 40, lastAvgMin: 90, days: [{ day: '2026-10-05', phoneMin: 60 }], topApps: [{ name: 'Instagram', minutes: 30 }] } };
 const clone = () => JSON.parse(JSON.stringify(sample));
 
 describe('parseRequest (spec §11: names and numbers only)', () => {
   it('accepts a report and a week as they are', () => {
     expect(parseRequest(sample)).toEqual(sample);
     expect(parseRequest(week)).toEqual(week);
+  });
+
+  it('needs a mode: auto or rewrite', () => {
+    const r = JSON.parse(JSON.stringify(sample));
+    expect(parseRequest({ ...r, mode: 'rewrite' })).toMatchObject({ mode: 'rewrite' });
+    delete r.mode;
+    expect(parseRequest(r)).toBeNull();
+    expect(parseRequest({ ...sample, mode: 'free' })).toBeNull();
   });
 
   it('drops anything it does not know, so nothing free-form reaches the prompt', () => {

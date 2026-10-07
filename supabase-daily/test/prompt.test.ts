@@ -3,7 +3,7 @@ import { parseRequest } from '../supabase/functions/daily-ai/contract.ts';
 import { buildPrompt, REPORT_SCHEMA } from '../supabase/functions/daily-ai/prompt.ts';
 import sample from './sample-request.json';
 
-const week = { kind: 'week', input: { weekStart: '2026-09-28', avgMin: 40, lastAvgMin: 90, days: [{ day: '2026-09-28', phoneMin: 60 }], topApps: [{ name: 'Instagram', minutes: 30 }] } };
+const week = { kind: 'week', mode: 'auto', input: { weekStart: '2026-09-28', avgMin: 40, lastAvgMin: 90, days: [{ day: '2026-09-28', phoneMin: 60 }], topApps: [{ name: 'Instagram', minutes: 30 }] } };
 
 describe('buildPrompt', () => {
   it('sends the rules, the validated data and its durations, nothing else', () => {

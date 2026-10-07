@@ -13,7 +13,7 @@ const AI: ReportOut = { headline: 'AI headline', story: 'AI story.', tomorrow: [
 
 function deps(over: Partial<WriterDeps> = {}) {
   const notifier = new FakeNotifier();
-  const aiReport = vi.fn(async (): Promise<AiResult<ReportOut>> => ({ ok: true, json: AI }));
+  const aiReport = vi.fn(async (_input?: unknown, _mode?: 'auto' | 'rewrite'): Promise<AiResult<ReportOut>> => ({ ok: true, json: AI }));
   const aiWeek = vi.fn(async (): Promise<AiResult<WeekOut>> => ({ ok: true, json: { sentence: 'AI week.' } }));
   return { isPlus: false, notifier, aiReport, aiWeek, ...over } as WriterDeps & { notifier: FakeNotifier; aiReport: typeof aiReport; aiWeek: typeof aiWeek };
 }
@@ -28,6 +28,16 @@ const use = (d: Db, day: number, h: number, m: number, min: number) =>
   d.run('INSERT INTO sessions (package, start_ms, end_ms, day) VALUES (?, ?, ?, ?)', ['com.instagram.android', at(day, h, m), at(day, h, m) + min * 60_000, `2026-10-0${day}`]);
 
 describe('writeDueReports', () => {
+  it('asks for a rewrite only from Rewrite', async () => {
+    const d = await db();
+    use(d, 6, 12, 0, 42);
+    const dp = deps({ isPlus: true });
+    await writeDueReports(d, at(6, 21), dp, { retryFailed: false });
+    expect(dp.aiReport.mock.calls.at(-1)![1]).toBe('auto');
+    await rewriteReport(d, '2026-10-06', at(6, 21, 5), dp);
+    expect(dp.aiReport.mock.calls.at(-1)![1]).toBe('rewrite');
+  });
+
   it('waits for "Write it at", then writes today once and says so once', async () => {
     const d = await db();
     use(d, 6, 12, 0, 42);

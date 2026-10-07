@@ -50,10 +50,10 @@ const isReport = (j: unknown): j is ReportOut => {
 };
 const isWeek = (j: unknown): j is WeekOut => typeof (j as WeekOut | null)?.sentence === 'string';
 
-export function aiReport(cfg: AiConfig | null, input: ReportInput): Promise<AiResult<ReportOut>> {
-  return call(cfg, { kind: 'report', input }, isReport);
+export function aiReport(cfg: AiConfig | null, input: ReportInput, mode: 'auto' | 'rewrite'): Promise<AiResult<ReportOut>> {
+  return call(cfg, { kind: 'report', mode, input }, isReport);
 }
 
 export function aiWeek(cfg: AiConfig | null, input: WeekInput): Promise<AiResult<WeekOut>> {
-  return call(cfg, { kind: 'week', input }, isWeek);
+  return call(cfg, { kind: 'week', mode: 'auto', input }, isWeek);
 }

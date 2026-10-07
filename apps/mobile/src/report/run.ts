@@ -7,7 +7,7 @@ import { rewriteReport, writeDueReports, type WriterDeps } from './writer';
 
 export function liveDeps(): WriterDeps {
   const cfg = aiConfig();
-  return { isPlus: isPlus(getDb()), notifier: expoNotifier, aiReport: (i) => aiReport(cfg, i), aiWeek: (i) => aiWeek(cfg, i), now: () => Date.now() };
+  return { isPlus: isPlus(getDb()), notifier: expoNotifier, aiReport: (i, mode) => aiReport(cfg, i, mode), aiWeek: (i) => aiWeek(cfg, i), now: () => Date.now() };
 }
 
 let writing: Promise<unknown> | null = null;

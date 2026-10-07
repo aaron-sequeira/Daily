@@ -1,5 +1,6 @@
 {
   "kind": "report",
+  "mode": "auto",
   "input": {
     "day": "2026-10-06", "goalMin": 240, "phoneMin": 92, "pickups": 3,
     "apps": [

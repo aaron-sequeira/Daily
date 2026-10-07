@@ -96,7 +96,7 @@ describe('daily-ai handler (spec §11)', () => {
     const slow = (s: ReturnType<typeof setup>, ms: number): Deps => ({ ...s.deps, now: () => t, fetchFn: async (url, init) => { t += ms; return s.fetchFn(url, init); } });
 
     const a = setup(answer(invented), answer(good)); // 25 s for a bad answer: 5 s left, under the 6 s a retry needs
-    expect(await json(await handle(post(sample), slow(a, 25_000)))).toEqual({ status: 200, body: { ok: false, error: 'invalid' } });
+    expect(await json(await handle(post(sample), slow(a, 25_000)))).toEqual({ status: 200, body: { ok: false, error: 'failed' } });
     expect(a.fetchFn).toHaveBeenCalledTimes(1);
     expect(timeout).toHaveBeenLastCalledWith(25_000);
 
@@ -107,9 +107,25 @@ describe('daily-ai handler (spec §11)', () => {
     timeout.mockRestore();
   });
 
+  it('caps a streamed body without trusting content-length (Review Focus 2)', async () => {
+    const { deps, fetchFn } = setup();
+    const big = new ReadableStream({ start(c) { c.enqueue(new TextEncoder().encode('x'.repeat(40 * 1024))); c.close(); } });
+    const req = new Request('http://local/daily-ai', { method: 'POST', headers: { authorization: 'Bearer jwt' }, body: big, duplex: 'half' } as RequestInit);
+    expect(await json(await handle(req, deps))).toEqual({ status: 413, body: { ok: false, error: 'failed' } });
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it('says failed, not invalid, when there is no time left for the retry', async () => {
+    let t = 0;
+    const invented = { ...good, headline: 'You spent 5 hours on your phone.' };
+    const { deps, fetchFn } = setup(answer(invented));
+    fetchFn.mockImplementationOnce(async () => { t = 26_000; return answer(invented); });
+    expect((await json(await handle(post(sample), { ...deps, now: () => t }))).body).toEqual({ ok: false, error: 'failed' });
+  });
+
   it('writes the week sentence', async () => {
     const { deps } = setup(answer({ sentence: 'You averaged 40m a day, 50m less than last week.' }));
-    const week = { kind: 'week', input: { weekStart: '2026-10-05', avgMin: 40, lastAvgMin: 90, days: [{ day: '2026-10-05', phoneMin: 60 }], topApps: [{ name: 'Instagram', minutes: 30 }] } };
+    const week = { kind: 'week', mode: 'auto', input: { weekStart: '2026-10-05', avgMin: 40, lastAvgMin: 90, days: [{ day: '2026-10-05', phoneMin: 60 }], topApps: [{ name: 'Instagram', minutes: 30 }] } };
     expect((await json(await handle(post(week), deps))).body).toEqual({ ok: true, json: { sentence: 'You averaged 40m a day, 50m less than last week.' } });
   });
 });
