@@ -14,7 +14,7 @@ const ERRORS: readonly AiError[] = ['not_plus', 'limit', 'invalid', 'failed'];
  * function on Supabase. Neither: AI is unavailable and reports stay plain. */
 export function aiConfig(): AiConfig | null {
   const dev = process.env.EXPO_PUBLIC_DAILY_AI_URL ?? '';
-  if (dev) return { url: dev, token: async () => process.env.EXPO_PUBLIC_DAILY_AI_TOKEN ?? 'dev', apiKey: null, fetchFn: fetch, timeoutMs: 35_000 };
+  if (dev && __DEV__) return { url: dev, token: async () => process.env.EXPO_PUBLIC_DAILY_AI_TOKEN ?? 'dev', apiKey: null, fetchFn: fetch, timeoutMs: 35_000 };
   const base = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
   const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
   return base && anon ? { url: `${base}/functions/v1/daily-ai`, token: accessToken, apiKey: anon, fetchFn: fetch, timeoutMs: 35_000 } : null;

@@ -15,12 +15,14 @@ export function supabase(): SupabaseClient | null {
   return client;
 }
 
-/** Spec §11: an anonymous Supabase user, created once and kept. Null offline or without config; callers try again later. */
-export async function ensureUserId(): Promise<string | null> {
+let inflight: Promise<string | null> | null = null;
+
+async function resolveUserId(): Promise<string | null> {
   const sb = supabase();
   if (!sb) return null;
   try {
-    const { data } = await sb.auth.getSession();
+    const { data, error: readError } = await sb.auth.getSession();
+    if (readError) throw readError; // a failed refresh must not mint a new user and orphan the paid one
     if (data.session) return data.session.user.id;
     const { data: signed, error } = await sb.auth.signInAnonymously();
     if (error) throw error;
@@ -31,7 +33,14 @@ export async function ensureUserId(): Promise<string | null> {
   }
 }
 
+/** Spec §11: an anonymous Supabase user, created once and kept. Null offline or without config; callers try again later.
+ * Concurrent callers share one attempt, so a first launch can't create two users. */
+export function ensureUserId(): Promise<string | null> {
+  return (inflight ??= resolveUserId().finally(() => { inflight = null; }));
+}
+
 export async function accessToken(): Promise<string | null> {
   if (!(await ensureUserId())) return null;
-  return (await supabase()!.auth.getSession()).data.session?.access_token ?? null;
+  const { data, error } = await supabase()!.auth.getSession();
+  return error ? null : data.session?.access_token ?? null;
 }

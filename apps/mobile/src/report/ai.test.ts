@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../plus/supabase', () => ({ accessToken: async () => null }));
-import { aiReport, aiWeek, type AiConfig } from './ai';
+import { aiConfig, aiReport, aiWeek, type AiConfig } from './ai';
 import type { ReportInput } from './input';
 
 const input = { day: '2026-10-06' } as ReportInput;
@@ -65,5 +65,28 @@ describe('AI client', () => {
 
   it('returns the week sentence', async () => {
     expect(await aiWeek(cfg(ok({ ok: true, json: { sentence: 'Calmer.' } })), {} as never)).toEqual({ ok: true, json: { sentence: 'Calmer.' } });
+  });
+
+  describe('aiConfig', () => {
+    const keys = ['EXPO_PUBLIC_DAILY_AI_URL', 'EXPO_PUBLIC_SUPABASE_URL', 'EXPO_PUBLIC_SUPABASE_ANON_KEY'];
+    afterEach(() => { for (const k of keys) delete process.env[k]; vi.unstubAllGlobals(); });
+
+    it('uses the Supabase function with the anon key, and is null with no env', () => {
+      vi.stubGlobal('__DEV__', false);
+      expect(aiConfig()).toBeNull();
+      process.env.EXPO_PUBLIC_SUPABASE_URL = 'https://x.supabase.co';
+      process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = 'anon';
+      expect(aiConfig()).toMatchObject({ url: 'https://x.supabase.co/functions/v1/daily-ai', apiKey: 'anon' });
+    });
+
+    it('the dev server wins only in a dev build', async () => {
+      process.env.EXPO_PUBLIC_DAILY_AI_URL = 'http://10.0.2.2:8787';
+      process.env.EXPO_PUBLIC_SUPABASE_URL = 'https://x.supabase.co';
+      process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = 'anon';
+      vi.stubGlobal('__DEV__', true);
+      expect(aiConfig()).toMatchObject({ url: 'http://10.0.2.2:8787', apiKey: null });
+      vi.stubGlobal('__DEV__', false);
+      expect(aiConfig()).toMatchObject({ url: 'https://x.supabase.co/functions/v1/daily-ai' });
+    });
   });
 });
