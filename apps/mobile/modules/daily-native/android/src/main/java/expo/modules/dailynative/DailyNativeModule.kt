@@ -5,6 +5,7 @@ import android.app.AlarmManager
 import android.app.AppOpsManager
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -16,6 +17,7 @@ import android.os.Build
 import android.os.Process
 import android.provider.Settings
 import android.util.Base64
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import expo.modules.kotlin.exception.Exceptions
 import expo.modules.kotlin.modules.Module
@@ -64,6 +66,7 @@ class DailyNativeModule : Module() {
     Function("stopSunnyService") {
       Chip.setEnabled(context, false)
       context.stopService(Intent(context, SunnyService::class.java))
+      NotificationManagerCompat.from(context).cancel(Chip.ID)
     }
 
     Function("updateChip") { title: String, short: String, text: String, mood: String ->
@@ -71,7 +74,11 @@ class DailyNativeModule : Module() {
     }
 
     Function("openBatterySettings") {
-      context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+      try {
+        context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+      } catch (e: ActivityNotFoundException) {
+        context.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+      }
     }
 
     AsyncFunction("queryEvents") { fromMs: Double, toMs: Double -> queryEvents(fromMs.toLong(), toMs.toLong()) }

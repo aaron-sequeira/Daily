@@ -15,7 +15,7 @@ import androidx.core.app.NotificationManagerCompat
 /** The ongoing "status chip" notification. Its text comes from JS (the minute task); Kotlin only draws it. */
 object Chip {
   const val ID = 4747
-  const val CHANNEL = "sunny"
+  const val CHANNEL = "sunny_status"
   private const val PREFS = "daily_chip"
 
   data class Data(val title: String, val short: String, val text: String, val mood: String)
@@ -39,8 +39,13 @@ object Chip {
     if (Build.VERSION.SDK_INT >= 26) {
       val nm = context.getSystemService(NotificationManager::class.java)
       if (nm.getNotificationChannel(CHANNEL) == null) {
-        nm.createNotificationChannel(NotificationChannel(CHANNEL, "Sunny", NotificationManager.IMPORTANCE_LOW).apply { setShowBadge(false) })
+        nm.createNotificationChannel(NotificationChannel(CHANNEL, "Sunny", NotificationManager.IMPORTANCE_DEFAULT).apply {
+          setSound(null, null)
+          enableVibration(false)
+          setShowBadge(false)
+        })
       }
+      nm.deleteNotificationChannel("sunny")
     }
   }
 
@@ -65,6 +70,7 @@ object Chip {
       .setOngoing(true)
       .setOnlyAlertOnce(true)
       .setSilent(true)
+      .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
       .setShowWhen(false)
       .setCategory(NotificationCompat.CATEGORY_STATUS)
       .setContentIntent(open)
