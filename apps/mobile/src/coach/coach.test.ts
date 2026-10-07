@@ -54,4 +54,13 @@ describe('coachTick', () => {
     db.run('DELETE FROM apps');
     expect(await coachTick(db, new FakeNotifier(), at(20, 31))).toBeNull();
   });
+
+  it('speaks through the bubble instead of a notification when it is showing (spec §9.4)', async () => {
+    const db = await scrolling(at(20));
+    const n = new FakeNotifier();
+    const said: string[] = [];
+    expect(await coachTick(db, n, at(20, 31), false, (title) => said.push(title))).toBe('stretch');
+    expect(said).toEqual(['31 minutes on Instagram']);
+    expect(n.coach).toEqual([]);
+  });
 });

@@ -18,7 +18,7 @@ function openApp(db: Db): OpenApp | null {
 }
 
 /** Runs after each sync from the Sunny service's minute task: picks at most one nudge, shows it, remembers its key. */
-export async function coachTick(db: Db, notifier: Notifier, nowMs: number, inCall = false): Promise<NudgeKind | null> {
+export async function coachTick(db: Db, notifier: Notifier, nowMs: number, inCall = false, speak?: (title: string, body: string) => void): Promise<NudgeKind | null> {
   if (getSetting(db, 'onboarded') !== '1') return null;
   const nudge = planNudge({
     nowMs,
@@ -32,8 +32,11 @@ export async function coachTick(db: Db, notifier: Notifier, nowMs: number, inCal
     sentKeys: new Set(db.all<{ key: string }>('SELECT key FROM nudges WHERE ts_ms > ?', [nowMs - 2 * DAY_MS]).map((r) => r.key))
   });
   if (!nudge) return null;
-  if (!(await notifier.canNotify().catch(() => false))) return null;
-  await notifier.showCoach(`coach-${nudge.kind}`, nudge.title, nudge.body);
+  if (speak) speak(nudge.title, nudge.body);
+  else {
+    if (!(await notifier.canNotify().catch(() => false))) return null;
+    await notifier.showCoach(`coach-${nudge.kind}`, nudge.title, nudge.body);
+  }
   db.run('INSERT OR IGNORE INTO nudges (kind, key, ts_ms) VALUES (?, ?, ?)', [nudge.kind, nudge.key, nowMs]);
   return nudge.kind;
 }

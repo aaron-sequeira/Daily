@@ -11,6 +11,7 @@ import DailyNative from '../../modules/daily-native';
 import { getDb } from '../../src/db/expoDb';
 import { getNumber, getSetting, setSetting } from '../../src/db/settings';
 import { canStepWindDown, stepWindDown } from '../../src/coach/rules';
+import { isPlus } from '../../src/plus/plus';
 import { plusStatus } from '../../src/plus/status';
 import { canStepWriteTime, stepWriteTime } from '../../src/report/days';
 import { deleteEverything, exportJson, RETENTION_CHOICES, seedSampleDay } from '../../src/settings/data';
@@ -34,6 +35,22 @@ export default function Settings() {
     return () => sub.remove();
   }, []));
   const [sunny, setSunny] = useState(() => getSetting(db, 'sunny_service') === '1');
+  const [bubbleOn, setBubbleOn] = useState(() => getSetting(db, 'bubble') === '1');
+  const [noOverlay, setNoOverlay] = useState(false);
+  useFocusEffect(useCallback(() => {
+    const check = () => { try { setNoOverlay(!DailyNative.canDrawOverlays()); } catch { setNoOverlay(false); } };
+    check();
+    const sub = AppState.addEventListener('change', (st) => { if (st === 'active') check(); });
+    return () => sub.remove();
+  }, []));
+  const toggleBubble = (on: boolean) => {
+    if (on && !isPlus(db, Date.now())) { router.push('/paywall'); return; }
+    setBubbleOn(on); setSetting(db, 'bubble', on ? '1' : '0');
+    try {
+      if (on) { if (!DailyNative.canDrawOverlays()) DailyNative.openOverlaySettings(); }
+      else DailyNative.updateBubble(false, 'happy');
+    } catch (e) { console.warn('daily: bubble toggle failed', e); }
+  };
   const [writeAt, setWriteAt] = useState(() => getSetting(db, 'write_time'));
   const [plusDev, setPlusDev] = useState(() => getSetting(db, 'dev_plus') === '1');
   const [windDown, setWindDown] = useState(() => getSetting(db, 'wind_down'));
@@ -107,6 +124,21 @@ export default function Settings() {
           <View style={s.row}>
             <Text style={[s.rowText, { flex: 1 }]}>Notifications are off, so Sunny can't show in the status bar.</Text>
             <Pressable onPress={() => Linking.openSettings()} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center', paddingLeft: 12 }}>
+              <Text style={[s.rowText, { fontFamily: F.semi, textDecorationLine: 'underline' }]}>Allow</Text>
+            </Pressable>
+          </View>
+        )}
+        <View style={[s.row, !sunny && { opacity: 0.4 }]}>
+          <Text style={s.plusPill}>PLUS</Text>
+          <Text style={s.rowText}>Floating Sunny</Text>
+          {sunny ? (
+            <Switch value={bubbleOn} accessibilityLabel="Floating Sunny" trackColor={{ false: C.line, true: C.ink }} thumbColor={C.white} style={{ marginLeft: 'auto' }} onValueChange={toggleBubble} />
+          ) : <Text style={[s.value, { marginLeft: 'auto' }]}>Needs Sunny in the status bar</Text>}
+        </View>
+        {sunny && bubbleOn && noOverlay && (
+          <View style={s.row}>
+            <Text style={[s.rowText, { flex: 1 }]}>Daily needs “Display over other apps” to show Sunny.</Text>
+            <Pressable onPress={() => { try { DailyNative.openOverlaySettings(); } catch { /* ignore */ } }} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center', paddingLeft: 12 }}>
               <Text style={[s.rowText, { fontFamily: F.semi, textDecorationLine: 'underline' }]}>Allow</Text>
             </Pressable>
           </View>

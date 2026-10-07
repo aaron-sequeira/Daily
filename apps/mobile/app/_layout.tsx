@@ -65,7 +65,7 @@ function Gate() {
     refresh();
     supabase()?.auth.startAutoRefresh();
     const sub = AppState.addEventListener('change', (s) => {
-      if (s === 'active') { supabase()?.auth.startAutoRefresh(); syncSunnyService(getDb(), DailyNative); refresh(); }
+      if (s === 'active') { try { DailyNative.updateBubble(false, 'happy'); } catch { /* bubble is optional */ } supabase()?.auth.startAutoRefresh(); syncSunnyService(getDb(), DailyNative); refresh(); }
       else if (s === 'background') supabase()?.auth.stopAutoRefresh();
     });
     return () => sub.remove();

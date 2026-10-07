@@ -10,6 +10,7 @@ export const DEFAULTS = {
   coach_snooze_until: '0',
   coach_last_response: '',
   sunny_service: '1',
+  bubble: '0',
   exact_alarms: '',
   write_time: '21:00',
   dev_plus: '0',
