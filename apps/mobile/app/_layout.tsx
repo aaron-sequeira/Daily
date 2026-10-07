@@ -10,6 +10,7 @@ import { AppState } from 'react-native';
 import DailyNative from '../modules/daily-native';
 import { DB_NAME, getDb } from '../src/db/expoDb';
 import { getSetting } from '../src/db/settings';
+import { supabase } from '../src/plus/supabase';
 import { runReportWriter } from '../src/report/run';
 import { setupNotifications } from '../src/reminders/expoNotifier';
 import { registerResponseTask } from '../src/reminders/responseTask';
@@ -58,7 +59,11 @@ function Gate() {
   useEffect(() => {
     const refresh = () => { runSync().catch((e) => console.warn('daily: sync failed', e)).finally(() => { runReportWriter({ retryFailed: true }); }); };
     refresh();
-    const sub = AppState.addEventListener('change', (s) => { if (s === 'active') { syncSunnyService(getDb(), DailyNative); refresh(); } });
+    supabase()?.auth.startAutoRefresh();
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') { supabase()?.auth.startAutoRefresh(); syncSunnyService(getDb(), DailyNative); refresh(); }
+      else if (s === 'background') supabase()?.auth.stopAutoRefresh();
+    });
     return () => sub.remove();
   }, []);
   const segments = useSegments();

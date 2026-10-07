@@ -1,3 +1,4 @@
+import { accessToken } from '../plus/supabase';
 import type { ReportInput } from './input';
 import type { AiError } from './store';
 import type { WeekInput } from './week';
@@ -5,14 +6,18 @@ import type { WeekInput } from './week';
 export type ReportOut = { headline: string; story: string; tomorrow: string[] };
 export type WeekOut = { sentence: string };
 export type AiResult<T> = { ok: true; json: T } | { ok: false; error: AiError };
-export type AiConfig = { url: string; token: string; fetchFn: typeof fetch; timeoutMs: number };
+export type AiConfig = { url: string; token: () => Promise<string | null>; apiKey: string | null; fetchFn: typeof fetch; timeoutMs: number };
 
 const ERRORS: readonly AiError[] = ['not_plus', 'limit', 'invalid', 'failed'];
 
-/** From the build's environment (apps/mobile/.env, never committed). No URL: AI is unavailable, reports stay plain. */
+/** The local dev server (debug builds on the emulator) when EXPO_PUBLIC_DAILY_AI_URL is set; otherwise the deployed
+ * function on Supabase. Neither: AI is unavailable and reports stay plain. */
 export function aiConfig(): AiConfig | null {
-  const url = process.env.EXPO_PUBLIC_DAILY_AI_URL ?? '';
-  return url ? { url, token: process.env.EXPO_PUBLIC_DAILY_AI_TOKEN ?? '', fetchFn: fetch, timeoutMs: 35_000 } : null;
+  const dev = process.env.EXPO_PUBLIC_DAILY_AI_URL ?? '';
+  if (dev) return { url: dev, token: async () => process.env.EXPO_PUBLIC_DAILY_AI_TOKEN ?? 'dev', apiKey: null, fetchFn: fetch, timeoutMs: 35_000 };
+  const base = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
+  const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
+  return base && anon ? { url: `${base}/functions/v1/daily-ai`, token: accessToken, apiKey: anon, fetchFn: fetch, timeoutMs: 35_000 } : null;
 }
 
 async function call<T>(cfg: AiConfig | null, body: unknown, valid: (json: unknown) => json is T): Promise<AiResult<T>> {
@@ -25,9 +30,11 @@ async function call<T>(cfg: AiConfig | null, body: unknown, valid: (json: unknow
   });
   try {
     const request = async () => {
+      const token = await cfg.token();
+      if (!token) return { ok: false, error: 'failed' };
       const res = await cfg.fetchFn(cfg.url, {
         method: 'POST',
-        headers: { authorization: `Bearer ${cfg.token}`, 'content-type': 'application/json' },
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json', ...(cfg.apiKey ? { apikey: cfg.apiKey } : {}) },
         body: JSON.stringify(body),
         signal: abort.signal
       });

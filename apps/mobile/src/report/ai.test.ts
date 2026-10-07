@@ -1,11 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('../plus/supabase', () => ({ accessToken: async () => null }));
 import { aiReport, aiWeek, type AiConfig } from './ai';
 import type { ReportInput } from './input';
 
 const input = { day: '2026-10-06' } as ReportInput;
 const out = { headline: 'A calm day.', story: 'Quiet.', tomorrow: ['One', 'Two'] };
-const cfg = (reply: () => Promise<Response>): AiConfig & { fetchFn: ReturnType<typeof vi.fn> } =>
-  ({ url: 'http://10.0.2.2:8787', token: 'dev', timeoutMs: 1000, fetchFn: vi.fn(reply) }) as never;
+const cfg = (reply: () => Promise<Response>, token: string | null = 'jwt', apiKey: string | null = null): AiConfig & { fetchFn: ReturnType<typeof vi.fn> } =>
+  ({ url: 'http://10.0.2.2:8787', token: async () => token, apiKey, timeoutMs: 1000, fetchFn: vi.fn(reply) }) as never;
 const ok = (body: unknown) => async () => new Response(JSON.stringify(body));
 
 describe('AI client', () => {
@@ -16,7 +18,7 @@ describe('AI client', () => {
     expect(await aiReport(c, input, 'auto')).toEqual({ ok: true, json: out });
     const [url, init] = c.fetchFn.mock.calls[0];
     expect(url).toBe('http://10.0.2.2:8787');
-    expect(init.headers.authorization).toBe('Bearer dev');
+    expect(init.headers.authorization).toBe('Bearer jwt');
     expect(JSON.parse(init.body)).toEqual({ kind: 'report', mode: 'auto', input });
   });
 
@@ -50,6 +52,15 @@ describe('AI client', () => {
 
     expect(await aiReport(cfg(ok({ ok: true, json: out })), input, 'auto')).toEqual({ ok: true, json: out });
     expect(vi.getTimerCount()).toBe(0); // an answer clears it too
+  });
+
+  it('sends the Supabase apikey when there is one, and fails without a session', async () => {
+    const c = cfg(ok({ ok: true, json: out }), 'jwt', 'anon-key');
+    await aiReport(c, input, 'auto');
+    expect(c.fetchFn.mock.calls[0][1].headers).toMatchObject({ authorization: 'Bearer jwt', apikey: 'anon-key' });
+    const none = cfg(ok({ ok: true, json: out }), null);
+    expect(await aiReport(none, input, 'auto')).toEqual({ ok: false, error: 'failed' });
+    expect(none.fetchFn).not.toHaveBeenCalled();
   });
 
   it('returns the week sentence', async () => {

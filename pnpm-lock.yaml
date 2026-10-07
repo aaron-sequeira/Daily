@@ -158,6 +158,9 @@ importers:
       '@expo-google-fonts/dm-sans':
         specifier: ^0.4.2
         version: 0.4.2
+      '@supabase/supabase-js':
+        specifier: ^2.47.0
+        version: 2.108.2
       '@worksight/core':
         specifier: workspace:^
         version: link:../../packages/core

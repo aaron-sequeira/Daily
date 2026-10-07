@@ -4,6 +4,7 @@
   "main": "index.ts",
   "dependencies": {
     "@expo-google-fonts/dm-sans": "^0.4.2",
+    "@supabase/supabase-js": "^2.47.0",
     "@worksight/core": "workspace:^",
     "expo": "~57.0.26",
     "expo-background-task": "~57.0.21",
