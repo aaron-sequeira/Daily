@@ -23,6 +23,18 @@ describe('coach responses', () => {
     expect(n.dismissed).toEqual(['coach-stretch']);
   });
 
+  it('handles the same response only once, but a newer one still counts', async () => {
+    const db = await makeTestDb();
+    const n = new FakeNotifier();
+    await handleCoachResponse(db, n, response('coach-snooze'), 1_000);
+    await handleCoachResponse(db, n, response('coach-snooze'), 5_000_000); // replayed on app open
+    expect(getNumber(db, 'coach_snooze_until')).toBe(1_000 + COACH_SNOOZE_MS);
+    const later = response('coach-snooze');
+    later.notification.date = 2;
+    await handleCoachResponse(db, n, later, 5_000_000);
+    expect(getNumber(db, 'coach_snooze_until')).toBe(5_000_000 + COACH_SNOOZE_MS);
+  });
+
   it('a tap on the body changes nothing', async () => {
     const db = await makeTestDb();
     await handleCoachResponse(db, new FakeNotifier(), response('expo.modules.notifications.actions.DEFAULT'), 1_000);

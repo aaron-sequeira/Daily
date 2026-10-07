@@ -8,6 +8,7 @@ export const DEFAULTS = {
   last_response: '',
   wind_down: '23:00',
   coach_snooze_until: '0',
+  coach_last_response: '',
   sunny_service: '1',
   exact_alarms: ''
 } as const;
