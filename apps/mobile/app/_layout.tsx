@@ -7,11 +7,13 @@ import { deleteDatabaseSync } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
+import DailyNative from '../modules/daily-native';
 import { DB_NAME, getDb } from '../src/db/expoDb';
 import { getSetting } from '../src/db/settings';
 import { setupNotifications } from '../src/reminders/expoNotifier';
 import { registerResponseTask } from '../src/reminders/responseTask';
 import { useReminderResponses } from '../src/reminders/useResponses';
+import { syncSunnyService } from '../src/sunny/service';
 import { runSync } from '../src/tracking/runSync';
 import { registerSyncTask } from '../src/tracking/backgroundTask';
 import { C } from '../src/theme';
@@ -31,6 +33,7 @@ export default function RootLayout() {
   useEffect(() => {
     if (dbError) return;
     registerSyncTask().catch(() => {});
+    syncSunnyService(getDb(), DailyNative);
     setupNotifications().then(registerResponseTask).catch((e) => console.warn('daily: notification setup failed', e));
   }, [dbError]);
 
@@ -52,7 +55,7 @@ export default function RootLayout() {
 function Gate() {
   useReminderResponses();
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (s) => { if (s === 'active') runSync().catch((e) => console.warn('daily: sync failed', e)); });
+    const sub = AppState.addEventListener('change', (s) => { if (s === 'active') { syncSunnyService(getDb(), DailyNative); runSync().catch((e) => console.warn('daily: sync failed', e)); } });
     return () => sub.remove();
   }, []);
   const segments = useSegments();

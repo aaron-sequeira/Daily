@@ -1,13 +1,14 @@
 import { router } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { useEffect, useRef, useState } from 'react';
-import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AppState, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DailyNative from '../modules/daily-native';
 import { getDb } from '../src/db/expoDb';
 import { getNumber, setSetting } from '../src/db/settings';
 import { applyReminders } from '../src/reminders/apply';
+import { syncSunnyService } from '../src/sunny/service';
 import { Sunny } from '../src/sunny/Sunny';
 import { C, F } from '../src/theme';
 import { GoalStepper } from '../src/ui/GoalStepper';
@@ -21,6 +22,7 @@ export default function Onboarding() {
   const [step, setStep] = useState(0);
   const finishing = useRef(false);
   const [busy, setBusy] = useState(false);
+  const [showSunny, setShowSunny] = useState(true);
   const [goal, setGoal] = useState(() => getNumber(getDb(), 'goal_min'));
 
   // Coming back from Android Settings with access granted moves on by itself.
@@ -36,7 +38,9 @@ export default function Onboarding() {
     setBusy(true);
     const db = getDb();
     setSetting(db, 'goal_min', goal);
+    setSetting(db, 'sunny_service', showSunny ? '1' : '0');
     setSetting(db, 'onboarded', '1');
+    syncSunnyService(db, DailyNative);
     await applyReminders();
     router.replace('/');
   };
@@ -79,6 +83,11 @@ export default function Onboarding() {
             <Text style={s.p}>Daily nudges you when it’s time for a break. You can change or turn off any of them.</Text>
             <View style={s.point}><View style={s.pointIco}><Icon name="drop" size={15} /></View><Text style={s.pointText}>Water after every hour of phone time.</Text></View>
             <View style={s.point}><View style={s.pointIco}><Icon name="cup" size={15} /></View><Text style={s.pointText}>Lunch at 1 pm and tea at 4 pm on weekdays.</Text></View>
+            <View style={s.point}>
+              <View style={s.pointIco}><Icon name="bell" size={15} /></View>
+              <Text style={s.pointText}>Show Sunny and your phone time in the status bar</Text>
+              <Switch value={showSunny} onValueChange={setShowSunny} accessibilityLabel="Show Sunny in the status bar" trackColor={{ false: C.line, true: C.ink }} thumbColor={C.white} />
+            </View>
           </View>
         )}
       </Animated.View>

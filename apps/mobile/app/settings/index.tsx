@@ -6,9 +6,11 @@ import { useState, type ReactNode } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import DailyNative from '../../modules/daily-native';
 import { getDb } from '../../src/db/expoDb';
 import { getNumber, setSetting } from '../../src/db/settings';
 import { deleteEverything, exportJson, RETENTION_CHOICES, seedSampleDay } from '../../src/settings/data';
+import { syncSunnyService } from '../../src/sunny/service';
 import { runSync } from '../../src/tracking/runSync';
 import { Sunny } from '../../src/sunny/Sunny';
 import { C, F } from '../../src/theme';
@@ -40,6 +42,7 @@ export default function Settings() {
   const wipe = async () => {
     await runSync().catch(() => {}); // let any sync that already started finish, so none can write after the delete
     deleteEverything(db, Date.now());
+    syncSunnyService(db, DailyNative);
     await Notifications.cancelAllScheduledNotificationsAsync().catch((e) => console.warn('daily: cancelling alarms failed', e));
     await Notifications.dismissAllNotificationsAsync().catch((e) => console.warn('daily: dismissing notifications failed', e));
     try {
