@@ -42,6 +42,11 @@ describe('quota', () => {
     expect(requestAllowed(report('2026-10-04'), today)).toBe(false);
     expect(requestAllowed(report('2026-10-09'), today)).toBe(false);
     expect(requestAllowed(report('2026-02-30'), today)).toBe(false);
+    const rewrite = (day: string) => ({ kind: 'report', mode: 'rewrite', input: { day } }) as never;
+    expect(requestAllowed(rewrite('2026-09-07'), today)).toBe(true);
+    expect(requestAllowed(rewrite('2025-08-01'), today)).toBe(false);
+    expect(requestAllowed(rewrite('2026-10-09'), today)).toBe(false);
+    expect(requestAllowed(rewrite('2026-02-30'), today)).toBe(false);
     expect(requestAllowed(week('2026-10-04'), today)).toBe(false); // started 3 days ago: not finished
     expect(requestAllowed(week('2026-10-01'), today)).toBe(true); // 6 days
     expect(requestAllowed(week('2026-09-27'), today)).toBe(true); // 10 days

@@ -65,15 +65,23 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
   if (plus === 'error') return failure(503, 'failed');
   if (plus === 'no') return failure(403, 'not_plus');
   if (!deps.apiKey) return failure(500, 'failed');
-  // The daily ceiling is never refunded, so refund loops cannot spend without end.
+  // The daily ceiling is not refunded after a model call, so refund loops cannot spend without end.
   const ceiling = await deps.quota.use(userId, `all:${utcDay}`, DAILY_CEILING);
   if (ceiling === 'error') return failure(503, 'failed');
   if (ceiling === 'no') return failure(429, 'limit');
   const slot = bucketFor(request, utcDay);
   const taken = await deps.quota.use(userId, slot.bucket, slot.limit);
-  if (taken === 'error') return failure(503, 'failed');
-  if (taken === 'no') return failure(429, 'limit');
+  if (taken !== 'yes') {
+    await deps.quota.refund(userId, `all:${utcDay}`); // no model was called, so the ceiling slot goes back too
+    return taken === 'error' ? failure(503, 'failed') : failure(429, 'limit');
+  }
+  // After a model call only the per-type slot comes back; `all:` stays spent.
   const refund = () => deps.quota.refund(userId, slot.bucket);
+  if (DEADLINE_MS - (now() - start) < RETRY_MIN_MS) { // slow dependencies ate the time: no model call, so give both slots back
+    await refund();
+    await deps.quota.refund(userId, `all:${utcDay}`);
+    return failure(503, 'failed');
+  }
 
   const prompt = buildPrompt(request);
   for (let attempt = 0; attempt < 2; attempt++) {

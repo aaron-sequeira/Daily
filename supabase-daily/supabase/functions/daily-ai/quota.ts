@@ -22,7 +22,9 @@ export function requestAllowed(r: AiRequest, utcDay: string): boolean {
   if (today === null) return false;
   if (r.kind === 'report') {
     const d = dayNumber(r.input.day);
-    return d !== null && d >= today - 2 && d <= today + 1;
+    if (d === null || d > today + 1) return false;
+    // Rewrites may reach any past day (their bucket is keyed by today, not by the day); automatic writes only the recent ones.
+    return d >= today - (r.mode === 'rewrite' ? 400 : 2);
   }
   const w = dayNumber(r.input.weekStart);
   return w !== null && today - w >= 6 && today - w <= 400;

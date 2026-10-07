@@ -151,6 +151,41 @@ describe('daily-ai handler (spec §11)', () => {
     expect(b.quota.refund).toHaveBeenCalledTimes(1);
   });
 
+  it('lets a rewrite reach an old report, but keeps the tight window for automatic ones', async () => {
+    const ask = async (mode: string, day: string) => {
+      const { deps, quota } = setup(answer(good));
+      const r = JSON.parse(JSON.stringify(sample));
+      r.mode = mode;
+      r.input.day = day;
+      const out = await json(await handle(post(r), deps));
+      return { status: out.status, used: quota.use.mock.calls.length };
+    };
+    expect((await ask('rewrite', '2026-09-07')).used).toBe(2); // 30 days old
+    expect((await ask('auto', '2026-09-07')).status).toBe(400);
+    expect(await ask('rewrite', '2025-08-01')).toEqual({ status: 400, used: 0 });
+    expect(await ask('rewrite', '2026-10-09')).toEqual({ status: 400, used: 0 });
+  });
+
+  it('gives the all: slot back when the per-type bucket refuses, since no model ran', async () => {
+    const a = setup();
+    a.quota.use.mockResolvedValueOnce('yes').mockResolvedValueOnce('no');
+    expect((await json(await handle(post(sample), a.deps))).status).toBe(429);
+    expect(a.quota.refund.mock.calls).toEqual([['u1', 'all:2026-10-07']]);
+    const b = setup();
+    b.quota.use.mockResolvedValueOnce('yes').mockResolvedValueOnce('error');
+    expect((await json(await handle(post(sample), b.deps))).status).toBe(503);
+    expect(b.quota.refund.mock.calls).toEqual([['u1', 'all:2026-10-07']]);
+  });
+
+  it('gives both slots back and skips the model when slow dependencies left no time', async () => {
+    let t = T0;
+    const { deps, fetchFn, quota } = setup(answer(good));
+    const slow: Deps = { ...deps, now: () => t, isPlus: async () => { t += 25_000; return 'yes'; } };
+    expect(await json(await handle(post(sample), slow))).toEqual({ status: 503, body: { ok: false, error: 'failed' } });
+    expect(fetchFn).not.toHaveBeenCalled();
+    expect(quota.refund.mock.calls.map((c) => (c as unknown as string[])[1]).sort()).toEqual(['all:2026-10-07', 'report:2026-10-06']);
+  });
+
   it('retries a bad answer once, then gives up with invalid (Review Focus 4)', async () => {
     const invented = { ...good, headline: 'You spent 5 hours on your phone.' };
     const a = setup(answer(invented), answer(good));
