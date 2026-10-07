@@ -46,13 +46,13 @@ export function setEnabled(db: Db, id: number, on: boolean): void {
   db.run('UPDATE reminders SET enabled = ? WHERE id = ?', [on ? 1 : 0, id]);
 }
 
-/** Only the user's own reminders can be deleted. */
 /** Onboarding's "Not now": keep the built-ins but switch them off; the user can turn them on in Reminders. */
 export function turnOffBuiltins(db: Db): void {
   listReminders(db); // seeds the built-ins if this is a fresh database
   db.run('UPDATE reminders SET enabled = 0 WHERE builtin IS NOT NULL');
 }
 
+/** Only the user's own reminders can be deleted. */
 export function deleteReminder(db: Db, id: number): boolean {
   if (!db.get('SELECT 1 AS x FROM reminders WHERE id = ? AND builtin IS NULL', [id])) return false;
   db.run('DELETE FROM reminders WHERE id = ?', [id]);

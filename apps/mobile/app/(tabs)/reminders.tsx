@@ -114,11 +114,12 @@ export default function RemindersTab() {
 
       {next && vm.next && (
         <Animated.View entering={rise(2)} style={s.next}>
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, flexShrink: 1, minWidth: 0 }}>
             <Text style={s.nextKicker}>Next up</Text>
             <Text style={s.nextTitle}>{next.title}</Text>
             <Text style={s.nextKicker}>{next.sub}</Text>
           </View>
+          <View style={{ flexShrink: 0, gap: 8 }}>
           {vm.next.reminder.breakSec > 0 && (
             <Pressable onPress={() => router.push({ pathname: '/break', params: { id: String(vm.next!.reminder.id) } })} accessibilityRole="button" accessibilityLabel={`Start a ${vm.next.reminder.name} break now`} style={s.skip}>
               <Text style={s.skipText}>Break now</Text>
@@ -127,6 +128,7 @@ export default function RemindersTab() {
           {vm.next.kind === 'clock' && (
             <Pressable onPress={() => skip(vm.next!.reminder)} accessibilityRole="button" style={s.skip}><Text style={s.skipText}>Skip today</Text></Pressable>
           )}
+          </View>
         </Animated.View>
       )}
 

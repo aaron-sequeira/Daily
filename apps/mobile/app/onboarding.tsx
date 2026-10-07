@@ -105,7 +105,7 @@ export default function Onboarding() {
         {step === 3 && (
           <>
             <Primary label="Turn on reminders" disabled={busy} onPress={async () => { if (finishing.current) return; await Notifications.requestPermissionsAsync().catch(() => null); await finish(); }} />
-            <Pressable onPress={async () => { if (finishing.current) return; turnOffBuiltins(getDb()); await finish(); }} disabled={busy} accessibilityRole="button" style={s.secondary}><Text style={s.secondaryText}>Not now</Text></Pressable>
+            <Pressable onPress={async () => { if (finishing.current) return; turnOffBuiltins(getDb()); if (showSunny) await Notifications.requestPermissionsAsync().catch(() => null); await finish(); }} disabled={busy} accessibilityRole="button" style={s.secondary}><Text style={s.secondaryText}>Not now</Text></Pressable>
           </>
         )}
       </View>

@@ -87,7 +87,7 @@ export default function Settings() {
         <View style={s.row}>
           <Text style={s.rowText}>Sunny in the status bar</Text>
           <Switch value={sunny} accessibilityLabel="Sunny in the status bar" trackColor={{ false: C.line, true: C.ink }} thumbColor={C.white} style={{ marginLeft: 'auto' }}
-            onValueChange={(on) => { setSunny(on); setSetting(db, 'sunny_service', on ? '1' : '0'); syncSunnyService(db, DailyNative); }} />
+            onValueChange={(on) => { if (on) Notifications.requestPermissionsAsync().catch(() => null); setSunny(on); setSetting(db, 'sunny_service', on ? '1' : '0'); syncSunnyService(db, DailyNative); }} />
         </View>
         <Link href="/settings/keep-running" asChild>
           <Pressable accessibilityRole="button" style={s.row}><Text style={s.rowText}>Keep Sunny running</Text><Text style={s.value}>Help</Text></Pressable>
