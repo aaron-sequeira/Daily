@@ -43,3 +43,14 @@ export function timeRange(from: string, to: string): string {
   const b = clockShort(to);
   return a.slice(-2) === b.slice(-2) ? `${a.slice(0, -3)}–${b}` : `${a}–${b}`;
 }
+
+const WRITE_FIRST = 17 * 60;
+const WRITE_LAST = 23 * 60 + 30;
+const minutesOf = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+
+/** "Write it at": 5:00 pm … 11:30 pm in 30-minute steps (an earlier report would miss most of the day). */
+export const canStepWriteTime = (t: string, dir: -1 | 1): boolean => (dir < 0 ? minutesOf(t) > WRITE_FIRST : minutesOf(t) < WRITE_LAST);
+export function stepWriteTime(t: string, dir: -1 | 1): string {
+  const m = Math.min(WRITE_LAST, Math.max(WRITE_FIRST, Math.round(minutesOf(t) / 30) * 30 + dir * 30));
+  return `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
+}

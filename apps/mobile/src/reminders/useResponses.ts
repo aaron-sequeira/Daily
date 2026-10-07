@@ -15,7 +15,7 @@ export function useReminderResponses(): void {
   useEffect(() => {
     if (!response) return;
     const reportDay = reportTap(getDb(), response);
-    if (reportDay) { router.push({ pathname: '/report', params: { day: reportDay } } as never); return; }
+    if (reportDay) { router.push({ pathname: '/report', params: { day: reportDay } }); return; }
     if (isCoachResponse(response)) {
       handleCoachResponse(getDb(), expoNotifier, response, Date.now()).catch((e) => console.warn('daily: coach action failed', e));
       return;

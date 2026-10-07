@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clockShort, dayLabel, hhmm, shiftDay, timeRange, weekdayShort, weekStartOf } from './days';
+import { canStepWriteTime, clockShort, dayLabel, hhmm, shiftDay, stepWriteTime, timeRange, weekdayShort, weekStartOf } from './days';
 
 describe('day helpers', () => {
   it('moves across months and finds Monday', () => {
@@ -19,5 +19,13 @@ describe('day helpers', () => {
     expect(timeRange('09:10', '11:40')).toBe('9:10–11:40 am');
     expect(timeRange('11:10', '13:40')).toBe('11:10 am–1:40 pm');
     expect(timeRange('12:52', '23:10')).toBe('12:52–11:10 pm');
+  });
+  it('steps "Write it at" by 30 minutes between 5 pm and 11:30 pm', () => {
+    expect(stepWriteTime('21:00', 1)).toBe('21:30');
+    expect(stepWriteTime('23:30', 1)).toBe('23:30');
+    expect(stepWriteTime('17:00', -1)).toBe('17:00');
+    expect(canStepWriteTime('23:30', 1)).toBe(false);
+    expect(canStepWriteTime('17:00', -1)).toBe(false);
+    expect(canStepWriteTime('21:00', 1)).toBe(true);
   });
 });

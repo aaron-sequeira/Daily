@@ -22,7 +22,13 @@ const PATHS = {
   meal: 'M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 21V3c-2 0-4 2-4 7h4',
   cup: 'M4 9h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5zM17 10h1.5a2.5 2.5 0 0 1 0 5H17M8 3v3M12 3v3',
   moon: 'M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z',
-  person: 'M12 2.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4z M5 9l7 1 7-1M12 10v5l-3 6M12 15l3 6'
+  person: 'M12 2.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4z M5 9l7 1 7-1M12 10v5l-3 6M12 15l3 6',
+  forward: 'm9 6 6 6-6 6',
+  check: 'm5 12 5 5 9-10',
+  clock: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M12 7v5l3 2',
+  share: 'M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13',
+  refresh: 'M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5',
+  target: 'M12 3v3M12 18v3M3 12h3M18 12h3 M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z'
 } as const;
 
 export type IconName = keyof typeof PATHS;

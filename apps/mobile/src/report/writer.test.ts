@@ -88,6 +88,19 @@ describe('writeDueReports', () => {
     expect(loadReport(d2, '2026-10-05')!.highlights.at(-1)!.value).toBe('30m');
   });
 
+  it('still writes tonight’s report and notifies once after a mid-afternoon "Write it now"', async () => {
+    const d = await db();
+    use(d, 6, 12, 0, 42);
+    const dp = deps({ isPlus: true });
+    await rewriteReport(d, '2026-10-06', at(6, 15), dp);
+    expect(loadReport(d, '2026-10-06')!.createdMs).toBe(at(6, 15));
+    expect(await writeDueReports(d, at(6, 21), dp, { retryFailed: false })).toEqual(['2026-10-06']);
+    expect(loadReport(d, '2026-10-06')!.createdMs).toBe(at(6, 21));
+    expect(dp.notifier.reports).toHaveLength(1);
+    expect(await writeDueReports(d, at(6, 21, 1), dp, { retryFailed: false })).toEqual([]);
+    expect(dp.notifier.reports).toHaveLength(1);
+  });
+
   it('writes nothing before onboarding or on a day without phone time', async () => {
     const d = await db();
     const dp = deps();

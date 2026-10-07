@@ -73,7 +73,10 @@ export async function writeDueReports(db: Db, nowMs: number, deps: WriterDeps, o
     await writeReport(db, yesterday, nowMs, deps);
     written.push(yesterday);
   }
-  if (nowMs >= timeOn(today, getSetting(db, 'write_time')) && !loadReport(db, today) && hasData(db, today)) {
+  const writeAt = timeOn(today, getSetting(db, 'write_time'));
+  const todays = loadReport(db, today);
+  // A "Write it now" at 3 pm must not cost the 9 pm report: it counts as due until one is saved at or after the write time.
+  if (nowMs >= writeAt && (!todays || todays.createdMs < writeAt) && hasData(db, today)) {
     const r = await writeReport(db, today, nowMs, deps);
     written.push(today);
     if (await deps.notifier.canNotify().catch(() => false)) {

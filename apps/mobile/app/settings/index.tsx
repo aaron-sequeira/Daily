@@ -11,6 +11,7 @@ import DailyNative from '../../modules/daily-native';
 import { getDb } from '../../src/db/expoDb';
 import { getNumber, getSetting, setSetting } from '../../src/db/settings';
 import { canStepWindDown, stepWindDown } from '../../src/coach/rules';
+import { canStepWriteTime, stepWriteTime } from '../../src/report/days';
 import { deleteEverything, exportJson, RETENTION_CHOICES, seedSampleDay } from '../../src/settings/data';
 import { syncSunnyService } from '../../src/sunny/service';
 import { runSync } from '../../src/tracking/runSync';
@@ -25,6 +26,8 @@ export default function Settings() {
   const db = getDb();
   const [goal, setGoal] = useState(() => getNumber(db, 'goal_min'));
   const [sunny, setSunny] = useState(() => getSetting(db, 'sunny_service') === '1');
+  const [writeAt, setWriteAt] = useState(() => getSetting(db, 'write_time'));
+  const [plusDev, setPlusDev] = useState(() => getSetting(db, 'dev_plus') === '1');
   const [windDown, setWindDown] = useState(() => getSetting(db, 'wind_down'));
   const [retention, setRetention] = useState(() => getNumber(db, 'retention_days'));
 
@@ -94,7 +97,20 @@ export default function Settings() {
         </Link>
       </Group>
 
-      <Group i={3} label="Privacy">
+      <Group i={3} label="Report">
+        <View style={s.row}>
+          <Text style={s.rowText}>Write it at</Text>
+          <View style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Pressable onPress={() => { const t = stepWriteTime(writeAt, -1); setWriteAt(t); setSetting(db, 'write_time', t); }} disabled={!canStepWriteTime(writeAt, -1)}
+              accessibilityRole="button" accessibilityLabel="Earlier" accessibilityState={{ disabled: !canStepWriteTime(writeAt, -1) }} style={[s.small, !canStepWriteTime(writeAt, -1) && { opacity: 0.4 }]}><Icon name="minus" size={16} /></Pressable>
+            <Text style={s.value} accessibilityLiveRegion="polite">{clock12(writeAt)}</Text>
+            <Pressable onPress={() => { const t = stepWriteTime(writeAt, 1); setWriteAt(t); setSetting(db, 'write_time', t); }} disabled={!canStepWriteTime(writeAt, 1)}
+              accessibilityRole="button" accessibilityLabel="Later" accessibilityState={{ disabled: !canStepWriteTime(writeAt, 1) }} style={[s.small, !canStepWriteTime(writeAt, 1) && { opacity: 0.4 }]}><Icon name="plus" size={16} /></Pressable>
+          </View>
+        </View>
+      </Group>
+
+      <Group i={4} label="Privacy">
         <Link href="/settings/categories" asChild><Pressable accessibilityRole="button" style={s.row}><Text style={s.rowText}>App categories</Text><Text style={s.value}>Edit</Text></Pressable></Link>
         <Pressable accessibilityRole="button" onPress={cycleRetention} style={s.row}><Text style={s.rowText}>Keep history for</Text><Text style={s.value}>{retention} days</Text></Pressable>
         <Pressable accessibilityRole="button" onPress={exportData} style={s.row}><Text style={s.rowText}>Export my data</Text></Pressable>
@@ -102,7 +118,12 @@ export default function Settings() {
       </Group>
 
       {__DEV__ && (
-        <Group i={4} label="Developer">
+        <Group i={5} label="Developer">
+          <View style={s.row}>
+            <Text style={s.rowText}>Pretend Daily Plus</Text>
+            <Switch value={plusDev} accessibilityLabel="Pretend Daily Plus" trackColor={{ false: C.line, true: C.ink }} thumbColor={C.white} style={{ marginLeft: 'auto' }}
+              onValueChange={(on) => { setPlusDev(on); setSetting(db, 'dev_plus', on ? '1' : '0'); }} />
+          </View>
           <Pressable accessibilityRole="button" onPress={() => { seedSampleDay(db, Date.now()); router.back(); }} style={s.row}><Text style={s.rowText}>Seed a sample day</Text></Pressable>
           <Link href="/dev/sunny" asChild><Pressable accessibilityRole="button" style={s.row}><Text style={s.rowText}>Sunny gallery</Text></Pressable></Link>
         </Group>
