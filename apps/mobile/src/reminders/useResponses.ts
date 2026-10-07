@@ -19,7 +19,7 @@ export function useReminderResponses(): void {
     // `tap` is new every time, so the Report tab reloads even when it already shows this day.
     if (reportDay) { router.push({ pathname: '/report', params: { day: reportDay, tap: String(Date.now()) } }); return; }
     const route = routeTap(getDb(), response);
-    if (route) { router.push(route as '/settings/plus'); return; }
+    if (route) { router.push(route); return; }
     if (isCoachResponse(response)) {
       handleCoachResponse(getDb(), expoNotifier, response, Date.now()).catch((e) => console.warn('daily: coach action failed', e));
       return;

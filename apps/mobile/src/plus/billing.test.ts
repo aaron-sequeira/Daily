@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { errorName, purchaseMessage, savePercent, toEntitlement, toOffer, type Offer } from './billing';
 
 const NOW = Date.parse('2026-10-08T12:00:00Z');
-const offer = (plan: 'monthly' | 'yearly', price: number): Offer => ({ plan, productId: `plus_${plan}`, price, priceString: `$${price}`, perMonthString: '', trialDays: 7 });
+const offer = (plan: 'monthly' | 'yearly', price: number): Offer => ({ plan, productId: `plus_${plan}`, price, priceString: `$${price}`, perMonthString: '', currencyCode: 'USD', trialDays: 7 });
 
 describe('billing helpers', () => {
   it('computes the yearly saving from the two prices', () => {
@@ -19,8 +19,9 @@ describe('billing helpers', () => {
   });
 
   it('reads a package into an offer, with the trial only when Play offers one', () => {
-    const pkg = (id: string, freePhase: { billingPeriod?: { unit?: string; value?: number } } | null) => ({ packageType: id === 'plus_yearly' ? 'ANNUAL' : 'MONTHLY', product: { identifier: id, price: id === 'plus_yearly' ? 29.99 : 3.99, priceString: id === 'plus_yearly' ? '$29.99' : '$3.99', pricePerMonthString: id === 'plus_yearly' ? '$2.50' : '$3.99', defaultOption: { freePhase } } });
-    expect(toOffer(pkg('plus_yearly', { billingPeriod: { unit: 'DAY', value: 7 } }))).toEqual({ plan: 'yearly', productId: 'plus_yearly', price: 29.99, priceString: '$29.99', perMonthString: '$2.50', trialDays: 7 });
+    const pkg = (id: string, freePhase: { billingPeriod?: { unit?: string; value?: number } } | null) => ({ packageType: id === 'plus_yearly' ? 'ANNUAL' : 'MONTHLY', product: { identifier: id, price: id === 'plus_yearly' ? 29.99 : 3.99, priceString: id === 'plus_yearly' ? '$29.99' : '$3.99', currencyCode: 'USD', pricePerMonthString: id === 'plus_yearly' ? '$2.50' : '$3.99', defaultOption: { freePhase } } });
+    expect(toOffer(pkg('plus_yearly', { billingPeriod: { unit: 'DAY', value: 7 } }))).toEqual({ plan: 'yearly', productId: 'plus_yearly', price: 29.99, priceString: '$29.99', perMonthString: '$2.50', currencyCode: 'USD', trialDays: 7 });
+    expect(toOffer({ packageType: 'MONTHLY', product: { identifier: 'plus_monthly', price: 3.99, priceString: '$3.99', defaultOption: null } })!.currencyCode).toBeNull();
     expect(toOffer(pkg('plus_monthly', null))!.trialDays).toBeNull();
     expect(toOffer({ packageType: 'LIFETIME', product: { identifier: 'x', price: 1, priceString: '$1', defaultOption: null } })).toBeNull();
   });

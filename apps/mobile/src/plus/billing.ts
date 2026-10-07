@@ -1,5 +1,5 @@
 export type PlanId = 'monthly' | 'yearly';
-export type Offer = { plan: PlanId; productId: string; price: number; priceString: string; perMonthString: string; trialDays: number | null };
+export type Offer = { plan: PlanId; productId: string; price: number; priceString: string; perMonthString: string; currencyCode: string | null; trialDays: number | null };
 export type Entitlement = { active: boolean; untilMs: number | null; plan: PlanId | null; trial: boolean; willRenew: boolean };
 export type PurchaseResult = { ok: true; ent: Entitlement } | { ok: false; cancelled: boolean; message: string };
 
@@ -19,7 +19,7 @@ export const NO_ENTITLEMENT: Entitlement = { active: false, untilMs: null, plan:
 
 /** The subset of RevenueCat's CustomerInfo and Package we read. */
 export type RcCustomerInfo = { entitlements: { active: Record<string, { isActive?: boolean; expirationDate?: string | null; periodType?: string; willRenew?: boolean; productIdentifier?: string } | undefined> } };
-export type RcPackage = { packageType: string; product: { identifier: string; price: number; priceString: string; pricePerMonthString?: string | null; defaultOption?: { freePhase?: { billingPeriod?: { unit?: string; value?: number } } | null } | null } };
+export type RcPackage = { packageType: string; product: { identifier: string; price: number; priceString: string; currencyCode?: string | null; pricePerMonthString?: string | null; defaultOption?: { freePhase?: { billingPeriod?: { unit?: string; value?: number } } | null } | null } };
 
 const planOf = (productId: string | undefined): PlanId | null => (productId?.includes('yearly') ? 'yearly' : productId?.includes('monthly') ? 'monthly' : null);
 
@@ -39,7 +39,8 @@ export function toOffer(pkg: RcPackage): Offer | null {
   const days = free?.value && free.unit && unitDays[free.unit] ? free.value * unitDays[free.unit] : null;
   return {
     plan, productId: pkg.product.identifier, price: pkg.product.price, priceString: pkg.product.priceString,
-    perMonthString: pkg.product.pricePerMonthString ?? (plan === 'yearly' ? '' : pkg.product.priceString), trialDays: days
+    perMonthString: pkg.product.pricePerMonthString ?? (plan === 'yearly' ? '' : pkg.product.priceString),
+    currencyCode: pkg.product.currencyCode ?? null, trialDays: days
   };
 }
 

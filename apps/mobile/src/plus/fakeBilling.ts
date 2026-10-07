@@ -8,8 +8,8 @@ export function fakeBilling(): Billing {
   const listeners = new Set<(e: Entitlement) => void>();
   const set = (e: Entitlement) => { current = e; for (const l of listeners) l(e); return e; };
   const offers: Offer[] = [
-    { plan: 'yearly', productId: 'plus_yearly', price: 29.99, priceString: '$29.99', perMonthString: '$2.50', trialDays: 7 },
-    { plan: 'monthly', productId: 'plus_monthly', price: 3.99, priceString: '$3.99', perMonthString: '$3.99', trialDays: 7 }
+    { plan: 'yearly', productId: 'plus_yearly', price: 29.99, priceString: '$29.99', perMonthString: '$2.50', currencyCode: 'USD', trialDays: 7 },
+    { plan: 'monthly', productId: 'plus_monthly', price: 3.99, priceString: '$3.99', perMonthString: '$3.99', currencyCode: 'USD', trialDays: 7 }
   ];
   return {
     async start() {},

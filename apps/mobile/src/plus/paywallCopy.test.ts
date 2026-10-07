@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { Offer } from './billing';
 import { ctaLabel, day7Label, endDayLabel, finePrint, reminderDayLabel } from './paywallCopy';
 
-const y: Offer = { plan: 'yearly', productId: 'plus_yearly', price: 29.99, priceString: '$29.99', perMonthString: '$2.50', trialDays: 7 };
-const m: Offer = { plan: 'monthly', productId: 'plus_monthly', price: 3.99, priceString: '$3.99', perMonthString: '$3.99', trialDays: 7 };
+const y: Offer = { plan: 'yearly', productId: 'plus_yearly', price: 29.99, priceString: '$29.99', perMonthString: '$2.50', currencyCode: 'USD', trialDays: 7 };
+const m: Offer = { plan: 'monthly', productId: 'plus_monthly', price: 3.99, priceString: '$3.99', perMonthString: '$3.99', currencyCode: 'USD', trialDays: 7 };
 
 describe('paywall copy', () => {
   it('offers the trial when Play does', () => {

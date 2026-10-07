@@ -10,6 +10,7 @@ import { getSetting } from '../../src/db/settings';
 import { savePercent, type Offer } from '../../src/plus/billing';
 import { saveEntitlement } from '../../src/plus/entitlement';
 import { getBilling } from '../../src/plus/getBilling';
+import { yearlyInsteadOf } from '../../src/plus/price';
 import { plusStatus, REWRITES_PER_DAY, rewritesLeft, type PlusStatus } from '../../src/plus/status';
 import { shiftDay, weekStartOf } from '../../src/report/days';
 import { loadReport, loadWeekSentence } from '../../src/report/store';
@@ -97,12 +98,12 @@ export default function Subscription() {
             )}
           </Animated.View>
 
-          {status.monthly && yearly && monthly && (
+          {status.monthly && (
             <Animated.View entering={rise(2)}>
               <Pressable accessibilityRole="button" onPress={() => router.push('/paywall')} style={s.switch}>
                 <View style={{ flex: 1 }}>
                   <Text style={s.switchTitle}>Switch to yearly</Text>
-                  <Text style={s.switchSub}>{yearly.priceString} a year instead of {twelveMonths(monthly)}</Text>
+                  {yearly && <Text style={s.switchSub}>{monthly ? yearlyInsteadOf(monthly, yearly) : `${yearly.priceString} a year`}</Text>}
                 </View>
                 {save !== null && <Text style={s.save}>SAVE {save}%</Text>}
               </Pressable>
@@ -111,7 +112,7 @@ export default function Subscription() {
 
           <Section i={3} label="Today">
             <View style={s.row}><Text style={s.rowText}>Tonight’s story</Text><Text style={s.value}>{v.storySaved ? 'Written' : 'Coming'} at {v.writeAt}</Text></View>
-            <View style={s.row}>
+            <View style={s.row} accessible accessibilityLabel={`Rewrites today, ${v.left} left`}>
               <Text style={s.rowText}>Rewrites today</Text>
               <View style={s.pips}>
                 {Array.from({ length: REWRITES_PER_DAY }, (_, i) => <View key={i} style={[s.pip, i < REWRITES_PER_DAY - v.left && s.pipUsed]} />)}
@@ -147,12 +148,6 @@ export default function Subscription() {
       )}
     </ScrollView>
   );
-}
-
-/** Twelve months at the monthly price, keeping the store's currency formatting ("$3.99" becomes "$47.88"). */
-function twelveMonths(m: Offer): string {
-  const num = m.priceString.match(/[\d.,]+/)?.[0];
-  return num ? m.priceString.replace(num, (m.price * 12).toFixed(2)) : m.priceString;
 }
 
 function trialLine(status: PlusStatus, yearly?: Offer, monthly?: Offer): string {
