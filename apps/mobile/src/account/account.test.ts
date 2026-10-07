@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const auth = { getSession: vi.fn(), linkIdentity: vi.fn(), signInWithIdToken: vi.fn(), signOut: vi.fn() };
 const googleSignIn = vi.fn();
-const resyncPlus = vi.fn();
-vi.mock('../plus/supabase', () => ({ supabase: () => ({ auth }) }));
-vi.mock('../plus/start', () => ({ resyncPlus: () => resyncPlus() }));
+const plusAfterUserChange = vi.fn();
+const ensureUserId = vi.fn();
+vi.mock('../plus/supabase', () => ({ supabase: () => ({ auth }), ensureUserId: () => ensureUserId() }));
+vi.mock('../plus/start', () => ({ plusAfterUserChange: (restore: boolean) => plusAfterUserChange(restore) }));
 vi.mock('../../modules/daily-native', () => ({ default: { googleSignIn: (id: string) => googleSignIn(id) } }));
 
 import { account, firstName, signInWithGoogle, signOut } from './account';
@@ -19,7 +20,7 @@ describe('signInWithGoogle', () => {
     vi.clearAllMocks();
     process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID = 'web.apps.googleusercontent.com';
     googleSignIn.mockResolvedValue(token);
-    auth.getSession.mockResolvedValue(anon);
+    ensureUserId.mockResolvedValue('anon');
     vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
@@ -29,23 +30,23 @@ describe('signInWithGoogle', () => {
     expect(googleSignIn).toHaveBeenCalledWith('web.apps.googleusercontent.com');
     expect(auth.linkIdentity).toHaveBeenCalledWith(cred);
     expect(auth.signInWithIdToken).not.toHaveBeenCalled();
-    expect(resyncPlus).not.toHaveBeenCalled();
+    expect(plusAfterUserChange).not.toHaveBeenCalled();
   });
 
-  it('identity exists → switches to that user and resyncs Plus', async () => {
+  it('identity exists → switches to that user and moves Plus (restoring this phone’s purchase)', async () => {
     auth.linkIdentity.mockResolvedValue({ data: {}, error: { code: 'identity_already_exists', name: 'AuthApiError' } });
     auth.signInWithIdToken.mockResolvedValue({ data: {}, error: null });
     expect(await signInWithGoogle()).toBe('switched');
     expect(auth.signInWithIdToken).toHaveBeenCalledWith(cred);
-    expect(resyncPlus).toHaveBeenCalledTimes(1);
+    expect(plusAfterUserChange).toHaveBeenCalledWith(true);
   });
 
-  it('no session yet → signs in with the token directly', async () => {
-    auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
+  it('no anonymous user (offline at launch, or anonymous sign-ins off) → signs in with the token directly', async () => {
+    ensureUserId.mockResolvedValue(null);
     auth.signInWithIdToken.mockResolvedValue({ data: {}, error: null });
     expect(await signInWithGoogle()).toBe('switched');
     expect(auth.linkIdentity).not.toHaveBeenCalled();
-    expect(resyncPlus).toHaveBeenCalledTimes(1);
+    expect(plusAfterUserChange).toHaveBeenCalledWith(true);
   });
 
   it.each(['cancelled', 'no_account'])('passes %s through without touching Supabase', async (code) => {
@@ -73,7 +74,7 @@ describe('signInWithGoogle', () => {
     auth.linkIdentity.mockResolvedValue({ data: {}, error: { code: 'identity_already_exists', name: 'AuthApiError' } });
     auth.signInWithIdToken.mockResolvedValue({ data: {}, error: { code: 'bad_jwt', name: 'AuthApiError' } });
     expect(await signInWithGoogle()).toBe('failed');
-    expect(resyncPlus).not.toHaveBeenCalled();
+    expect(plusAfterUserChange).not.toHaveBeenCalled();
   });
 
   it('without a Web client id it fails before showing the sheet', async () => {
@@ -99,11 +100,24 @@ describe('account and signOut', () => {
     expect(await account()).toBeNull();
   });
 
-  it('signOut clears the local session, then makes a fresh anonymous user via resync', async () => {
+  it('signOut clears the local session, then billing follows the fresh anonymous user', async () => {
     auth.signOut.mockResolvedValue({ error: null });
-    await signOut();
+    expect(await signOut()).toBeNull();
     expect(auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
-    expect(resyncPlus).toHaveBeenCalledTimes(1);
+    expect(plusAfterUserChange).toHaveBeenCalledWith(false);
+  });
+
+  it('signOut offline keeps the account and says so', async () => {
+    auth.signOut.mockResolvedValue({ error: { name: 'AuthRetryableFetchError', status: 0 } });
+    expect(await signOut()).toBe('You’re offline. Try again when you’re connected.');
+    expect(plusAfterUserChange).not.toHaveBeenCalled();
+  });
+
+  it('any other signOut error keeps the account', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    auth.signOut.mockResolvedValue({ error: { name: 'AuthApiError', status: 500 } });
+    expect(await signOut()).toBe('Couldn’t sign out. Try again.');
+    expect(plusAfterUserChange).not.toHaveBeenCalled();
   });
 
   it('firstName', () => {

@@ -1,6 +1,6 @@
 import DailyNative, { type GoogleSignInResult } from '../../modules/daily-native';
-import { resyncPlus } from '../plus/start';
-import { supabase } from '../plus/supabase';
+import { plusAfterUserChange } from '../plus/start';
+import { ensureUserId, supabase } from '../plus/supabase';
 
 export type SignInResult = 'linked' | 'switched' | 'cancelled' | 'no_account' | 'offline' | 'failed';
 export type Account = { email: string | null; name: string | null; photoUrl: string | null };
@@ -36,15 +36,16 @@ export async function signInWithGoogle(): Promise<SignInResult> {
   }
   const cred = { provider: 'google', token: g.idToken, nonce: g.rawNonce };
   try {
-    const { data } = await sb.auth.getSession();
-    if (data.session) {
+    // ensureUserId, not getSession: it joins an anonymous sign-up already in flight (the resume after the sheet closes
+    // starts one), so that sign-up can't land after ours and overwrite the Google session.
+    if (await ensureUserId()) {
       const { error } = await sb.auth.linkIdentity(cred);
       if (!error) return 'linked';
       if (error.code !== 'identity_already_exists' && error.code !== 'email_exists') return failure(error);
     }
     const { error } = await sb.auth.signInWithIdToken(cred);
     if (error) return failure(error);
-    await resyncPlus(); // RevenueCat logs in as the (other) user, so Plus follows the account
+    await plusAfterUserChange(true); // RevenueCat logs in as the (other) user, so Plus follows the account
     return 'switched';
   } catch (e) {
     return failure(e);
@@ -63,12 +64,20 @@ export async function account(): Promise<Account | null> {
   return { email: text(g.email), name: text(g.full_name) ?? text(g.name), photoUrl: text(g.avatar_url) ?? text(g.picture) };
 }
 
-/** Local data stays. Plus stays with the Google account; this phone goes back to a fresh anonymous user. */
-export async function signOut(): Promise<void> {
+/** Local data stays. Plus stays with the Google account; this phone goes back to a fresh anonymous user.
+ * Null when signed out; otherwise a message, and the account is still signed in (auth-js keeps the session when the
+ * logout call fails, even offline). */
+export async function signOut(): Promise<string | null> {
   const sb = supabase();
-  if (!sb) return;
-  await sb.auth.signOut({ scope: 'local' });
-  await resyncPlus(); // ensureUserId makes the new anonymous user; billing logs in as it
+  if (!sb) return null;
+  const { error } = await sb.auth.signOut({ scope: 'local' });
+  if (error) {
+    if (isOffline(error)) return 'You’re offline. Try again when you’re connected.';
+    console.warn('daily: sign out failed', error);
+    return 'Couldn’t sign out. Try again.';
+  }
+  await plusAfterUserChange(false); // ensureUserId makes the new anonymous user; billing logs in as it
+  return null;
 }
 
 export const firstName = (a: Account | null) => a?.name?.split(' ')[0] || a?.email || 'Google';

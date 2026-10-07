@@ -6,7 +6,7 @@ import { deleteEverything } from '../settings/data';
 import { NO_ENTITLEMENT, type Billing, type Entitlement } from './billing';
 import { saveEntitlement } from './entitlement';
 import { isPlus } from './plus';
-import { linkUser, resetPlusForTests, resyncPlus, startPlus } from './start';
+import { linkUser, plusAfterUserChange, resetPlusForTests, resyncPlus, startPlus } from './start';
 
 const NOW = Date.parse('2026-10-08T12:00:00Z');
 const DAY = 86_400_000;
@@ -152,5 +152,35 @@ describe('linkUser and resyncPlus', () => {
     await resyncPlus();
     expect(isPlus(db)).toBe(true);
     expect(n.trialReminder).toMatchObject({ atMs: until - 2 * DAY });
+  });
+});
+
+describe('plusAfterUserChange', () => {
+  beforeEach(() => resetPlusForTests());
+
+  it('a resync that began as the old user finishes first, so billing ends on the new user', async () => {
+    const db = await makeTestDb();
+    const s = billingStub(NO_ENTITLEMENT);
+    let user = 'anon';
+    const landed: string[] = [];
+    // logIn as the old user is slow (it began first, e.g. the resume after the Google sheet closed)
+    s.billing.logIn = async (id) => { await new Promise((r) => setTimeout(r, id === 'anon' ? 20 : 0)); landed.push(id); };
+    await startPlus(db, { ensureUserId: async () => user, billing: s.billing, notifier: new FakeNotifier() });
+    const stale = resyncPlus();
+    user = 'google';
+    await plusAfterUserChange(false);
+    await stale;
+    expect(landed.at(-1)).toBe('google');
+  });
+
+  it('with restore, this phone’s Play purchase follows the new user', async () => {
+    const db = await makeTestDb();
+    const until = Date.now() + 30 * DAY;
+    const s = billingStub(NO_ENTITLEMENT);
+    s.billing.restore = async () => ({ active: true, untilMs: until, plan: 'yearly', trial: false, willRenew: true });
+    await startPlus(db, { ensureUserId: async () => 'google', billing: s.billing, notifier: new FakeNotifier() });
+    expect(isPlus(db)).toBe(false);
+    await plusAfterUserChange(true);
+    expect(isPlus(db)).toBe(true);
   });
 });

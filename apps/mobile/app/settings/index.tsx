@@ -79,7 +79,10 @@ export default function Settings() {
   };
   const confirmSignOut = () => Alert.alert('Sign out?', 'Daily Plus stays with your Google account. Sign in again to get it back on this phone.', [
     { text: 'Cancel', style: 'cancel' },
-    { text: 'Sign out', style: 'destructive', onPress: () => { void signOut().catch(() => {}).then(() => { setAcct(null); refreshPlus(); }); } }
+    { text: 'Sign out', style: 'destructive', onPress: () => {
+      setAcctNote(null);
+      void signOut().catch(() => 'Couldn’t sign out. Try again.').then((msg) => { if (msg) setAcctNote(msg); else { setAcct(null); refreshPlus(); } });
+    } }
   ]);
 
   const changeGoal = (min: number) => { setGoal(min); setSetting(db, 'goal_min', min); };

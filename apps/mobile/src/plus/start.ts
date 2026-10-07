@@ -36,6 +36,22 @@ export function resyncPlus(): Promise<void> {
   })().finally(() => { resyncing = null; }));
 }
 
+/** The signed-in user changed (a sign-in that switched users, a sign out). A resync that began before the change (the
+ * resume after the Google sheet closes) may log billing back in as the old user, so let it finish, then re-read Plus as
+ * the new user. `restore` also moves this phone's Play purchase to the new user, so a purchase made before signing in
+ * isn't left on the abandoned anonymous user. Never throws. */
+export async function plusAfterUserChange(restore: boolean): Promise<void> {
+  await resyncing;
+  const a = app;
+  if (!a) return;
+  try {
+    await linkUser(a);
+    await saveEntitlement(a.db, await (restore ? a.billing.restore() : a.billing.entitlement()), a.notifier, Date.now());
+  } catch (e) {
+    console.warn('daily: Plus sync after a user change failed', e);
+  }
+}
+
 /** App launch: configure billing first (synchronous, so a slow or stalled sign-in can't leave it unconfigured), then log
  * in with the (anonymous) user id and keep the cached entitlement current. Never throws; offline it keeps the last known
  * entitlement and tries again on the next launch or resume. */
