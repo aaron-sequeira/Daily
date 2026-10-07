@@ -27,9 +27,11 @@
     "react-native-worklets": "0.10.1"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@types/react": "~19.2.2",
     "@types/sql.js": "^1.4.11",
     "sql.js": "^1.14.2",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.3",
     "vitest": "^2.1.8"
   },
@@ -37,7 +39,8 @@
     "start": "expo start",
     "android": "expo run:android",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "assets:sunny": "tsx scripts/sunny-assets.ts"
   },
   "private": true
 }
