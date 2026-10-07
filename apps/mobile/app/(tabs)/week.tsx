@@ -1,5 +1,5 @@
 import { localDate } from '@worksight/core/date';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSpring } from 'react-native-reanimated';
@@ -91,6 +91,9 @@ function WeekBody({ view, aiSentence }: { view: WeekView; aiSentence: string | n
         <Text style={s.eyebrow}>Week in a sentence</Text>
         <Text style={s.sentenceText}>{aiSentence ?? view.sentence}</Text>
         {plus && !aiSentence && !view.complete && <Text style={s.small}>Daily Plus writes this when the week ends.</Text>}
+        {!plus && (
+          <Pressable onPress={() => router.push('/paywall')} accessibilityRole="button" style={s.sentenceBtn}><Text style={s.sentenceBtnText}>Daily Plus writes this for you</Text></Pressable>
+        )}
       </Animated.View>
 
       {view.topApps.length > 0 && (
@@ -177,6 +180,8 @@ const s = StyleSheet.create({
   sentence: { backgroundColor: '#BFEBD3', borderRadius: 22, paddingVertical: 16, paddingHorizontal: 18, gap: 8 },
   eyebrow: { fontFamily: F.semi, fontSize: 12, letterSpacing: 0.7, textTransform: 'uppercase', color: 'rgba(0,0,0,0.6)' },
   sentenceText: { fontFamily: F.regular, fontSize: 16, lineHeight: 22, color: C.ink },
+  sentenceBtn: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' },
+  sentenceBtnText: { fontFamily: F.semi, fontSize: 13, color: C.ink, textDecorationLine: 'underline' },
   small: { fontFamily: F.regular, fontSize: 12, color: 'rgba(0,0,0,0.6)' },
   app: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44 },
   appDot: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },

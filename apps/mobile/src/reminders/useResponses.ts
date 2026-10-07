@@ -6,6 +6,7 @@ import { getDb } from '../db/expoDb';
 import { reportTap } from '../report/tap';
 import { fromResponse, handleReminderAction } from './actions';
 import { applyReminders } from './apply';
+import { routeTap } from './routeTap';
 import { expoNotifier } from './expoNotifier';
 
 /** Taps that reach the running app (and the one that cold-started it). handleReminderAction remembers the last
@@ -17,6 +18,8 @@ export function useReminderResponses(): void {
     const reportDay = reportTap(getDb(), response);
     // `tap` is new every time, so the Report tab reloads even when it already shows this day.
     if (reportDay) { router.push({ pathname: '/report', params: { day: reportDay, tap: String(Date.now()) } }); return; }
+    const route = routeTap(getDb(), response);
+    if (route) { router.push(route as '/settings/plus'); return; }
     if (isCoachResponse(response)) {
       handleCoachResponse(getDb(), expoNotifier, response, Date.now()).catch((e) => console.warn('daily: coach action failed', e));
       return;

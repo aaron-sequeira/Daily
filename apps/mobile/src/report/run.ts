@@ -1,5 +1,6 @@
 import { getDb } from '../db/expoDb';
 import { isPlus } from '../plus/plus';
+import { noteRewrite, noteRewriteLimit } from '../plus/status';
 import { expoNotifier } from '../reminders/expoNotifier';
 import { aiConfig, aiReport, aiWeek } from './ai';
 import type { AiError } from './store';
@@ -37,7 +38,11 @@ export function runReportWriter(opts: { retryFailed: boolean }): Promise<unknown
 /** "Rewrite" / "Write it now" from the Report tab: waits for a writer in flight, then holds the lock itself, so a tap
  * near the write time can't race the scheduled write into a second notification. */
 export function runRewrite(day: string): Promise<AiError | null> {
-  const run = (writing ?? Promise.resolve()).then(() => rewriteReport(getDb(), day, Date.now(), liveDeps()));
+  const run = (writing ?? Promise.resolve()).then(() => rewriteReport(getDb(), day, Date.now(), liveDeps())).then((err) => {
+    if (err === null) noteRewrite(getDb(), Date.now());
+    else if (err === 'limit') noteRewriteLimit(getDb(), Date.now());
+    return err;
+  });
   hold(run);
   return run;
 }

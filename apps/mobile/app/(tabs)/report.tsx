@@ -1,5 +1,5 @@
 import { localDate } from '@worksight/core/date';
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -163,6 +163,7 @@ export default function Report() {
             <Animated.View entering={rise(5)} style={s.upsell}>
               <Text style={s.upsellTitle}>Daily Plus</Text>
               <Text style={s.upsellBody}>Get your day written as a short story every evening, plus a sentence about each week.</Text>
+              <Pressable onPress={() => router.push('/paywall')} accessibilityRole="button" style={s.upsellBtn}><Text style={s.upsellBtnText}>See Daily Plus</Text></Pressable>
             </Animated.View>
           )}
           <Text style={s.footer}>{view.kind === 'ai' ? 'Written by Daily Plus · only app names and times are sent' : 'Made on this phone'}</Text>
@@ -207,6 +208,8 @@ const s = StyleSheet.create({
   btnText: { fontFamily: F.semi, fontSize: 14, color: C.ink },
   upsell: { backgroundColor: C.panel, borderRadius: 20, padding: 16, gap: 4 },
   upsellTitle: { fontFamily: F.semi, fontSize: 15, color: C.ink },
+  upsellBtn: { alignSelf: 'flex-start', minHeight: 44, borderRadius: 22, backgroundColor: C.ink, paddingHorizontal: 20, justifyContent: 'center', marginTop: 8 },
+  upsellBtnText: { fontFamily: F.semi, fontSize: 14, color: C.white },
   upsellBody: { fontFamily: F.regular, fontSize: 13, lineHeight: 19, color: C.body },
   footer: { fontFamily: F.regular, fontSize: 12, color: C.muted, textAlign: 'center' }
 });

@@ -11,6 +11,7 @@ import DailyNative from '../../modules/daily-native';
 import { getDb } from '../../src/db/expoDb';
 import { getNumber, getSetting, setSetting } from '../../src/db/settings';
 import { canStepWindDown, stepWindDown } from '../../src/coach/rules';
+import { plusStatus } from '../../src/plus/status';
 import { canStepWriteTime, stepWriteTime } from '../../src/report/days';
 import { deleteEverything, exportJson, RETENTION_CHOICES, seedSampleDay } from '../../src/settings/data';
 import { syncSunnyService } from '../../src/sunny/service';
@@ -37,6 +38,9 @@ export default function Settings() {
   const [plusDev, setPlusDev] = useState(() => getSetting(db, 'dev_plus') === '1');
   const [windDown, setWindDown] = useState(() => getSetting(db, 'wind_down'));
   const [retention, setRetention] = useState(() => getNumber(db, 'retention_days'));
+
+  const [status, setStatus] = useState(() => plusStatus(db, Date.now()));
+  useFocusEffect(useCallback(() => { setStatus(plusStatus(db, Date.now())); setPlusDev(getSetting(db, 'dev_plus') === '1'); }, [db]));
 
   const changeGoal = (min: number) => { setGoal(min); setSetting(db, 'goal_min', min); };
   const cycleRetention = () => {
@@ -113,6 +117,18 @@ export default function Settings() {
       </Group>
 
       <Group i={3} label="Report">
+        {status ? (
+          <Link href="/settings/plus" asChild>
+            <Pressable accessibilityRole="button" style={s.row}><Text style={s.rowText}>Your subscription</Text><Text style={s.value}>{status.sub}</Text></Pressable>
+          </Link>
+        ) : (
+          <Link href="/paywall" asChild>
+            <Pressable accessibilityRole="button" style={s.row}>
+              <Text style={s.plusPill}>PLUS</Text><Text style={s.rowText}>Daily Plus</Text>
+              <Text style={[s.value, { color: C.ink, fontFamily: F.semi }]}>Try 7 days free</Text>
+            </Pressable>
+          </Link>
+        )}
         <View style={s.row}>
           <Text style={s.rowText}>Write it at</Text>
           <View style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -137,7 +153,7 @@ export default function Settings() {
           <View style={s.row}>
             <Text style={s.rowText}>Pretend Daily Plus</Text>
             <Switch value={plusDev} accessibilityLabel="Pretend Daily Plus" trackColor={{ false: C.line, true: C.ink }} thumbColor={C.white} style={{ marginLeft: 'auto' }}
-              onValueChange={(on) => { setPlusDev(on); setSetting(db, 'dev_plus', on ? '1' : '0'); }} />
+              onValueChange={(on) => { setPlusDev(on); setSetting(db, 'dev_plus', on ? '1' : '0'); setStatus(plusStatus(db, Date.now())); }} />
           </View>
           <Pressable accessibilityRole="button" onPress={() => { seedSampleDay(db, Date.now()); router.back(); }} style={s.row}><Text style={s.rowText}>Seed a sample day</Text></Pressable>
           <Link href="/dev/sunny" asChild><Pressable accessibilityRole="button" style={s.row}><Text style={s.rowText}>Sunny gallery</Text></Pressable></Link>
@@ -168,5 +184,6 @@ const s = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F0E9E3' },
   rowText: { fontFamily: F.regular, fontSize: 14, color: C.ink },
   value: { marginLeft: 'auto', fontFamily: F.regular, fontSize: 13, color: C.muted },
+  plusPill: { backgroundColor: C.ink, color: '#FFC861', fontFamily: F.semi, fontSize: 10, letterSpacing: 1, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 999, overflow: 'hidden' },
   note: { fontFamily: F.regular, fontSize: 12, lineHeight: 18, color: C.muted, marginTop: 16, marginHorizontal: 2 }
 });

@@ -18,6 +18,8 @@ export const DEFAULTS = {
   plus_trial: '0',
   plus_renews: '0',
   last_report_tap: '',
+  last_route_tap: '',
+  rewrites_today: '', // '<YYYY-MM-DD>|<rewrites used that day>'
   week_ai_try: '' // '<weekStart>|<YYYY-MM-DD>' of the last AI week-sentence try, or '<weekStart>|never' after an invalid answer
 } as const;
 
