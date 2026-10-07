@@ -77,6 +77,7 @@ function Gate() {
     <>
       <StatusBar style="dark" />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.bg } }}>
+        <Stack.Screen name="paywall" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="break" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
       </Stack>
     </>
