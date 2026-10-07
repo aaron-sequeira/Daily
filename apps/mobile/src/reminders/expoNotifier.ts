@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import type { Notifier, ReminderContent } from './notifier';
 
 export const REMINDER_CHANNEL = 'reminders';
+export const COACH_CHANNEL = 'coach';
 
 /** Foreground display, the Android channel and the three button sets. Safe to call more than once. */
 export async function setupNotifications(): Promise<void> {
@@ -9,6 +10,10 @@ export async function setupNotifications(): Promise<void> {
     handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false })
   });
   await Notifications.setNotificationChannelAsync(REMINDER_CHANNEL, { name: 'Reminders', importance: Notifications.AndroidImportance.HIGH });
+  await Notifications.setNotificationChannelAsync(COACH_CHANNEL, { name: 'Coach nudges', importance: Notifications.AndroidImportance.DEFAULT });
+  await Notifications.setNotificationCategoryAsync('coach', [
+    { identifier: 'coach-snooze', buttonTitle: 'Snooze 1 h', options: { opensAppToForeground: false } }
+  ]);
   const snooze = { identifier: 'snooze', buttonTitle: 'Snooze 15 min', options: { opensAppToForeground: false } };
   const brk = { identifier: 'break', buttonTitle: 'Take a break', options: { opensAppToForeground: true } };
   await Notifications.setNotificationCategoryAsync('water', [
@@ -37,5 +42,12 @@ export const expoNotifier: Notifier = {
   cancel: (key) => Notifications.cancelScheduledNotificationAsync(key),
   scheduledKeys: async () => (await Notifications.getAllScheduledNotificationsAsync()).map((n) => n.identifier),
   dismiss: (key) => Notifications.dismissNotificationAsync(key),
+  async showCoach(key, title, body) {
+    await Notifications.scheduleNotificationAsync({
+      identifier: key,
+      content: { title, body, categoryIdentifier: 'coach', data: { coach: true } },
+      trigger: { channelId: COACH_CHANNEL }
+    });
+  },
   async canNotify() { return (await Notifications.getPermissionsAsync()).granted; }
 };

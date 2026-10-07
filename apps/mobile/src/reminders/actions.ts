@@ -10,7 +10,7 @@ export const SNOOZE_MS = 15 * 60_000;
 export type ReminderAction = { actionId: string; reminderId: number; notificationKey: string; firedAtMs: number };
 export type OpenTarget = { route: '/break'; reminderId: number } | { route: '/reminders' } | null;
 
-type ResponseLike = { actionIdentifier: string; notification: { date: number; request: { identifier: string; content: { data?: Record<string, unknown> | null } } } };
+export type ResponseLike = { actionIdentifier: string; notification: { date: number; request: { identifier: string; content: { data?: Record<string, unknown> | null } } } };
 
 export function fromResponse(r: ResponseLike): ReminderAction | null {
   const reminderId = Number(r.notification.request.content.data?.reminderId);

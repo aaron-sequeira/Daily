@@ -11,6 +11,7 @@ export interface Notifier {
   scheduledKeys(): Promise<string[]>;
   dismiss(key: string): Promise<void>;
   canNotify(): Promise<boolean>;
+  showCoach(key: string, title: string, body: string): Promise<void>;
 }
 
 export function reminderContent(r: Reminder): ReminderContent {

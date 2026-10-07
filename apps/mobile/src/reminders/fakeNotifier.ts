@@ -5,7 +5,9 @@ export class FakeNotifier implements Notifier {
   scheduled = new Map<string, { content: ReminderContent; atMs: number }>();
   shown: { key: string; content: ReminderContent }[] = [];
   dismissed: string[] = [];
+  coach: { key: string; title: string; body: string }[] = [];
   allowed = true;
+  async showCoach(key: string, title: string, body: string) { this.coach.push({ key, title, body }); }
   async scheduleAt(key: string, content: ReminderContent, atMs: number) { this.scheduled.set(key, { content, atMs }); }
   async showNow(key: string, content: ReminderContent) { this.shown.push({ key, content }); }
   async cancel(key: string) { this.scheduled.delete(key); }
