@@ -55,12 +55,30 @@ describe('coachTick', () => {
     expect(await coachTick(db, new FakeNotifier(), at(20, 31))).toBeNull();
   });
 
-  it('speaks through the bubble instead of a notification when it is showing (spec ง9.4)', async () => {
+  it('speaks through the bubble instead of a notification when it is showing (spec ยง9.4)', async () => {
     const db = await scrolling(at(20));
     const n = new FakeNotifier();
     const said: string[] = [];
     expect(await coachTick(db, n, at(20, 31), false, (title) => said.push(title))).toBe('stretch');
     expect(said).toEqual(['31 minutes on Instagram']);
     expect(n.coach).toEqual([]);
+  });
+
+  it('falls back to a notification when the bubble cannot speak, recording the key once', async () => {
+    const db = await scrolling(at(20));
+    const n = new FakeNotifier();
+    const boom = () => { throw new Error('overlay gone'); };
+    expect(await coachTick(db, n, at(20, 31), false, boom)).toBe('stretch');
+    expect(n.coach).toHaveLength(1);
+    expect(db.all('SELECT key FROM nudges')).toHaveLength(1);
+  });
+
+  it('records nothing when the bubble cannot speak and notifications are off', async () => {
+    const db = await scrolling(at(20));
+    const n = new FakeNotifier();
+    n.allowed = false;
+    expect(await coachTick(db, n, at(20, 31), false, () => { throw new Error('overlay gone'); })).toBeNull();
+    expect(n.coach).toEqual([]);
+    expect(db.all('SELECT * FROM nudges')).toEqual([]);
   });
 });

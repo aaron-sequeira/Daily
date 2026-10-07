@@ -38,7 +38,7 @@ export async function minuteTask(): Promise<void> {
     const v = loadToday(db, now);
     // the bubble must be up before it can speak, so update it first; it is only a no-op when nothing changed
     try { DailyNative.updateBubble(shows, v.mood); } catch (e) { console.warn('daily: bubble update failed', e); }
-    const speak = shows ? (t: string, b: string) => { try { DailyNative.showBubbleSpeech(t, b); } catch (e) { console.warn('daily: bubble speech failed', e); } } : undefined;
+    const speak = shows ? (t: string, b: string) => DailyNative.showBubbleSpeech(t, b) : undefined;
     await coachTick(db, expoNotifier, now, inCall, speak).catch((e) => console.warn('daily: coach tick failed', e));
     const c = chipContent({ access: result !== 'no_access' && DailyNative.hasUsageAccess(), phoneMin: v.phoneMin, goalMin: v.goalMin, leftMin: v.leftMin, mood: v.mood });
     DailyNative.updateChip(c.title, c.short, c.text, c.mood);

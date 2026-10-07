@@ -32,8 +32,11 @@ export async function coachTick(db: Db, notifier: Notifier, nowMs: number, inCal
     sentKeys: new Set(db.all<{ key: string }>('SELECT key FROM nudges WHERE ts_ms > ?', [nowMs - 2 * DAY_MS]).map((r) => r.key))
   });
   if (!nudge) return null;
-  if (speak) speak(nudge.title, nudge.body);
-  else {
+  let spoken = false;
+  if (speak) {
+    try { speak(nudge.title, nudge.body); spoken = true; } catch (e) { console.warn('daily: bubble speech failed, using a notification', e); }
+  }
+  if (!spoken) {
     if (!(await notifier.canNotify().catch(() => false))) return null;
     await notifier.showCoach(`coach-${nudge.kind}`, nudge.title, nudge.body);
   }

@@ -43,6 +43,8 @@ export default function Settings() {
     const sub = AppState.addEventListener('change', (st) => { if (st === 'active') check(); });
     return () => sub.remove();
   }, []));
+  const [plusNow, setPlusNow] = useState(() => isPlus(db, Date.now()));
+  useFocusEffect(useCallback(() => { setPlusNow(isPlus(db, Date.now())); }, [db]));
   const toggleBubble = (on: boolean) => {
     if (on && !isPlus(db, Date.now())) { router.push('/paywall'); return; }
     setBubbleOn(on); setSetting(db, 'bubble', on ? '1' : '0');
@@ -135,9 +137,17 @@ export default function Settings() {
             <Switch value={bubbleOn} accessibilityLabel="Floating Sunny" trackColor={{ false: C.line, true: C.ink }} thumbColor={C.white} style={{ marginLeft: 'auto' }} onValueChange={toggleBubble} />
           ) : <Text style={[s.value, { marginLeft: 'auto' }]}>Needs Sunny in the status bar</Text>}
         </View>
+        {sunny && bubbleOn && !plusNow && (
+          <View style={s.row}>
+            <Text style={[s.rowText, { flex: 1 }]}>Floating Sunny is paused.</Text>
+            <Pressable onPress={() => router.push('/paywall')} accessibilityRole="button" accessibilityLabel="Needs Daily Plus" style={{ minHeight: 44, justifyContent: 'center', paddingLeft: 12 }}>
+              <Text style={[s.value, { textDecorationLine: 'underline' }]}>Needs Daily Plus</Text>
+            </Pressable>
+          </View>
+        )}
         {sunny && bubbleOn && noOverlay && (
           <View style={s.row}>
-            <Text style={[s.rowText, { flex: 1 }]}>Daily needs ìDisplay over other appsî to show Sunny.</Text>
+            <Text style={[s.rowText, { flex: 1 }]}>Daily needs ‚ÄúDisplay over other apps‚Äù to show Sunny.</Text>
             <Pressable onPress={() => { try { DailyNative.openOverlaySettings(); } catch { /* ignore */ } }} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center', paddingLeft: 12 }}>
               <Text style={[s.rowText, { fontFamily: F.semi, textDecorationLine: 'underline' }]}>Allow</Text>
             </Pressable>
