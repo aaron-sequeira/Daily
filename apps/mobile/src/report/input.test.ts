@@ -61,4 +61,13 @@ describe('buildReportInput', () => {
     db.run("INSERT INTO sessions (package, start_ms, end_ms, day) VALUES ('com.x', ?, ?, '2026-10-06')", [at(0, 40), at(1)]);
     expect(buildReportInput(db, '2026-10-06', at(21)).late).toEqual({ after: '00:30', minutes: 20 });
   });
+
+  it('rejects malformed wind_down and goal_min settings', async () => {
+    const db = await makeTestDb();
+    setSetting(db, 'wind_down', 'bad');
+    setSetting(db, 'goal_min', 'x');
+    const input = buildReportInput(db, '2026-10-06', at(21));
+    expect(input.late).toEqual({ after: '23:00', minutes: 0 });
+    expect(input.goalMin).toBe(240);
+  });
 });

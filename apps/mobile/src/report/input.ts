@@ -1,5 +1,5 @@
 import type { Db } from '../db/db';
-import { getNumber, getSetting } from '../db/settings';
+import { DEFAULTS, getNumber, getSetting } from '../db/settings';
 import type { Mood } from '../sunny/mood';
 import { isCategory, type Category } from '../tracking/categories';
 import { dayStartMs } from '../tracking/ingest';
@@ -91,20 +91,24 @@ export function buildReportInput(db: Db, day: string, nowMs: number): ReportInpu
     reach = reach === null ? s.end : Math.max(reach, s.end);
   }
 
-  const windDown = getSetting(db, 'wind_down');
-  const [wh, wm] = windDown.split(':').map(Number);
+  const windDownRaw = getSetting(db, 'wind_down');
+  const windDownValid = /^([01]\d|2[0-3]):[0-5]\d$/.test(windDownRaw) ? windDownRaw : DEFAULTS.wind_down;
+  const [wh, wm] = windDownValid.split(':').map(Number);
   const lateFrom = dayStart + (wh * 60 + wm) * MIN;
   const lateTo = wh >= 5 ? dayStartMs(shiftDay(day, 1)) : dayStart + 5 * HOUR; // the night ends at 05:00 (coach/rules.ts)
-  const late = { after: windDown, minutes: mins(spans.reduce((t, s) => t + overlap(s, lateFrom, lateTo), 0)) };
+  const late = { after: windDownValid, minutes: mins(spans.reduce((t, s) => t + overlap(s, lateFrom, lateTo), 0)) };
 
   const count = (table: string) => db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM ${table} WHERE day = ?`, [day])?.n ?? 0;
   const last7 = Array.from({ length: 7 }, (_, i) => shiftDay(day, i - 7))
     .map((d) => ({ day: d, phoneMin: mins(db.get<{ ms: number | null }>('SELECT SUM(end_ms - start_ms) AS ms FROM sessions WHERE day = ?', [d])?.ms ?? 0) }))
     .filter((d) => d.phoneMin > 0);
 
+  const goalMinRaw = getNumber(db, 'goal_min');
+  const goalMin = goalMinRaw > 0 && Number.isInteger(goalMinRaw) ? goalMinRaw : Number(DEFAULTS.goal_min);
+
   return {
     day,
-    goalMin: getNumber(db, 'goal_min'),
+    goalMin,
     phoneMin: mins(spans.reduce((t, s) => t + (s.end - s.start), 0)),
     pickups: count('pickups'),
     apps, categories, hourly, longest, quietest, late,
