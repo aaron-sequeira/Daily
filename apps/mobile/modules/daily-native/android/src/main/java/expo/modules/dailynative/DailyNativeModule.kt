@@ -20,7 +20,9 @@ import android.provider.Settings
 import android.util.Base64
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.exception.Exceptions
+import expo.modules.kotlin.functions.Coroutine
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.io.ByteArrayOutputStream
@@ -112,6 +114,11 @@ class DailyNativeModule : Module() {
     AsyncFunction("queryEvents") { fromMs: Double, toMs: Double -> queryEvents(fromMs.toLong(), toMs.toLong()) }
 
     AsyncFunction("appInfo") { packages: List<String> -> packages.map { appInfo(it) } }
+
+    AsyncFunction("googleSignIn") Coroutine { webClientId: String ->
+      val activity = appContext.currentActivity ?: throw CodedException("failed", "No activity", null)
+      GoogleSignIn.signIn(activity, webClientId)
+    }
   }
 
   private fun hasUsageAccess(): Boolean {
