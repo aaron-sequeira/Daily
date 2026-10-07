@@ -10,7 +10,10 @@ export const DEFAULTS = {
   coach_snooze_until: '0',
   coach_last_response: '',
   sunny_service: '1',
-  exact_alarms: ''
+  exact_alarms: '',
+  write_time: '21:00',
+  dev_plus: '0',
+  last_report_tap: ''
 } as const;
 
 export type SettingKey = keyof typeof DEFAULTS;

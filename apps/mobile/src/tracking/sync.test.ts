@@ -25,6 +25,16 @@ const morning: RawEvent[] = [
 ];
 
 describe('sync', () => {
+  it('forgets reports and week sentences older than the retention setting', async () => {
+    const db = await makeTestDb();
+    setSetting(db, 'retention_days', 30);
+    db.run("INSERT INTO reports (day, kind, json, created_ms) VALUES ('2026-08-01', 'plain', '{}', 1), ('2026-10-05', 'plain', '{}', 1)");
+    db.run("INSERT INTO weeks (week_start, sentence, created_ms) VALUES ('2026-07-27', 'old', 1), ('2026-09-28', 'new', 1)");
+    await sync(db, fakeNative(morning), at(9));
+    expect(db.all<{ day: string }>('SELECT day FROM reports').map((r) => r.day)).toEqual(['2026-10-05']);
+    expect(db.all<{ sentence: string }>('SELECT sentence FROM weeks').map((r) => r.sentence)).toEqual(['new']);
+  });
+
   it('does nothing without usage access (Review Focus 3)', async () => {
     const db = await makeTestDb();
     expect(await sync(db, fakeNative(morning, false), at(9))).toBe('no_access');

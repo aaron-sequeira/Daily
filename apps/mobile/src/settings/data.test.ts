@@ -13,7 +13,7 @@ describe('settings data', () => {
     db.run("INSERT INTO apps (package, label, category, icon_png) VALUES ('com.a', 'A', 'fun', 'BIGICON')");
     setSetting(db, 'goal_min', 180);
     const out = JSON.parse(exportJson(db));
-    expect(Object.keys(out).sort()).toEqual(['apps', 'exportedAt', 'mood_log', 'nudges', 'pickups', 'reminder_state', 'reminders', 'sessions', 'settings', 'water_log']);
+    expect(Object.keys(out).sort()).toEqual(['apps', 'exportedAt', 'mood_log', 'nudges', 'pickups', 'reminder_state', 'reminders', 'reports', 'sessions', 'settings', 'water_log', 'weeks']);
     expect(out.apps[0]).toEqual({ package: 'com.a', label: 'A', category: 'fun', user_category: null });
     expect(out.settings).toEqual([{ key: 'goal_min', value: '180' }]);
   });
@@ -23,8 +23,11 @@ describe('settings data', () => {
     seedSampleDay(db, now);
     setSetting(db, 'onboarded', '1');
     db.run('INSERT INTO ingest_state (id, last_event_ms, open_pkg, open_start_ms) VALUES (1, 5, ?, 6)', ['com.a']);
+    db.run("INSERT INTO nudges (kind, key, ts_ms) VALUES ('goal80', 'k', 1)");
+    db.run("INSERT INTO reports (day, kind, json, created_ms) VALUES ('2026-10-06', 'plain', '{}', 1)");
+    db.run("INSERT INTO weeks (week_start, sentence, created_ms) VALUES ('2026-10-05', 'x', 1)");
     deleteEverything(db, now);
-    for (const t of ['sessions', 'pickups', 'apps', 'mood_log', 'nudges', 'settings', 'reminders', 'reminder_state', 'water_log']) expect(db.all(`SELECT * FROM ${t}`)).toEqual([]);
+    for (const t of ['sessions', 'pickups', 'apps', 'mood_log', 'nudges', 'settings', 'reminders', 'reminder_state', 'water_log', 'reports', 'weeks']) expect(db.all(`SELECT * FROM ${t}`)).toEqual([]);
     expect(db.all('SELECT * FROM ingest_state')).toEqual([{ id: 1, last_event_ms: now, open_pkg: null, open_start_ms: null }]);
     expect(getSetting(db, 'onboarded')).toBe('0');
   });
