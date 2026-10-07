@@ -1,6 +1,6 @@
 import { localDate } from '@worksight/core/date';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,36 +31,56 @@ export default function Report() {
   const [view, setView] = useState<ReportScreen | null>(null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<Note>(null);
+  const [first, setFirst] = useState<string | null>(null);
+  const sharing = useRef(false);
+  const dayRef = useRef(day);
+  dayRef.current = day;
 
   useEffect(() => { if (params.day) setDay(params.day); }, [params.day]);
   useEffect(() => { setNote(null); }, [day]);
   const load = useCallback(() => {
-    try { setView(reportScreen(getDb(), day, Date.now())); } catch (e) { console.warn('daily: report failed to load', e); }
+    const d = dayRef.current;
+    try {
+      const v = reportScreen(getDb(), d, Date.now());
+      const f = firstDataDay(getDb());
+      if (dayRef.current === d) { setView(v); setFirst(f); }
+    } catch (e) {
+      console.warn('daily: report failed to load', e);
+      if (dayRef.current === d) setView(null);
+    }
   }, [day]);
   useFocusEffect(load);
 
-  if (!view) return <View style={{ flex: 1, backgroundColor: C.bg }} />;
+  if (!view || view.day !== day) return <View style={{ flex: 1, backgroundColor: C.bg }} />;
   const db = getDb();
   const today = localDate(Date.now());
   const plus = isPlus(db);
-  const canBack = day > (firstDataDay(db) ?? today);
+  const canBack = day > (first ?? today);
   const canForward = day < today;
 
   const rewrite = async () => {
     if (busy) return;
+    const d = day;
     setBusy(true);
     setNote(null);
     try {
-      const err = await rewriteReport(db, day, Date.now(), liveDeps());
-      setNote(err === 'limit' ? 'limit' : err ? 'failed' : null);
+      const err = await rewriteReport(db, d, Date.now(), liveDeps());
+      if (dayRef.current === d) setNote(err === 'limit' ? 'limit' : err ? 'failed' : null);
+    } catch (e) {
+      console.warn('daily: rewrite failed', e);
+      if (dayRef.current === d) setNote('failed');
     } finally {
       setBusy(false);
       load();
     }
   };
   const share = () => {
-    shareReportPdf({ dateLabel: dayLabel(day), headline: view.headline, story: view.story, highlights: view.highlights, plan: view.plan })
-      .catch((e) => { console.warn('daily: PDF share failed', e); setNote('pdf'); });
+    if (sharing.current) return;
+    sharing.current = true;
+    const d = day;
+    shareReportPdf({ dateLabel: dayLabel(d), headline: view.headline, story: view.story, highlights: view.highlights, plan: view.plan })
+      .catch((e) => { console.warn('daily: PDF share failed', e); if (dayRef.current === d) setNote('pdf'); })
+      .finally(() => { sharing.current = false; });
   };
   const toggle = (i: number) => { setPlanDone(db, day, i, !view.plan[i].done); load(); };
   const showFailed = note === 'failed' || (note === null && plus && view.aiError === 'failed');

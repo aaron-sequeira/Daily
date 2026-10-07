@@ -4,7 +4,7 @@ import { setSetting } from '../db/settings';
 import { makeTestDb } from '../db/testDb';
 import { FakeNotifier } from '../reminders/fakeNotifier';
 import type { AiResult, ReportOut, WeekOut } from './ai';
-import { loadReport, loadWeekSentence } from './store';
+import { loadReport, loadWeekSentence, setPlanDone } from './store';
 import { ensureWeekSentence, rewriteReport, writeDueReports, type WriterDeps } from './writer';
 
 const at = (d: number, h: number, m = 0) => new Date(2026, 9, d, h, m).getTime();
@@ -96,9 +96,37 @@ describe('writeDueReports', () => {
     expect(loadReport(d, '2026-10-06')!.createdMs).toBe(at(6, 15));
     expect(await writeDueReports(d, at(6, 21), dp, { retryFailed: false })).toEqual(['2026-10-06']);
     expect(loadReport(d, '2026-10-06')!.createdMs).toBe(at(6, 21));
+    expect(loadReport(d, '2026-10-06')!.createdMs).not.toBe(at(6, 15));
     expect(dp.notifier.reports).toHaveLength(1);
     expect(await writeDueReports(d, at(6, 21, 1), dp, { retryFailed: false })).toEqual([]);
     expect(dp.notifier.reports).toHaveLength(1);
+  });
+
+  it('keeps a 3 pm AI story when the AI fails at write time, with fresh numbers, notifying once', async () => {
+    const d = await db();
+    use(d, 6, 12, 0, 42);
+    const dp = deps({ isPlus: true });
+    await rewriteReport(d, '2026-10-06', at(6, 15), dp);
+    use(d, 6, 19, 0, 60);
+    expect(loadReport(d, '2026-10-06')!.highlights.find((h) => h.kind === 'longest')!.value).toBe('Instagram · 42m');
+    dp.aiReport.mockResolvedValueOnce({ ok: false, error: 'failed' });
+    expect(await writeDueReports(d, at(6, 21), dp, { retryFailed: false })).toEqual(['2026-10-06']);
+    const r = loadReport(d, '2026-10-06')!;
+    expect(r).toMatchObject({ kind: 'ai', headline: 'AI headline', story: 'AI story.', createdMs: at(6, 21), aiError: null });
+    expect(r.highlights.find((h) => h.kind === 'longest')!.value).toBe('Instagram · 1h');
+    expect(dp.notifier.reports).toEqual([{ day: '2026-10-06', body: 'AI headline' }]);
+    expect(await writeDueReports(d, at(6, 21, 1), dp, { retryFailed: false })).toEqual([]);
+    expect(dp.notifier.reports).toHaveLength(1);
+  });
+
+  it('carries a ticked tip over when the 9 pm story repeats it', async () => {
+    const d = await db();
+    use(d, 6, 12, 0, 42);
+    const dp = deps({ isPlus: true });
+    await rewriteReport(d, '2026-10-06', at(6, 15), dp);
+    setPlanDone(d, '2026-10-06', 0, true);
+    await writeDueReports(d, at(6, 21), dp, { retryFailed: false });
+    expect(loadReport(d, '2026-10-06')!.plan).toEqual([{ text: 'Tip one', done: true }, { text: 'Tip two', done: false }]);
   });
 
   it('writes nothing before onboarding or on a day without phone time', async () => {

@@ -49,6 +49,19 @@ export async function rewriteReport(db: Db, day: string, nowMs: number, deps: Wr
   return ai.ok ? null : ai.error;
 }
 
+/** The write-time report over an earlier draft (a 3 pm "Write it now"). If the AI is asked and fails, the draft's story, tips
+ * and ticks stay and only the numbers are refreshed; otherwise the new report replaces it, keeping ticks on tips that repeat. */
+async function rewriteDraft(db: Db, day: string, nowMs: number, deps: WriterDeps, draft: StoredReport): Promise<StoredReport> {
+  const input = buildReportInput(db, day, nowMs);
+  const ai = deps.isPlus ? await deps.aiReport(input) : null;
+  const fresh = compose(day, nowMs, input, ai);
+  const r: StoredReport = ai && !ai.ok
+    ? { ...draft, highlights: fresh.highlights, headline: draft.kind === 'plain' ? fresh.headline : draft.headline, createdMs: nowMs }
+    : { ...fresh, plan: fresh.plan.map((p) => ({ ...p, done: draft.plan.some((d) => d.done && d.text === p.text) })) };
+  saveReport(db, r);
+  return r;
+}
+
 /** A report written in the evening misses what came after. Once the day is over, refresh its numbers: the highlights
  * always, the headline too when it was the plain one. The story and the plan (with its ticks) stay. */
 export function finalizeReport(db: Db, day: string, nowMs: number): void {
@@ -77,7 +90,7 @@ export async function writeDueReports(db: Db, nowMs: number, deps: WriterDeps, o
   const todays = loadReport(db, today);
   // A "Write it now" at 3 pm must not cost the 9 pm report: it counts as due until one is saved at or after the write time.
   if (nowMs >= writeAt && (!todays || todays.createdMs < writeAt) && hasData(db, today)) {
-    const r = await writeReport(db, today, nowMs, deps);
+    const r = todays ? await rewriteDraft(db, today, nowMs, deps, todays) : await writeReport(db, today, nowMs, deps);
     written.push(today);
     if (await deps.notifier.canNotify().catch(() => false)) {
       await deps.notifier.showReportReady(today, r.headline).catch((e) => console.warn('daily: report notification failed', e));
