@@ -1,0 +1,20 @@
+{
+  "kind": "report",
+  "input": {
+    "day": "2026-10-06", "goalMin": 240, "phoneMin": 92, "pickups": 3,
+    "apps": [
+      { "name": "Instagram", "category": "social", "minutes": 42, "opens": 1 },
+      { "name": "WhatsApp", "category": "messages", "minutes": 30, "opens": 3 },
+      { "name": "Duolingo", "category": "learning", "minutes": 20, "opens": 1 }
+    ],
+    "categories": { "social": 42, "messages": 30, "learning": 20 },
+    "hourly": [0, 0, 0, 0, 0, 0, 0, 20, 10, 0, 0, 0, 47, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15],
+    "longest": { "app": "Instagram", "category": "social", "minutes": 42, "start": "12:10" },
+    "quietest": { "from": "12:52", "to": "23:10", "minutes": 618 },
+    "late": { "after": "23:00", "minutes": 15 },
+    "moods": [{ "mood": "glowing", "at": "07:30" }],
+    "water": 2,
+    "last7": [{ "day": "2026-10-01", "phoneMin": 30 }, { "day": "2026-10-05", "phoneMin": 60 }],
+    "yesterdayPlan": [{ "text": "Leave Instagram after 20 minutes", "done": true }]
+  }
+}
