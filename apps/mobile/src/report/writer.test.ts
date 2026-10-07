@@ -70,6 +70,34 @@ describe('writeDueReports', () => {
     expect(dp.notifier.reports).toHaveLength(1);
   });
 
+  it('retries a limit story once the server’s UTC day has rolled over, and only once', async () => {
+    const d = await db(); // Asia/Kolkata: local 05:00 on the 6th is 23:30 UTC on the 5th
+    use(d, 5, 12, 0, 42);
+    const dp = deps({ isPlus: true });
+    dp.aiReport.mockResolvedValueOnce({ ok: false, error: 'limit' });
+    expect(await writeDueReports(d, at(6, 5), dp, { retryFailed: false })).toEqual(['2026-10-05']);
+    expect(loadReport(d, '2026-10-05')).toMatchObject({ kind: 'plain', aiError: 'limit' });
+    expect(await writeDueReports(d, at(6, 5, 20), dp, { retryFailed: true })).toEqual([]); // same UTC day: the limit still holds
+    expect(dp.aiReport).toHaveBeenCalledTimes(1);
+    dp.aiReport.mockResolvedValueOnce({ ok: false, error: 'limit' });
+    expect(await writeDueReports(d, at(6, 6), dp, { retryFailed: true })).toEqual(['2026-10-05']); // 00:30 UTC on the 6th
+    expect(dp.aiReport).toHaveBeenCalledTimes(2);
+    expect(await writeDueReports(d, at(6, 7), dp, { retryFailed: true })).toEqual([]); // still limit: not again this UTC day
+    expect(dp.aiReport).toHaveBeenCalledTimes(2);
+    expect(await writeDueReports(d, at(7, 6), dp, { retryFailed: true })).toEqual([]); // the 5th is no longer yesterday or today
+    expect(dp.aiReport).toHaveBeenCalledTimes(2);
+  });
+
+  it('turns a limit story into the AI one when the retry after the UTC rollover lands', async () => {
+    const d = await db();
+    use(d, 5, 12, 0, 42);
+    const dp = deps({ isPlus: true });
+    dp.aiReport.mockResolvedValueOnce({ ok: false, error: 'limit' });
+    await writeDueReports(d, at(6, 5), dp, { retryFailed: false });
+    expect(await writeDueReports(d, at(6, 6), dp, { retryFailed: true })).toEqual(['2026-10-05']);
+    expect(loadReport(d, '2026-10-05')).toMatchObject({ kind: 'ai', aiError: null });
+  });
+
   it('writes a missed yesterday quietly, as final', async () => {
     const d = await db();
     use(d, 5, 12, 0, 30);

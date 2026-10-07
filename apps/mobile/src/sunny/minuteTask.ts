@@ -35,13 +35,19 @@ export async function minuteTask(): Promise<void> {
         appActive: AppState.currentState === 'active', openAndroidCategory: cat
       });
     } catch (e) { console.warn('daily: bubble check failed', e); }
-    const v = loadToday(db, now);
+    // Each step below is on its own: a throw in today's numbers or the chip must never skip the report writer.
+    let v: ReturnType<typeof loadToday> | null = null;
+    try { v = loadToday(db, now); } catch (e) { console.warn('daily: loading today failed', e); }
     // the bubble must be up before it can speak, so update it first; it is only a no-op when nothing changed
-    try { DailyNative.updateBubble(shows, v.mood); } catch (e) { console.warn('daily: bubble update failed', e); }
+    try { DailyNative.updateBubble(shows, v?.mood ?? 'happy'); } catch (e) { console.warn('daily: bubble update failed', e); }
     const speak = shows ? (t: string, b: string) => DailyNative.showBubbleSpeech(t, b) : undefined;
     await coachTick(db, expoNotifier, now, inCall, speak).catch((e) => console.warn('daily: coach tick failed', e));
-    const c = chipContent({ access: result !== 'no_access' && DailyNative.hasUsageAccess(), phoneMin: v.phoneMin, goalMin: v.goalMin, leftMin: v.leftMin, mood: v.mood });
-    DailyNative.updateChip(c.title, c.short, c.text, c.mood);
+    try {
+      if (v) {
+        const c = chipContent({ access: result !== 'no_access' && DailyNative.hasUsageAccess(), phoneMin: v.phoneMin, goalMin: v.goalMin, leftMin: v.leftMin, mood: v.mood });
+        DailyNative.updateChip(c.title, c.short, c.text, c.mood);
+      }
+    } catch (e) { console.warn('daily: chip update failed', e); }
     await runReportWriter({ retryFailed: false });
   } catch (e) {
     console.warn('daily: minute task failed', e);

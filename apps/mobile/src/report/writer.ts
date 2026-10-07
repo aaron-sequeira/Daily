@@ -25,6 +25,12 @@ const timeOn = (day: string, hhmm: string) => { const [h, m] = hhmm.split(':').m
 /** False once Delete everything has run (it clears `onboarded`): a write that was waiting on the AI must not bring rows back. */
 const stillOnboarded = (db: Db) => getSetting(db, 'onboarded') === '1';
 const savedAt = (deps: WriterDeps, nowMs: number) => deps.now?.() ?? nowMs;
+/** The server counts per UTC day (quota.ts), so a 'limit' can only lift once that day has rolled over. */
+const utcDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+/** A failed story (offline, timeout) is retried; a 'limit' one once the server's day is over (a lost response or an
+ * outage day must not leave it plain for good). The retry re-stamps it, so a second 'limit' waits for the next UTC day. */
+const retryable = (r: StoredReport, nowMs: number) =>
+  r.aiError === 'failed' || (r.aiError === 'limit' && utcDay(r.createdMs) < utcDay(nowMs));
 /** Ticks on `cur` carry over to the same tip text in a new plan. */
 const keepTicks = (plan: PlanItem[], cur: StoredReport | null): PlanItem[] =>
   plan.map((p) => ({ ...p, done: p.done || !!cur?.plan.some((c) => c.done && c.text === p.text) }));
@@ -98,7 +104,8 @@ export function finalizeReport(db: Db, day: string, nowMs: number): void {
 /** Runs after every sync (minute task, background task, app open). Each piece happens at most once:
  * - last night's report is brought up to date, or written quietly if the phone missed the write time;
  * - today's report once "Write it at" has passed, with "Your day is ready";
- * - on app open (`retryFailed`), a Plus story that failed (offline, timeout) gets another try, silently. */
+ * - on app open (`retryFailed`), a Plus story that failed (offline, timeout), or hit the limit on an earlier UTC day,
+ *   gets another try, silently. */
 export async function writeDueReports(db: Db, nowMs: number, deps: WriterDeps, opts: { retryFailed: boolean }): Promise<string[]> {
   if (getSetting(db, 'onboarded') !== '1') return [];
   const today = localDate(nowMs);
@@ -124,7 +131,7 @@ export async function writeDueReports(db: Db, nowMs: number, deps: WriterDeps, o
   if (opts.retryFailed && deps.isPlus) {
     for (const day of [yesterday, today]) {
       const r = loadReport(db, day);
-      if (r?.kind === 'plain' && r.aiError === 'failed' && !written.includes(day)) {
+      if (r?.kind === 'plain' && retryable(r, nowMs) && !written.includes(day)) {
         if (!(await writeReport(db, day, nowMs, deps))) return written;
         written.push(day);
       }
