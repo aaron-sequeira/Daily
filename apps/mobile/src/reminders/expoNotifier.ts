@@ -3,6 +3,7 @@ import type { Notifier, ReminderContent } from './notifier';
 
 export const REMINDER_CHANNEL = 'reminders';
 export const COACH_CHANNEL = 'coach';
+export const REPORT_CHANNEL = 'reports';
 
 /** Foreground display, the Android channel and the three button sets. Safe to call more than once. */
 export async function setupNotifications(): Promise<void> {
@@ -11,6 +12,7 @@ export async function setupNotifications(): Promise<void> {
   });
   await Notifications.setNotificationChannelAsync(REMINDER_CHANNEL, { name: 'Reminders', importance: Notifications.AndroidImportance.HIGH });
   await Notifications.setNotificationChannelAsync(COACH_CHANNEL, { name: 'Coach nudges', importance: Notifications.AndroidImportance.DEFAULT });
+  await Notifications.setNotificationChannelAsync(REPORT_CHANNEL, { name: 'Daily report', importance: Notifications.AndroidImportance.DEFAULT });
   await Notifications.setNotificationCategoryAsync('coach', [
     { identifier: 'coach-snooze', buttonTitle: 'Snooze 1 h', options: { opensAppToForeground: false } }
   ]);
@@ -47,6 +49,13 @@ export const expoNotifier: Notifier = {
       identifier: key,
       content: { title, body, categoryIdentifier: 'coach', data: { coach: true } },
       trigger: { channelId: COACH_CHANNEL }
+    });
+  },
+  async showReportReady(day, body) {
+    await Notifications.scheduleNotificationAsync({
+      identifier: `report-${day}`,
+      content: { title: 'Your day is ready', body, data: { report: day } },
+      trigger: { channelId: REPORT_CHANNEL }
     });
   },
   async canNotify() { return (await Notifications.getPermissionsAsync()).granted; }

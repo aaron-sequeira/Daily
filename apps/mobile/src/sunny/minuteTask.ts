@@ -1,6 +1,7 @@
 import DailyNative from '../../modules/daily-native';
 import { coachTick } from '../coach/coach';
 import { getDb } from '../db/expoDb';
+import { runReportWriter } from '../report/run';
 import { expoNotifier } from '../reminders/expoNotifier';
 import { loadToday } from '../today/load';
 import { runSync } from '../tracking/runSync';
@@ -16,6 +17,7 @@ export async function minuteTask(): Promise<void> {
     const v = loadToday(db, now);
     const c = chipContent({ access: result !== 'no_access' && DailyNative.hasUsageAccess(), phoneMin: v.phoneMin, goalMin: v.goalMin, leftMin: v.leftMin, mood: v.mood });
     DailyNative.updateChip(c.title, c.short, c.text, c.mood);
+    await runReportWriter({ retryFailed: false });
   } catch (e) {
     console.warn('daily: minute task failed', e);
   }

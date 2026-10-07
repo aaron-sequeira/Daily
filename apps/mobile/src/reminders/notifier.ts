@@ -12,6 +12,7 @@ export interface Notifier {
   dismiss(key: string): Promise<void>;
   canNotify(): Promise<boolean>;
   showCoach(key: string, title: string, body: string): Promise<void>;
+  showReportReady(day: string, body: string): Promise<void>;
 }
 
 export function reminderContent(r: Reminder): ReminderContent {

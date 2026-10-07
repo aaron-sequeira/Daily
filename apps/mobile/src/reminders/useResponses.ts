@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { handleCoachResponse, isCoachResponse } from '../coach/actions';
 import { getDb } from '../db/expoDb';
+import { reportTap } from '../report/tap';
 import { fromResponse, handleReminderAction } from './actions';
 import { applyReminders } from './apply';
 import { expoNotifier } from './expoNotifier';
@@ -13,6 +14,8 @@ export function useReminderResponses(): void {
   const response = Notifications.useLastNotificationResponse();
   useEffect(() => {
     if (!response) return;
+    const reportDay = reportTap(getDb(), response);
+    if (reportDay) { router.push({ pathname: '/report', params: { day: reportDay } } as never); return; }
     if (isCoachResponse(response)) {
       handleCoachResponse(getDb(), expoNotifier, response, Date.now()).catch((e) => console.warn('daily: coach action failed', e));
       return;

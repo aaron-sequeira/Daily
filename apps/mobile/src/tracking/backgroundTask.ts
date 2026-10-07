@@ -1,5 +1,6 @@
 import * as BackgroundTask from 'expo-background-task';
 import * as TaskManager from 'expo-task-manager';
+import { runReportWriter } from '../report/run';
 import { runSync } from './runSync';
 
 export const SYNC_TASK = 'daily-sync';
@@ -8,6 +9,7 @@ export const SYNC_TASK = 'daily-sync';
 TaskManager.defineTask(SYNC_TASK, async () => {
   try {
     await runSync();
+    await runReportWriter({ retryFailed: false });
     return BackgroundTask.BackgroundTaskResult.Success;
   } catch (e) {
     console.warn('daily: background sync failed', e);
