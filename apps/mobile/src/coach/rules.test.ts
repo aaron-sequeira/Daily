@@ -4,12 +4,17 @@ import { canStepWindDown, GAP_MS, inWindDown, stepWindDown, isQuiet, planNudge, 
 // Tue 6 Oct 2026, Asia/Kolkata.
 const at = (h: number, m = 0, d = 6) => new Date(2026, 9, d, h, m).getTime();
 const insta: OpenApp = { pkg: 'com.instagram.android', label: 'Instagram', category: 'social', androidCategory: 4, startMs: at(20) };
-const base: CoachInput = { nowMs: at(20, 10), open: insta, phoneMin: 60, goalMin: 240, windDown: '23:00', lastNudgeMs: null, snoozeUntilMs: 0, sentKeys: new Set() };
+const base: CoachInput = { nowMs: at(20, 10), open: insta, phoneMin: 60, goalMin: 240, windDown: '23:00', lastNudgeMs: null, snoozeUntilMs: 0, sentKeys: new Set(), inCall: false };
 
 describe('planNudge', () => {
   it("stays quiet when nothing applies or the phone isn't in use", () => {
     expect(planNudge(base)).toBeNull();
     expect(planNudge({ ...base, nowMs: at(21), open: null, phoneMin: 300 })).toBeNull();
+  });
+
+  it('stays quiet during any call, including WhatsApp, Meet or Discord voice', () => {
+    expect(planNudge({ ...base, nowMs: at(20, 31), inCall: true })).toBeNull();
+    expect(planNudge({ ...base, phoneMin: 245, inCall: true })).toBeNull();
   });
 
   it('nudges after 30 minutes straight in a social or fun app, once per stretch', () => {

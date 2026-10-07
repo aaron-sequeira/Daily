@@ -13,7 +13,9 @@ export async function minuteTask(): Promise<void> {
     const result = await runSync().catch((e) => { console.warn('daily: sync failed', e); return 'ok' as const; });
     const db = getDb();
     const now = Date.now();
-    await coachTick(db, expoNotifier, now).catch((e) => console.warn('daily: coach tick failed', e));
+    let inCall = false;
+    try { inCall = DailyNative.isInCall(); } catch (e) { console.warn('daily: call check failed', e); }
+    await coachTick(db, expoNotifier, now, inCall).catch((e) => console.warn('daily: coach tick failed', e));
     const v = loadToday(db, now);
     const c = chipContent({ access: result !== 'no_access' && DailyNative.hasUsageAccess(), phoneMin: v.phoneMin, goalMin: v.goalMin, leftMin: v.leftMin, mood: v.mood });
     DailyNative.updateChip(c.title, c.short, c.text, c.mood);

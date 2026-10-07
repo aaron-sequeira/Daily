@@ -18,10 +18,11 @@ function openApp(db: Db): OpenApp | null {
 }
 
 /** Runs after each sync from the Sunny service's minute task: picks at most one nudge, shows it, remembers its key. */
-export async function coachTick(db: Db, notifier: Notifier, nowMs: number): Promise<NudgeKind | null> {
+export async function coachTick(db: Db, notifier: Notifier, nowMs: number, inCall = false): Promise<NudgeKind | null> {
   if (getSetting(db, 'onboarded') !== '1') return null;
   const nudge = planNudge({
     nowMs,
+    inCall,
     open: openApp(db),
     phoneMin: phoneMsForDay(db, localDate(nowMs), nowMs) / 60_000,
     goalMin: getNumber(db, 'goal_min'),

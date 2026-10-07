@@ -12,6 +12,7 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.Drawable
+import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.os.Process
@@ -42,6 +43,11 @@ class DailyNativeModule : Module() {
     Function("canScheduleExactAlarms") {
       if (Build.VERSION.SDK_INT < 31) true
       else (context.getSystemService(Context.ALARM_SERVICE) as AlarmManager).canScheduleExactAlarms()
+    }
+
+    Function("isInCall") {
+      val mode = (context.getSystemService(Context.AUDIO_SERVICE) as AudioManager).mode
+      mode == AudioManager.MODE_IN_CALL || mode == AudioManager.MODE_IN_COMMUNICATION
     }
 
     Function("openExactAlarmSettings") {

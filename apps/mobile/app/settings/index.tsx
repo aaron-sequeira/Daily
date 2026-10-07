@@ -1,10 +1,10 @@
 import { File, Paths } from 'expo-file-system';
-import { Link, router } from 'expo-router';
+import { Link, router, useFocusEffect } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import * as Sharing from 'expo-sharing';
 import { clock12 } from '@worksight/core/reminders';
-import { useState, type ReactNode } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { useCallback, useState, type ReactNode } from 'react';
+import { Alert, AppState, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DailyNative from '../../modules/daily-native';
@@ -25,6 +25,13 @@ export default function Settings() {
   const insets = useSafeAreaInsets();
   const db = getDb();
   const [goal, setGoal] = useState(() => getNumber(db, 'goal_min'));
+  const [notifOff, setNotifOff] = useState(false);
+  useFocusEffect(useCallback(() => {
+    const check = () => { Notifications.getPermissionsAsync().then((p) => setNotifOff(!p.granted)).catch(() => {}); };
+    check();
+    const sub = AppState.addEventListener('change', (st) => { if (st === 'active') check(); });
+    return () => sub.remove();
+  }, []));
   const [sunny, setSunny] = useState(() => getSetting(db, 'sunny_service') === '1');
   const [writeAt, setWriteAt] = useState(() => getSetting(db, 'write_time'));
   const [plusDev, setPlusDev] = useState(() => getSetting(db, 'dev_plus') === '1');
@@ -90,8 +97,16 @@ export default function Settings() {
         <View style={s.row}>
           <Text style={s.rowText}>Sunny in the status bar</Text>
           <Switch value={sunny} accessibilityLabel="Sunny in the status bar" trackColor={{ false: C.line, true: C.ink }} thumbColor={C.white} style={{ marginLeft: 'auto' }}
-            onValueChange={(on) => { if (on) Notifications.requestPermissionsAsync().catch(() => null); setSunny(on); setSetting(db, 'sunny_service', on ? '1' : '0'); syncSunnyService(db, DailyNative); }} />
+            onValueChange={(on) => { if (on) Notifications.requestPermissionsAsync().then((p) => setNotifOff(!p.granted)).catch(() => null); setSunny(on); setSetting(db, 'sunny_service', on ? '1' : '0'); syncSunnyService(db, DailyNative); }} />
         </View>
+        {sunny && notifOff && (
+          <View style={s.row}>
+            <Text style={[s.rowText, { flex: 1 }]}>Notifications are off, so Sunny can't show in the status bar.</Text>
+            <Pressable onPress={() => Linking.openSettings()} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center', paddingLeft: 12 }}>
+              <Text style={[s.rowText, { fontFamily: F.semi, textDecorationLine: 'underline' }]}>Allow</Text>
+            </Pressable>
+          </View>
+        )}
         <Link href="/settings/keep-running" asChild>
           <Pressable accessibilityRole="button" style={s.row}><Text style={s.rowText}>Keep Sunny running</Text><Text style={s.value}>Help</Text></Pressable>
         </Link>

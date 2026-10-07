@@ -15,6 +15,11 @@ async function scrolling(since: number) {
 }
 
 describe('coachTick', () => {
+  it('stays quiet while the phone is in a call', async () => {
+    const db = await scrolling(at(20));
+    expect(await coachTick(db, new FakeNotifier(), at(20, 31), true)).toBeNull();
+  });
+
   it('sends the long-stretch nudge once per stretch, even with a fresh process (Review Focus 2)', async () => {
     const db = await scrolling(at(20));
     const n = new FakeNotifier();

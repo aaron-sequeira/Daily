@@ -7,7 +7,7 @@ export type Nudge = { kind: NudgeKind; key: string; title: string; body: string 
 export type OpenApp = { pkg: string; label: string; category: Category; androidCategory: number | null; startMs: number };
 export type CoachInput = {
   nowMs: number; open: OpenApp | null; phoneMin: number; goalMin: number; windDown: string;
-  lastNudgeMs: number | null; snoozeUntilMs: number; sentKeys: ReadonlySet<string>;
+  lastNudgeMs: number | null; snoozeUntilMs: number; sentKeys: ReadonlySet<string>; inCall: boolean;
 };
 
 export const STRETCH_MIN = 30;
@@ -48,6 +48,7 @@ const nightOf = (nowMs: number): string => localDate(nowMs - WIND_DOWN_END_MIN *
 /** At most one nudge, only while the phone is in use, respecting snooze, the 20-minute gap and quiet apps. */
 export function planNudge(i: CoachInput): Nudge | null {
   if (!i.open || isQuiet(i.open)) return null;
+  if (i.inCall) return null; // the phone's audio is in a call: never interrupt it
   if (i.nowMs < i.snoozeUntilMs) return null;
   if (i.lastNudgeMs !== null && i.nowMs - i.lastNudgeMs < GAP_MS) return null;
 

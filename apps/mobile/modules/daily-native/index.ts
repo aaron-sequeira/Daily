@@ -11,6 +11,7 @@ export type DailyNativeApi = {
   queryEvents(fromMs: number, toMs: number): Promise<NativeEvent[]>;
   appInfo(packages: string[]): Promise<NativeAppInfo[]>;
   canScheduleExactAlarms(): boolean;
+  isInCall(): boolean;
   openExactAlarmSettings(): void;
   startSunnyService(): void;
   stopSunnyService(): void;
