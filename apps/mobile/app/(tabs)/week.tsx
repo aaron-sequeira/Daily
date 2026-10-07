@@ -22,35 +22,28 @@ const BAR_H = 120;
 function GrowBar({ index, height, outlined, children }: { index: number; height: number; outlined: boolean; children: ReactNode }) {
   const reduce = useReducedMotion();
   const k = useSharedValue(reduce ? 1 : 0);
-  useEffect(() => { if (!reduce) k.value = withDelay(250 + index * 70, withSpring(1, { damping: 12, stiffness: 140 })); }, [index, reduce, k]);
+  useEffect(() => {
+    if (reduce) { k.value = 1; return; }
+    k.value = withDelay(250 + index * 70, withSpring(1, { damping: 12, stiffness: 140 }));
+  }, [index, reduce, k]);
   const grow = useAnimatedStyle(() => ({ transform: [{ scaleY: k.value }] }));
   return <Animated.View style={[s.bar, { height, transformOrigin: 'bottom' }, outlined && s.barToday, grow]}>{children}</Animated.View>;
 }
 
-export default function Week() {
-  const insets = useSafeAreaInsets();
-  const [which, setWhich] = useState<'this' | 'last'>('this');
-  const [view, setView] = useState<WeekView | null>(null);
-  const [aiSentence, setAiSentence] = useState<string | null>(null);
-  const token = useRef(0);
+function startFor(which: 'this' | 'last', nowMs: number): string {
+  const thisWeek = weekStartOf(localDate(nowMs));
+  return which === 'this' ? thisWeek : shiftDay(thisWeek, -7);
+}
 
-  const load = useCallback(() => {
-    const db = getDb();
-    const now = Date.now();
-    const thisWeek = weekStartOf(localDate(now));
-    const start = which === 'this' ? thisWeek : shiftDay(thisWeek, -7);
-    const mine = ++token.current;
-    try { setView(buildWeek(db, start, now)); } catch (e) { console.warn('daily: week failed to load', e); return; }
-    setAiSentence(loadWeekSentence(db, start));
-    ensureWeekSentence(db, start, now, liveDeps())
-      .then((sentence) => { if (sentence && mine === token.current) setAiSentence(sentence); })
-      .catch((e) => console.warn('daily: week sentence failed', e));
-  }, [which]);
-  useFocusEffect(load);
+function dayLabelFor(d: WeekView['days'][number]): string {
+  if (d.future) return `${d.label}: not yet`;
+  const name = d.isToday ? `${d.label}, today` : d.label;
+  if (d.phoneMin === 0) return `${name}: no phone time`;
+  const split = CATEGORIES.filter((c) => (d.byCat[c] ?? 0) > 0).map((c) => `${CATEGORY_LOOK[c].label} ${formatDuration(d.byCat[c]!)}`).join(', ');
+  return `${name}: ${formatDuration(d.phoneMin)}${split ? ` — ${split}` : ''}`;
+}
 
-  const thisWeek = weekStartOf(localDate(Date.now()));
-  const start = which === 'this' ? thisWeek : shiftDay(thisWeek, -7);
-  if (!view || view.weekStart !== start) return <View style={{ flex: 1, backgroundColor: C.bg }} />;
+function WeekBody({ view, aiSentence }: { view: WeekView; aiSentence: string | null }) {
   const plus = isPlus(getDb());
   const max = Math.max(1, ...view.days.map((d) => d.phoneMin));
   const shownCats = CATEGORIES.filter((c) => view.days.some((d) => (d.byCat[c] ?? 0) > 0));
@@ -58,17 +51,7 @@ export default function Week() {
   const delta = view.deltaMin;
 
   return (
-    <ScrollView style={{ backgroundColor: C.bg }} contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: 24, gap: 14 }}>
-      <Animated.View entering={rise(0)} style={s.header}><Text style={s.h1}>Your week</Text></Animated.View>
-
-      <Animated.View entering={rise(1)} style={s.seg} accessibilityRole="tablist">
-        {(['this', 'last'] as const).map((w) => (
-          <Pressable key={w} onPress={() => setWhich(w)} accessibilityRole="tab" accessibilityState={{ selected: which === w }} style={[s.segBtn, which === w && s.segOn]}>
-            <Text style={[s.segText, which === w && { color: C.ink }]}>{w === 'this' ? 'This week' : 'Last week'}</Text>
-          </Pressable>
-        ))}
-      </Animated.View>
-
+    <>
       <Animated.View entering={rise(2)} style={s.box}>
         <Text style={s.muted}>Phone time · daily average</Text>
         <View style={s.avgRow}>
@@ -79,14 +62,16 @@ export default function Week() {
         </View>
         <View key={view.weekStart} style={s.bars}>
           {view.days.map((d, i) => (
-            <View key={d.day} style={s.col} accessible accessibilityLabel={`${d.label}: ${d.future ? 'not yet' : formatDuration(d.phoneMin)}`}>
+            <View key={d.day} style={s.col} accessible accessibilityLabel={dayLabelFor(d)}>
               {d.future || d.phoneMin === 0 ? (
-                <View style={[s.bar, s.barEmpty]} />
+                <View style={[s.bar, s.barEmpty, d.isToday && s.barToday]} />
               ) : (
                 <GrowBar index={i} height={Math.max(6, (BAR_H * d.phoneMin) / max)} outlined={d.isToday}>
-                  {CATEGORIES.filter((c) => (d.byCat[c] ?? 0) > 0).reverse().map((c) => (
-                    <View key={c} style={{ flex: d.byCat[c]!, backgroundColor: CATEGORY_LOOK[c].color }} />
-                  ))}
+                  {CATEGORIES.some((c) => (d.byCat[c] ?? 0) > 0)
+                    ? CATEGORIES.filter((c) => (d.byCat[c] ?? 0) > 0).reverse().map((c) => (
+                      <View key={c} style={{ flex: d.byCat[c]!, backgroundColor: CATEGORY_LOOK[c].color }} />
+                    ))
+                    : <View style={{ flex: 1, backgroundColor: C.line }} />}
                 </GrowBar>
               )}
               <Text style={[s.colLabel, d.isToday && { color: C.ink, fontFamily: F.semi }]}>{d.isToday ? 'Today' : d.label}</Text>
@@ -121,6 +106,46 @@ export default function Week() {
           ))}
         </Animated.View>
       )}
+    </>
+  );
+}
+
+export default function Week() {
+  const insets = useSafeAreaInsets();
+  const [which, setWhich] = useState<'this' | 'last'>('this');
+  const [view, setView] = useState<WeekView | null>(null);
+  const [aiSentence, setAiSentence] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  const token = useRef(0);
+
+  const load = useCallback(() => {
+    const db = getDb();
+    const now = Date.now();
+    const start = startFor(which, now);
+    const mine = ++token.current;
+    try { setView(buildWeek(db, start, now)); setFailed(false); } catch (e) { console.warn('daily: week failed to load', e); setFailed(true); return; }
+    setAiSentence(loadWeekSentence(db, start));
+    ensureWeekSentence(db, start, now, liveDeps())
+      .then((sentence) => { if (sentence && mine === token.current) setAiSentence(sentence); })
+      .catch((e) => console.warn('daily: week sentence failed', e));
+  }, [which]);
+  useFocusEffect(load);
+
+  // A stale view (the other segment's, or one that failed to reload) never shows under the selected segment.
+  const ready = !!view && view.weekStart === startFor(which, Date.now());
+  return (
+    <ScrollView style={{ backgroundColor: C.bg }} contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: 24, gap: 14 }}>
+      <Animated.View entering={rise(0)} style={s.header}><Text style={s.h1}>Your week</Text></Animated.View>
+
+      <Animated.View entering={rise(1)} style={s.seg} accessibilityRole="tablist">
+        {(['this', 'last'] as const).map((w) => (
+          <Pressable key={w} onPress={() => setWhich(w)} accessibilityRole="tab" accessibilityState={{ selected: which === w }} style={[s.segBtn, which === w && s.segOn]}>
+            <Text style={[s.segText, which === w && { color: C.ink }]}>{w === 'this' ? 'This week' : 'Last week'}</Text>
+          </Pressable>
+        ))}
+      </Animated.View>
+
+      {ready && view ? <WeekBody view={view} aiSentence={aiSentence} /> : failed ? <Text style={s.muted}>Couldn't load this week.</Text> : null}
     </ScrollView>
   );
 }
