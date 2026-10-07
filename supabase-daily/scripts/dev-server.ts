@@ -54,7 +54,13 @@ const server = createServer(async (req, res) => {
         headers: { authorization: req.headers.authorization ?? '', 'content-type': 'application/json' },
         body: req.method === 'POST' ? Buffer.concat(chunks).toString('utf8') : undefined
       }),
-      { apiKey, models, fetchFn: fetch, isPlus: async () => true }
+      // ponytail: the local stand-in trusts any bearer and has no quota; the deployed function checks both.
+      {
+        apiKey, models, fetchFn: fetch,
+        userId: async (auth) => (auth.startsWith('Bearer ') ? 'dev-user' : null),
+        isPlus: async () => true,
+        quota: { use: async () => true, refund: async () => {} }
+      }
     );
     status = r.status;
     json(res, r.status, await r.text());

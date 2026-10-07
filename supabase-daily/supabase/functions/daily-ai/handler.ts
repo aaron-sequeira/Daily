@@ -2,9 +2,15 @@ import { MAX_BODY_BYTES, parseRequest, type AiRequest } from './contract.ts';
 import { checkReport, checkWeek } from './ground.ts';
 import { callModel, TIMEOUT_MS, type FetchFn } from './openrouter.ts';
 import { buildPrompt } from './prompt.ts';
+import { bucketFor, type Quota } from './quota.ts';
 
 export type AiError = 'not_plus' | 'limit' | 'invalid' | 'failed';
-export type Deps = { apiKey: string; models: string[]; fetchFn: FetchFn; isPlus(authorization: string): Promise<boolean>; now?: () => number };
+export type Deps = {
+  apiKey: string; models: string[]; fetchFn: FetchFn; now?: () => number;
+  userId(authorization: string): Promise<string | null>;
+  isPlus(userId: string): Promise<boolean>;
+  quota: Quota;
+};
 
 /** The whole request, both attempts included, ends inside the app's 35 s wait. */
 export const DEADLINE_MS = 30_000;
@@ -33,7 +39,7 @@ export async function readCapped(req: Request, max: number): Promise<string | nu
   return new TextDecoder().decode(all);
 }
 
-/** spec §11: validate → Plus → model (one retry on a bad answer) → grounded JSON. Never logs the key or the input. */
+/** spec §11: validate → user → Plus → quota → model (one retry on a bad answer) → grounded JSON. Never logs the key or the input. */
 export async function handle(req: Request, deps: Deps): Promise<Response> {
   const now = deps.now ?? Date.now;
   const start = now();
@@ -51,22 +57,29 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
   }
   const request = parseRequest(raw);
   if (!request) return failure(400, 'failed');
-  if (!(await deps.isPlus(auth))) return failure(403, 'not_plus');
+  const userId = await deps.userId(auth);
+  if (!userId) return failure(401, 'failed');
+  if (!(await deps.isPlus(userId))) return failure(403, 'not_plus');
   if (!deps.apiKey) return failure(500, 'failed');
+  const slot = bucketFor(request, new Date(start).toISOString().slice(0, 10));
+  if (!(await deps.quota.use(userId, slot.bucket, slot.limit))) return failure(429, 'limit');
+  const refund = () => deps.quota.refund(userId, slot.bucket);
 
   const prompt = buildPrompt(request);
   for (let attempt = 0; attempt < 2; attempt++) {
     const left = DEADLINE_MS - (now() - start);
-    if (attempt > 0 && left < RETRY_MIN_MS) return failure(200, 'failed'); // ran out of time, not a bad answer: worth retrying later
+    if (attempt > 0 && left < RETRY_MIN_MS) { await refund(); return failure(200, 'failed'); } // ran out of time, not a bad answer: worth retrying later
     let answer: unknown;
     try {
       answer = await callModel({ apiKey: deps.apiKey, models: deps.models, fetchFn: deps.fetchFn, timeoutMs: Math.max(0, Math.min(TIMEOUT_MS, left)), ...prompt });
     } catch (e) {
       console.warn('daily-ai: model call failed:', e instanceof Error ? e.message : 'unknown');
+      await refund();
       return failure(502, 'failed');
     }
     const json = check(request, answer);
     if (json) return reply(200, { ok: true, json });
   }
+  await refund();
   return failure(200, 'invalid');
 }

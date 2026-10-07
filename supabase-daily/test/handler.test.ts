@@ -14,8 +14,9 @@ function setup(...replies: (Response | Error)[]) {
     if (!r || r instanceof Error) throw r ?? new Error('no reply');
     return r;
   });
-  const deps: Deps = { apiKey: 'sk-test', models: ['openai/gpt-6-luna', 'google/gemini-3.1-flash-lite'], fetchFn, isPlus: async () => true };
-  return { deps, sent, fetchFn };
+  const quota = { use: vi.fn(async () => true), refund: vi.fn(async () => {}) };
+  const deps: Deps = { apiKey: 'sk-test', models: ['openai/gpt-6-luna', 'google/gemini-3.1-flash-lite'], fetchFn, userId: async (a) => (a === 'Bearer jwt' ? 'u1' : null), isPlus: async () => true, quota };
+  return { deps, sent, fetchFn, quota };
 }
 const post = (body: unknown, auth = 'Bearer jwt') =>
   new Request('http://local/daily-ai', { method: 'POST', headers: { authorization: auth, 'content-type': 'application/json' }, body: typeof body === 'string' ? body : JSON.stringify(body) });
@@ -62,6 +63,34 @@ describe('daily-ai handler (spec §11)', () => {
     const { deps, fetchFn } = setup();
     expect(await json(await handle(post(sample), { ...deps, isPlus: async () => false }))).toEqual({ status: 403, body: { ok: false, error: 'not_plus' } });
     expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it('refuses a caller Supabase does not know, before anything else (Review Focus 2)', async () => {
+    const { deps, fetchFn, quota } = setup();
+    expect(await json(await handle(post(sample, 'Bearer anon-key'), deps))).toEqual({ status: 401, body: { ok: false, error: 'failed' } });
+    expect(fetchFn).not.toHaveBeenCalled();
+    expect(quota.use).not.toHaveBeenCalled();
+  });
+
+  it('says limit when the quota is used up, without calling the model', async () => {
+    const { deps, fetchFn, quota } = setup();
+    quota.use.mockResolvedValueOnce(false);
+    expect(await json(await handle(post(sample), deps))).toEqual({ status: 429, body: { ok: false, error: 'limit' } });
+    expect(fetchFn).not.toHaveBeenCalled();
+    expect(quota.use).toHaveBeenCalledWith('u1', 'report:2026-10-06', 1);
+  });
+
+  it('gives the slot back after failed or invalid, keeps it after success (Review Focus 3)', async () => {
+    const a = setup(new Error('down'));
+    await handle(post(sample), a.deps);
+    expect(a.quota.refund).toHaveBeenCalledWith('u1', 'report:2026-10-06');
+    const invented = { ...good, headline: 'You spent 5 hours on your phone.' };
+    const b = setup(answer(invented), answer(invented));
+    await handle(post(sample), b.deps);
+    expect(b.quota.refund).toHaveBeenCalledTimes(1);
+    const c = setup(answer(good));
+    await handle(post(sample), c.deps);
+    expect(c.quota.refund).not.toHaveBeenCalled();
   });
 
   it('retries a bad answer once, then gives up with invalid (Review Focus 4)', async () => {
