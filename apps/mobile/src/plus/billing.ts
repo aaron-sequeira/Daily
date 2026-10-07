@@ -4,7 +4,7 @@ export type Entitlement = { active: boolean; untilMs: number | null; plan: PlanI
 export type PurchaseResult = { ok: true; ent: Entitlement } | { ok: false; cancelled: boolean; message: string };
 
 export interface Billing {
-  start(userId: string | null): Promise<void>;
+  start(): Promise<void>;
   logIn(userId: string): Promise<void>;
   offers(): Promise<Offer[]>;
   purchase(plan: PlanId): Promise<PurchaseResult>;
@@ -35,10 +35,11 @@ export function toOffer(pkg: RcPackage): Offer | null {
   const plan: PlanId | null = pkg.packageType === 'ANNUAL' ? 'yearly' : pkg.packageType === 'MONTHLY' ? 'monthly' : null;
   if (!plan) return null;
   const free = pkg.product.defaultOption?.freePhase?.billingPeriod;
-  const days = free?.value ? free.value * (free.unit === 'WEEK' ? 7 : free.unit === 'MONTH' ? 30 : 1) : null;
+  const unitDays: Record<string, number> = { DAY: 1, WEEK: 7, MONTH: 30 };
+  const days = free?.value && free.unit && unitDays[free.unit] ? free.value * unitDays[free.unit] : null;
   return {
     plan, productId: pkg.product.identifier, price: pkg.product.price, priceString: pkg.product.priceString,
-    perMonthString: pkg.product.pricePerMonthString ?? pkg.product.priceString, trialDays: days
+    perMonthString: pkg.product.pricePerMonthString ?? (plan === 'yearly' ? '' : pkg.product.priceString), trialDays: days
   };
 }
 
@@ -57,6 +58,11 @@ const MESSAGES: Record<string, string> = {
   PURCHASE_NOT_ALLOWED_ERROR: 'Purchases aren’t allowed on this device or account.',
   PRODUCT_NOT_AVAILABLE_FOR_PURCHASE_ERROR: 'Daily Plus isn’t available in your country yet.'
 };
+
+/** The SDK reports numeric string codes ('20'); this finds the enum name they stand for. */
+export function errorName(code: string | null, codes: Record<string, string>): string | null {
+  return code === null ? null : Object.keys(codes).find((k) => codes[k] === code) ?? null;
+}
 
 /** Spec §13: one line, never alarming; a cancelled purchase shows nothing (the caller checks `cancelled`). */
 export function purchaseMessage(code: string | null): string {

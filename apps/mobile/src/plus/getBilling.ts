@@ -1,4 +1,4 @@
-import type { Billing } from './billing';
+import { NO_ENTITLEMENT, purchaseMessage, type Billing } from './billing';
 import { fakeBilling } from './fakeBilling';
 import { revenueCatBilling } from './revenuecat';
 
@@ -7,7 +7,12 @@ let billing: Billing | undefined;
 export function getBilling(): Billing {
   if (!billing) {
     const key = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY ?? '';
-    billing = key ? revenueCatBilling(key) : __DEV__ ? fakeBilling() : { ...fakeBilling(), offers: async () => [] };
+    billing = key ? revenueCatBilling(key) : __DEV__ ? fakeBilling() : {
+      ...fakeBilling(),
+      offers: async () => [],
+      purchase: async () => ({ ok: false, cancelled: false, message: purchaseMessage(null) }),
+      restore: async () => NO_ENTITLEMENT
+    };
   }
   return billing;
 }

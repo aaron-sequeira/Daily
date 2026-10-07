@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { purchaseMessage, savePercent, toEntitlement, toOffer, type Offer } from './billing';
+import { errorName, purchaseMessage, savePercent, toEntitlement, toOffer, type Offer } from './billing';
 
 const NOW = Date.parse('2026-10-08T12:00:00Z');
 const offer = (plan: 'monthly' | 'yearly', price: number): Offer => ({ plan, productId: `plus_${plan}`, price, priceString: `$${price}`, perMonthString: '', trialDays: 7 });
@@ -23,6 +23,22 @@ describe('billing helpers', () => {
     expect(toOffer(pkg('plus_yearly', { billingPeriod: { unit: 'DAY', value: 7 } }))).toEqual({ plan: 'yearly', productId: 'plus_yearly', price: 29.99, priceString: '$29.99', perMonthString: '$2.50', trialDays: 7 });
     expect(toOffer(pkg('plus_monthly', null))!.trialDays).toBeNull();
     expect(toOffer({ packageType: 'LIFETIME', product: { identifier: 'x', price: 1, priceString: '$1', defaultOption: null } })).toBeNull();
+  });
+
+  it('leaves the yearly per-month blank rather than echoing the yearly price, and gives no trial for year/unknown units', () => {
+    const p = (unit: string) => ({ packageType: 'ANNUAL', product: { identifier: 'plus_yearly', price: 29.99, priceString: '$29.99', pricePerMonthString: null, defaultOption: { freePhase: { billingPeriod: { unit, value: 1 } } } } });
+    expect(toOffer(p('DAY'))!.perMonthString).toBe('');
+    expect(toOffer(p('YEAR'))!.trialDays).toBeNull();
+    expect(toOffer(p('UNKNOWN'))!.trialDays).toBeNull();
+  });
+
+  it('maps the SDK numeric error code back to its name (Review Focus 1)', () => {
+    const codes = { PAYMENT_PENDING_ERROR: '20', NETWORK_ERROR: '10' };
+    expect(purchaseMessage(errorName('20', codes))).toBe('Your payment is pending. Plus turns on when it clears.');
+    expect(purchaseMessage(errorName('10', codes))).toBe('Couldn’t reach Google Play. Check your connection and try again.');
+    expect(errorName('99', codes)).toBeNull();
+    expect(errorName(null, codes)).toBeNull();
+    expect(purchaseMessage(errorName('99', codes))).toBe('Something went wrong. You haven’t been charged.');
   });
 
   it('says one calm line per purchase problem (spec §13; Review Focus 1)', () => {
