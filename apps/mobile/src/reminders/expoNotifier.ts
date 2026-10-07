@@ -58,5 +58,13 @@ export const expoNotifier: Notifier = {
       trigger: { channelId: REPORT_CHANNEL }
     });
   },
+  async scheduleTrialReminder(atMs, body) {
+    await Notifications.scheduleNotificationAsync({
+      identifier: 'trial-reminder',
+      content: { title: 'Your free week ends soon', body, data: { route: '/settings/plus' } },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: atMs, channelId: REPORT_CHANNEL }
+    });
+  },
+  cancelTrialReminder: () => Notifications.cancelScheduledNotificationAsync('trial-reminder'),
   async canNotify() { return (await Notifications.getPermissionsAsync()).granted; }
 };

@@ -8,6 +8,9 @@ export class FakeNotifier implements Notifier {
   coach: { key: string; title: string; body: string }[] = [];
   reports: { day: string; body: string }[] = [];
   allowed = true;
+  trialReminder: { atMs: number; body: string } | null = null;
+  async scheduleTrialReminder(atMs: number, body: string) { this.trialReminder = { atMs, body }; }
+  async cancelTrialReminder() { this.trialReminder = null; }
   async showReportReady(day: string, body: string) { this.reports.push({ day, body }); }
   async showCoach(key: string, title: string, body: string) { this.coach.push({ key, title, body }); }
   async scheduleAt(key: string, content: ReminderContent, atMs: number) { this.scheduled.set(key, { content, atMs }); }

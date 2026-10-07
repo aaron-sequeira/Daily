@@ -10,9 +10,11 @@ import { AppState } from 'react-native';
 import DailyNative from '../modules/daily-native';
 import { DB_NAME, getDb } from '../src/db/expoDb';
 import { getSetting } from '../src/db/settings';
-import { supabase } from '../src/plus/supabase';
+import { getBilling } from '../src/plus/getBilling';
+import { startPlus } from '../src/plus/start';
+import { ensureUserId, supabase } from '../src/plus/supabase';
 import { runReportWriter } from '../src/report/run';
-import { setupNotifications } from '../src/reminders/expoNotifier';
+import { expoNotifier, setupNotifications } from '../src/reminders/expoNotifier';
 import { registerResponseTask } from '../src/reminders/responseTask';
 import { useReminderResponses } from '../src/reminders/useResponses';
 import { syncSunnyService } from '../src/sunny/service';
@@ -36,7 +38,9 @@ export default function RootLayout() {
     if (dbError) return;
     registerSyncTask().catch(() => {});
     syncSunnyService(getDb(), DailyNative);
-    setupNotifications().then(registerResponseTask).catch((e) => console.warn('daily: notification setup failed', e));
+    setupNotifications().then(registerResponseTask).catch((e) => console.warn('daily: notification setup failed', e)).finally(() => {
+      startPlus(getDb(), { ensureUserId, billing: getBilling(), notifier: expoNotifier }).catch(() => {});
+    });
   }, [dbError]);
 
   if (!fontsLoaded) return null;

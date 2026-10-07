@@ -13,6 +13,8 @@ export interface Notifier {
   canNotify(): Promise<boolean>;
   showCoach(key: string, title: string, body: string): Promise<void>;
   showReportReady(day: string, body: string): Promise<void>;
+  scheduleTrialReminder(atMs: number, body: string): Promise<void>;
+  cancelTrialReminder(): Promise<void>;
 }
 
 export function reminderContent(r: Reminder): ReminderContent {
