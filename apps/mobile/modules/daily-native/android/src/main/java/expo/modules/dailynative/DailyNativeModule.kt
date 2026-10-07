@@ -96,7 +96,7 @@ class DailyNativeModule : Module() {
           Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + context.packageName))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         )
-      } catch (e: ActivityNotFoundException) {
+      } catch (e: Exception) {
         context.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
       }
     }
@@ -105,9 +105,9 @@ class DailyNativeModule : Module() {
 
     Function("showBubbleSpeech") { title: String, body: String -> Bubble.speak(context, title, body) }
 
-    Function("takeBubbleActions") { Bubble.takeActions(context) }
+    Function("takeBubbleActions") { runCatching { Bubble.takeActions(context) }.getOrDefault(emptyList()) }
 
-    Function("bubbleHiddenDay") { Bubble.hiddenDay(context) }
+    Function("bubbleHiddenDay") { runCatching { Bubble.hiddenDay(context) }.getOrNull() }
 
     AsyncFunction("queryEvents") { fromMs: Double, toMs: Double -> queryEvents(fromMs.toLong(), toMs.toLong()) }
 
