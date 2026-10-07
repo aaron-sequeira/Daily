@@ -42,9 +42,9 @@ function totals(db: Db, weekStart: string, nowMs: number) {
   return { days, perApp, counted, avg };
 }
 
-/** The free week sentence (spec §10.3). */
-export function weekSentence(avg: number | null, lastAvg: number | null): string {
-  if (avg === null) return 'No phone time recorded this week yet.';
+/** The free week sentence (spec §10.3). `current`: the week is still running. */
+export function weekSentence(avg: number | null, lastAvg: number | null, current: boolean): string {
+  if (avg === null) return current ? 'No phone time recorded this week yet.' : 'No phone time recorded that week.';
   if (lastAvg === null) return `Your daily average is ${f(avg)}.`;
   const delta = avg - lastAvg;
   if (delta <= -5) return `Down ${f(-delta)} a day vs last week.`;
@@ -61,11 +61,12 @@ export function buildWeek(db: Db, weekStart: string, nowMs: number): WeekView {
     .map(([pkg, ms]) => ({ ...meta.get(pkg)!, minutes: Math.round(ms / MIN / Math.max(cur.counted, 1)) }))
     .sort((a, b) => b.minutes - a.minutes)
     .slice(0, 3);
+  const complete = shiftDay(weekStart, 7) <= localDate(nowMs);
   return {
     weekStart, days: cur.days, avgMin: cur.avg, lastAvgMin: prev.avg,
     deltaMin: cur.avg !== null && prev.avg !== null ? cur.avg - prev.avg : null,
-    topApps, sentence: weekSentence(cur.avg, prev.avg),
-    complete: shiftDay(weekStart, 7) <= localDate(nowMs)
+    topApps, sentence: weekSentence(cur.avg, prev.avg, !complete),
+    complete
   };
 }
 

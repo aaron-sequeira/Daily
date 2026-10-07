@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { aiReport, aiWeek, type AiConfig } from './ai';
 import type { ReportInput } from './input';
 
@@ -9,6 +9,8 @@ const cfg = (reply: () => Promise<Response>): AiConfig & { fetchFn: ReturnType<t
 const ok = (body: unknown) => async () => new Response(JSON.stringify(body));
 
 describe('AI client', () => {
+  afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+
   it('posts the kind and input with the token, and returns the story', async () => {
     const c = cfg(ok({ ok: true, json: out }));
     expect(await aiReport(c, input)).toEqual({ ok: true, json: out });
@@ -26,6 +28,22 @@ describe('AI client', () => {
     expect(await aiReport(cfg(async () => { throw new Error('offline'); }), input)).toEqual({ ok: false, error: 'failed' });
     warn.mockRestore();
     expect(await aiReport(null, input)).toEqual({ ok: false, error: 'failed' });
+  });
+
+  it('gives up with failed when the server never answers, and clears its timer', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const c = cfg(() => new Promise<Response>(() => {})); // ignores the abort signal too
+    const result = aiReport(c, input);
+    await vi.advanceTimersByTimeAsync(999);
+    expect(vi.getTimerCount()).toBe(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(await result).toEqual({ ok: false, error: 'failed' });
+    expect((c.fetchFn.mock.calls[0][1].signal as AbortSignal).aborted).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+
+    expect(await aiReport(cfg(ok({ ok: true, json: out })), input)).toEqual({ ok: true, json: out });
+    expect(vi.getTimerCount()).toBe(0); // an answer clears it too
   });
 
   it('returns the week sentence', async () => {

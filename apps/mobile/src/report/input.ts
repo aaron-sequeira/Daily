@@ -51,7 +51,7 @@ export function appMeta(db: Db, pkgs: string[]): Map<string, { name: string; cat
   const out = new Map<string, { name: string; category: Category }>();
   for (const pkg of new Set(pkgs)) {
     const a = db.get<{ label: string; category: string; user_category: string | null }>('SELECT label, category, user_category FROM apps WHERE package = ?', [pkg]);
-    out.set(pkg, { name: (a?.label ?? pkg).slice(0, NAME_MAX), category: pick(a?.user_category, a?.category) });
+    out.set(pkg, { name: (a?.label?.trim() || pkg).slice(0, NAME_MAX), category: pick(a?.user_category, a?.category) });
   }
   return out;
 }
@@ -76,7 +76,8 @@ export function buildReportInput(db: Db, day: string, nowMs: number): ReportInpu
   const categories: Partial<Record<Category, number>> = {};
   for (const [c, ms] of catMs) if (mins(ms) > 0) categories[c] = mins(ms);
 
-  const hourly = Array.from({ length: 24 }, (_, h) => mins(spans.reduce((t, s) => t + overlap(s, dayStart + h * HOUR, dayStart + (h + 1) * HOUR), 0)));
+  // Overlapping spans can add up to more than an hour; the server refuses that.
+  const hourly = Array.from({ length: 24 }, (_, h) => Math.min(60, mins(spans.reduce((t, s) => t + overlap(s, dayStart + h * HOUR, dayStart + (h + 1) * HOUR), 0))));
 
   const long = spans.reduce<Span | null>((b, s) => (!b || s.end - s.start > b.end - b.start ? s : b), null);
   const longest = long ? { app: meta.get(long.pkg)!.name, category: meta.get(long.pkg)!.category, minutes: mins(long.end - long.start), start: hhmm(long.start) } : null;
@@ -113,7 +114,7 @@ export function buildReportInput(db: Db, day: string, nowMs: number): ReportInpu
     pickups: count('pickups'),
     apps, categories, hourly, longest, quietest, late,
     moods: db.all<{ mood: Mood; ts_ms: number }>('SELECT mood, ts_ms FROM mood_log WHERE day = ? ORDER BY ts_ms LIMIT 12', [day]).map((m) => ({ mood: m.mood, at: hhmm(m.ts_ms) })),
-    water: count('water_log'),
+    water: Math.min(100, count('water_log')), // the server's cap
     last7,
     yesterdayPlan: loadReport(db, shiftDay(day, -1))?.plan ?? []
   };

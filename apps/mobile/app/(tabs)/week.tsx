@@ -123,8 +123,10 @@ export default function Week() {
     const now = Date.now();
     const start = startFor(which, now);
     const mine = ++token.current;
-    try { setView(buildWeek(db, start, now)); setFailed(false); } catch (e) { console.warn('daily: week failed to load', e); setFailed(true); return; }
+    let built: WeekView;
+    try { built = buildWeek(db, start, now); setView(built); setFailed(false); } catch (e) { console.warn('daily: week failed to load', e); setFailed(true); return; }
     setAiSentence(loadWeekSentence(db, start));
+    if (!built.complete) return; // Daily Plus writes the sentence once the week is over
     ensureWeekSentence(db, start, now, liveDeps())
       .then((sentence) => { if (sentence && mine === token.current) setAiSentence(sentence); })
       .catch((e) => console.warn('daily: week sentence failed', e));

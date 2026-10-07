@@ -20,19 +20,34 @@ describe('report store', () => {
     expect(loadReport(db, '2026-10-07')).toBeNull();
   });
 
-  it('ticks a plan item', async () => {
+  it('ticks a plan item by its text', async () => {
     const db = await makeTestDb();
     saveReport(db, report);
-    setPlanDone(db, '2026-10-06', 1, true);
+    setPlanDone(db, '2026-10-06', 'Phone away by 11 pm', true);
     expect(loadReport(db, '2026-10-06')!.plan).toEqual([{ text: 'Leave Instagram after 20 minutes', done: false }, { text: 'Phone away by 11 pm', done: true }]);
-    setPlanDone(db, '2026-10-06', 5, true); // no such item: nothing happens
-    setPlanDone(db, '2026-10-01', 0, true); // no such report: nothing happens
+    saveReport(db, { ...report, plan: [{ text: 'A new tip', done: false }] }); // rewritten under the screen
+    setPlanDone(db, '2026-10-06', 'Phone away by 11 pm', false); // gone from the plan: nothing happens
+    expect(loadReport(db, '2026-10-06')!.plan).toEqual([{ text: 'A new tip', done: false }]);
+    setPlanDone(db, '2026-10-01', 'A new tip', true); // no such report: nothing happens
+    expect(loadReport(db, '2026-10-01')).toBeNull();
   });
 
   it('reads a damaged row as no report', async () => {
     const db = await makeTestDb();
     db.run("INSERT INTO reports (day, kind, json, created_ms) VALUES ('2026-10-06', 'plain', '{oops', 1)");
     expect(loadReport(db, '2026-10-06')).toBeNull();
+    for (const json of ['null', '[1]', '"text"']) {
+      db.run('UPDATE reports SET json = ? WHERE day = ?', [json, '2026-10-06']);
+      expect(loadReport(db, '2026-10-06')).toBeNull();
+    }
+  });
+
+  it('fills in missing fields of a sparse row', async () => {
+    const db = await makeTestDb();
+    db.run("INSERT INTO reports (day, kind, json, created_ms) VALUES ('2026-10-06', 'ai', '{}', 5), ('2026-10-07', 'plain', ?, 6)", [JSON.stringify({ plan: 'x', highlights: { a: 1 }, day: 'forged' })]);
+    expect(loadReport(db, '2026-10-06')).toEqual({ day: '2026-10-06', kind: 'ai', createdMs: 5, story: null, highlights: [], plan: [], aiError: null, final: false });
+    expect(loadReport(db, '2026-10-07')).toMatchObject({ day: '2026-10-07', highlights: [], plan: [] });
+    expect(() => setPlanDone(db, '2026-10-06', 'Anything', true)).not.toThrow();
   });
 
   it('keeps one sentence per week', async () => {

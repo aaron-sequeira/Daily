@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { MAX_BODY_BYTES, parseRequest } from '../../../../supabase-daily/supabase/functions/daily-ai/contract';
 import { makeTestDb } from '../db/testDb';
 import { setSetting } from '../db/settings';
 import { buildReportInput } from './input';
+import { saveReport } from './store';
 import { at, seedReportDay } from './testSeed';
 
 describe('buildReportInput', () => {
@@ -53,6 +55,39 @@ describe('buildReportInput', () => {
       { name: 'L'.repeat(60), category: 'work', minutes: 10, opens: 1 },
       { name: 'com.unknown', category: 'other', minutes: 5, opens: 1 }
     ]);
+  });
+
+  it('names an app with a blank label by its package', async () => {
+    const db = await makeTestDb();
+    db.run("INSERT INTO apps (package, label, category) VALUES ('com.blank', '   ', 'fun')");
+    db.run("INSERT INTO sessions (package, start_ms, end_ms, day) VALUES ('com.blank', ?, ?, '2026-10-06')", [at(9), at(9, 10)]);
+    expect(buildReportInput(db, '2026-10-06', at(21)).apps).toEqual([{ name: 'com.blank', category: 'fun', minutes: 10, opens: 1 }]);
+  });
+
+  it('keeps the busiest possible day inside what the server accepts (32 KB)', async () => {
+    const db = await makeTestDb();
+    for (let i = 0; i < 14; i++) {
+      const pkg = `com.app${i}`;
+      db.run('INSERT INTO apps (package, label, category) VALUES (?, ?, ?)', [pkg, `${'A'.repeat(70)}${i}`, 'social']);
+      for (let h = 0; h < 24; h++) db.run('INSERT INTO sessions (package, start_ms, end_ms, day) VALUES (?, ?, ?, ?)', [pkg, at(h, i * 4), at(h, i * 4 + 4), '2026-10-06']);
+      // overlapping sessions (the app still open while the next starts) make midnight's hour "fuller" than 60 minutes
+      db.run('INSERT INTO sessions (package, start_ms, end_ms, day) VALUES (?, ?, ?, ?)', [pkg, at(0, 1), at(0, 31), '2026-10-06']);
+    }
+    for (let i = 0; i < 150; i++) db.run('INSERT INTO water_log (ts_ms, day) VALUES (?, ?)', [at(8) + i * 1000, '2026-10-06']);
+    for (let i = 0; i < 15; i++) db.run('INSERT INTO mood_log (day, ts_ms, mood) VALUES (?, ?, ?)', ['2026-10-06', at(9) + i * 60_000, 'happy']);
+    saveReport(db, {
+      day: '2026-10-05', kind: 'ai', headline: 'Monday', story: 'Quiet.', highlights: [],
+      plan: Array.from({ length: 4 }, (_, i) => ({ text: `${'T'.repeat(119)}${i}`, done: i % 2 === 0 })), aiError: null, final: true, createdMs: 1
+    });
+    const input = buildReportInput(db, '2026-10-06', at(23, 59));
+    expect(input.apps).toHaveLength(12);
+    expect(input.apps.every((a) => a.name.length === 60)).toBe(true);
+    expect(input.moods).toHaveLength(12);
+    expect(input.water).toBe(100);
+    expect(Math.max(...input.hourly)).toBe(60);
+    const body = { kind: 'report', input };
+    expect(parseRequest(body)).toEqual(body);
+    expect(JSON.stringify(body).length).toBeLessThan(MAX_BODY_BYTES);
   });
 
   it('counts late-night minutes when wind-down starts after midnight', async () => {

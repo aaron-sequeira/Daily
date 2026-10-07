@@ -20,18 +20,24 @@ export function saveReport(db: Db, r: StoredReport): void {
 export function loadReport(db: Db, day: string): StoredReport | null {
   const row = db.get<{ kind: 'ai' | 'plain'; json: string; created_ms: number }>('SELECT kind, json, created_ms FROM reports WHERE day = ?', [day]);
   if (!row) return null;
+  let parsed: unknown;
   try {
-    return { day, kind: row.kind, createdMs: row.created_ms, ...JSON.parse(row.json) };
+    parsed = JSON.parse(row.json);
   } catch {
     return null; // a damaged row reads as "not written"; the writer replaces it
   }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return null;
+  const r: StoredReport = { story: null, highlights: [], plan: [], aiError: null, final: false, ...(parsed as Partial<StoredReport>), day, kind: row.kind, createdMs: row.created_ms } as StoredReport;
+  if (!Array.isArray(r.plan)) r.plan = [];
+  if (!Array.isArray(r.highlights)) r.highlights = [];
+  return r;
 }
 
-export function setPlanDone(db: Db, day: string, index: number, done: boolean): void {
+/** Ticks the tip by its text, so a report rewritten under the screen never gets the wrong tip ticked. */
+export function setPlanDone(db: Db, day: string, text: string, done: boolean): void {
   const r = loadReport(db, day);
-  if (!r || !r.plan[index]) return;
-  r.plan[index] = { ...r.plan[index], done };
-  saveReport(db, r);
+  if (!r || !r.plan.some((p) => p.text === text)) return;
+  saveReport(db, { ...r, plan: r.plan.map((p) => (p.text === text ? { ...p, done } : p)) });
 }
 
 export function loadWeekSentence(db: Db, weekStart: string): string | null {

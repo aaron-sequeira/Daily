@@ -45,8 +45,15 @@ describe('buildWeek', () => {
   });
 
   it('words the computed sentence', () => {
-    expect(weekSentence(null, null)).toBe('No phone time recorded this week yet.');
-    expect(weekSentence(100, 103)).toBe('About the same as last week: 1h 40m a day.');
-    expect(weekSentence(130, 100)).toBe('Up 30m a day vs last week.');
+    expect(weekSentence(null, null, true)).toBe('No phone time recorded this week yet.');
+    expect(weekSentence(null, null, false)).toBe('No phone time recorded that week.');
+    expect(weekSentence(100, 103, true)).toBe('About the same as last week: 1h 40m a day.');
+    expect(weekSentence(130, 100, false)).toBe('Up 30m a day vs last week.');
+  });
+
+  it('says "that week" for an empty week that is over', async () => {
+    const db = await makeTestDb();
+    expect(buildWeek(db, '2026-09-28', now).sentence).toBe('No phone time recorded that week.');
+    expect(buildWeek(db, '2026-10-05', now).sentence).toBe('No phone time recorded this week yet.');
   });
 });

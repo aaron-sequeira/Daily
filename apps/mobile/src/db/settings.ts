@@ -13,7 +13,8 @@ export const DEFAULTS = {
   exact_alarms: '',
   write_time: '21:00',
   dev_plus: '0',
-  last_report_tap: ''
+  last_report_tap: '',
+  week_ai_try: '' // '<weekStart>|<YYYY-MM-DD>' of the last AI week-sentence try, or '<weekStart>|never' after an invalid answer
 } as const;
 
 export type SettingKey = keyof typeof DEFAULTS;

@@ -18,15 +18,22 @@ export function aiConfig(): AiConfig | null {
 async function call<T>(cfg: AiConfig | null, body: unknown, valid: (json: unknown) => json is T): Promise<AiResult<T>> {
   if (!cfg) return { ok: false, error: 'failed' };
   const abort = new AbortController(); // ponytail: AbortSignal.timeout isn't in React Native
-  const timer = setTimeout(() => abort.abort(), cfg.timeoutMs);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  // The race ends the wait even if the request (or its body) ignores the abort.
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => { abort.abort(); reject(new Error('timed out')); }, cfg.timeoutMs);
+  });
   try {
-    const res = await cfg.fetchFn(cfg.url, {
-      method: 'POST',
-      headers: { authorization: `Bearer ${cfg.token}`, 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: abort.signal
-    });
-    const out = (await res.json()) as { ok?: unknown; json?: unknown; error?: unknown };
+    const request = async () => {
+      const res = await cfg.fetchFn(cfg.url, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${cfg.token}`, 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: abort.signal
+      });
+      return (await res.json()) as { ok?: unknown; json?: unknown; error?: unknown };
+    };
+    const out = await Promise.race([request(), timeout]);
     if (out.ok === true) return valid(out.json) ? { ok: true, json: out.json } : { ok: false, error: 'failed' };
     return { ok: false, error: ERRORS.includes(out.error as AiError) ? (out.error as AiError) : 'failed' };
   } catch (e) {

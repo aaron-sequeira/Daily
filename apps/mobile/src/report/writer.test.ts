@@ -3,6 +3,7 @@ import type { Db } from '../db/db';
 import { setSetting } from '../db/settings';
 import { makeTestDb } from '../db/testDb';
 import { FakeNotifier } from '../reminders/fakeNotifier';
+import { deleteEverything } from '../settings/data';
 import type { AiResult, ReportOut, WeekOut } from './ai';
 import { loadReport, loadWeekSentence, setPlanDone } from './store';
 import { ensureWeekSentence, rewriteReport, writeDueReports, type WriterDeps } from './writer';
@@ -124,9 +125,93 @@ describe('writeDueReports', () => {
     use(d, 6, 12, 0, 42);
     const dp = deps({ isPlus: true });
     await rewriteReport(d, '2026-10-06', at(6, 15), dp);
-    setPlanDone(d, '2026-10-06', 0, true);
+    setPlanDone(d, '2026-10-06', 'Tip one', true);
     await writeDueReports(d, at(6, 21), dp, { retryFailed: false });
     expect(loadReport(d, '2026-10-06')!.plan).toEqual([{ text: 'Tip one', done: true }, { text: 'Tip two', done: false }]);
+  });
+
+  it('keeps a tick made while the 9 pm story was being written', async () => {
+    const d = await db();
+    use(d, 6, 12, 0, 42);
+    const dp = deps({ isPlus: true });
+    await rewriteReport(d, '2026-10-06', at(6, 15), dp);
+    const tickThen = (r: AiResult<ReportOut>) => async () => { setPlanDone(d, '2026-10-06', 'Tip two', true); return r; };
+    dp.aiReport.mockImplementationOnce(tickThen({ ok: false, error: 'failed' })); // the draft stays: with today's tick
+    await writeDueReports(d, at(6, 21), dp, { retryFailed: false });
+    expect(loadReport(d, '2026-10-06')!.plan).toEqual([{ text: 'Tip one', done: false }, { text: 'Tip two', done: true }]);
+
+    const d2 = await db();
+    use(d2, 6, 12, 0, 42);
+    await rewriteReport(d2, '2026-10-06', at(6, 15), dp);
+    dp.aiReport.mockImplementationOnce(async () => { setPlanDone(d2, '2026-10-06', 'Tip two', true); return { ok: true, json: AI }; });
+    await writeDueReports(d2, at(6, 21), dp, { retryFailed: false }); // a new story: the tick carries over by text
+    expect(loadReport(d2, '2026-10-06')!.plan).toEqual([{ text: 'Tip one', done: false }, { text: 'Tip two', done: true }]);
+  });
+
+  it('keeps a ticked plan when the silent retry on app open lands', async () => {
+    const d = await db();
+    use(d, 6, 12, 0, 42);
+    const dp = deps({ isPlus: true });
+    dp.aiReport.mockResolvedValueOnce({ ok: false, error: 'failed' });
+    await writeDueReports(d, at(6, 21), dp, { retryFailed: false });
+    const plain = loadReport(d, '2026-10-06')!;
+    setPlanDone(d, '2026-10-06', plain.plan[0].text, true);
+    expect(await writeDueReports(d, at(6, 21, 30), dp, { retryFailed: true })).toEqual(['2026-10-06']);
+    expect(loadReport(d, '2026-10-06')).toMatchObject({
+      kind: 'ai', headline: 'AI headline', story: 'AI story.', aiError: null,
+      plan: [{ text: plain.plan[0].text, done: true }, { text: plain.plan[1].text, done: false }]
+    });
+  });
+
+  it('saves nothing and says nothing when Delete everything runs during the AI call', async () => {
+    const d = await db();
+    const dp = deps({ isPlus: true });
+    const wipeThen = (r: AiResult<ReportOut>) => async () => { deleteEverything(d, at(6, 21)); return r; };
+    const again = () => { setSetting(d, 'onboarded', '1'); use(d, 6, 12, 0, 42); };
+
+    again();
+    dp.aiReport.mockImplementationOnce(wipeThen({ ok: true, json: AI }));
+    expect(await writeDueReports(d, at(6, 21), dp, { retryFailed: false })).toEqual([]);
+    expect(loadReport(d, '2026-10-06')).toBeNull();
+
+    again(); // the 9 pm write over a 3 pm draft, AI failing
+    await rewriteReport(d, '2026-10-06', at(6, 15), dp);
+    dp.aiReport.mockImplementationOnce(wipeThen({ ok: false, error: 'failed' }));
+    expect(await writeDueReports(d, at(6, 21), dp, { retryFailed: false })).toEqual([]);
+    expect(loadReport(d, '2026-10-06')).toBeNull();
+
+    again(); // "Write it now"
+    dp.aiReport.mockImplementationOnce(wipeThen({ ok: false, error: 'failed' }));
+    await rewriteReport(d, '2026-10-06', at(6, 15), dp);
+    expect(loadReport(d, '2026-10-06')).toBeNull();
+
+    again(); // the week sentence
+    use(d, 1, 12, 0, 60);
+    dp.aiWeek.mockImplementationOnce(async () => { deleteEverything(d, at(7, 9)); return { ok: true, json: { sentence: 'AI week.' } }; });
+    expect(await ensureWeekSentence(d, '2026-09-28', at(7, 9), dp)).toBeNull();
+    expect(loadWeekSentence(d, '2026-09-28')).toBeNull();
+
+    expect(d.all('SELECT day FROM reports')).toEqual([]);
+    expect(dp.notifier.reports).toEqual([]);
+  });
+
+  it('does not notify twice when a "Write it now" started before 9 pm lands after the 9 pm write', async () => {
+    const d = await db();
+    use(d, 6, 12, 0, 42);
+    let clock = at(6, 20, 59);
+    let land!: (r: AiResult<ReportOut>) => void;
+    const dp = deps({ isPlus: true, now: () => clock });
+    dp.aiReport.mockImplementationOnce(() => new Promise((r) => { land = r; }));
+    const rewrite = rewriteReport(d, '2026-10-06', at(6, 20, 59), dp);
+    clock = at(6, 21);
+    expect(await writeDueReports(d, at(6, 21), dp, { retryFailed: false })).toEqual(['2026-10-06']);
+    clock = at(6, 21) + 10_000;
+    land({ ok: true, json: { ...AI, headline: 'Rewritten' } });
+    expect(await rewrite).toBeNull();
+    expect(loadReport(d, '2026-10-06')).toMatchObject({ headline: 'Rewritten', createdMs: at(6, 21) + 10_000 });
+    clock = at(6, 21, 1);
+    expect(await writeDueReports(d, at(6, 21, 1), dp, { retryFailed: false })).toEqual([]);
+    expect(dp.notifier.reports).toHaveLength(1);
   });
 
   it('writes nothing before onboarding or on a day without phone time', async () => {
@@ -186,5 +271,42 @@ describe('ensureWeekSentence', () => {
     plus.aiWeek.mockResolvedValueOnce({ ok: false, error: 'failed' });
     expect(await ensureWeekSentence(d, '2026-09-28', at(7, 9), plus)).toBeNull();
     expect(loadWeekSentence(d, '2026-09-28')).toBeNull();
+  });
+
+  it('makes one AI call when asked twice at once', async () => {
+    const d = await db();
+    use(d, 1, 12, 0, 60);
+    const plus = deps({ isPlus: true });
+    expect(await Promise.all([ensureWeekSentence(d, '2026-09-28', at(7, 9), plus), ensureWeekSentence(d, '2026-09-28', at(7, 9), plus)])).toEqual(['AI week.', 'AI week.']);
+    expect(plus.aiWeek).toHaveBeenCalledTimes(1);
+  });
+
+  it('tries a failed week once a day, and an invalid one never again', async () => {
+    const d = await db();
+    use(d, 1, 12, 0, 60);
+    const plus = deps({ isPlus: true });
+    plus.aiWeek.mockResolvedValueOnce({ ok: false, error: 'failed' });
+    expect(await ensureWeekSentence(d, '2026-09-28', at(7, 9), plus)).toBeNull();
+    expect(await ensureWeekSentence(d, '2026-09-28', at(7, 22), plus)).toBeNull(); // same day: no second paid try
+    expect(plus.aiWeek).toHaveBeenCalledTimes(1);
+    expect(await ensureWeekSentence(d, '2026-09-28', at(8, 9), plus)).toBe('AI week.'); // the next day
+    expect(plus.aiWeek).toHaveBeenCalledTimes(2);
+
+    const d2 = await db();
+    use(d2, 1, 12, 0, 60);
+    const bad = deps({ isPlus: true });
+    bad.aiWeek.mockResolvedValue({ ok: false, error: 'invalid' });
+    expect(await ensureWeekSentence(d2, '2026-09-28', at(7, 9), bad)).toBeNull();
+    expect(await ensureWeekSentence(d2, '2026-09-28', at(8, 9), bad)).toBeNull();
+    expect(await ensureWeekSentence(d2, '2026-09-28', at(9, 9), bad)).toBeNull();
+    expect(bad.aiWeek).toHaveBeenCalledTimes(1);
+  });
+
+  it('never builds a week that is still running', async () => {
+    const d = await db();
+    d.run('DROP TABLE sessions'); // building the week would throw
+    const plus = deps({ isPlus: true });
+    expect(await ensureWeekSentence(d, '2026-10-05', at(7, 9), plus)).toBeNull();
+    expect(plus.aiWeek).not.toHaveBeenCalled();
   });
 });

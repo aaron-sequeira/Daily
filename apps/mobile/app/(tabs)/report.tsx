@@ -1,18 +1,17 @@
 import { localDate } from '@worksight/core/date';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getDb } from '../../src/db/expoDb';
 import { getSetting } from '../../src/db/settings';
 import { isPlus } from '../../src/plus/plus';
 import { clockShort, dayLabel, shiftDay } from '../../src/report/days';
-import { liveDeps } from '../../src/report/run';
+import { onReportsWritten, runRewrite } from '../../src/report/run';
 import { firstDataDay, reportScreen, type ReportScreen } from '../../src/report/screen';
 import { shareReportPdf } from '../../src/report/share';
-import { setPlanDone, type Highlight } from '../../src/report/store';
-import { rewriteReport } from '../../src/report/writer';
+import { setPlanDone, type Highlight, type PlanItem } from '../../src/report/store';
 import { C, F } from '../../src/theme';
 import { Icon, type IconName } from '../../src/ui/icons';
 import { rise } from '../../src/ui/motion';
@@ -26,7 +25,7 @@ type Note = 'failed' | 'limit' | 'pdf' | null;
 
 export default function Report() {
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ day?: string }>();
+  const params = useLocalSearchParams<{ day?: string; tap?: string }>();
   const [day, setDay] = useState(() => localDate(Date.now()));
   const [view, setView] = useState<ReportScreen | null>(null);
   const [busy, setBusy] = useState(false);
@@ -36,7 +35,6 @@ export default function Report() {
   const dayRef = useRef(day);
   dayRef.current = day;
 
-  useEffect(() => { if (params.day) setDay(params.day); }, [params.day]);
   useEffect(() => { setNote(null); }, [day]);
   const load = useCallback(() => {
     const d = dayRef.current;
@@ -49,7 +47,20 @@ export default function Report() {
       if (dayRef.current === d) setView(null);
     }
   }, [day]);
-  useFocusEffect(load);
+  const loadRef = useRef(load);
+  loadRef.current = load;
+  // A "Your day is ready" tap: `tap` changes on every tap, so tapping again for the day already shown reloads it.
+  useEffect(() => {
+    if (!params.day) return;
+    if (params.day === dayRef.current) loadRef.current(); else setDay(params.day);
+  }, [params.day, params.tap]);
+  // While shown: reload when the app comes back and when a background write lands.
+  useFocusEffect(useCallback(() => {
+    load();
+    const sub = AppState.addEventListener('change', (s) => { if (s === 'active') load(); });
+    const stop = onReportsWritten(load);
+    return () => { sub.remove(); stop(); };
+  }, [load]));
 
   if (!view || view.day !== day) return <View style={{ flex: 1, backgroundColor: C.bg }} />;
   const db = getDb();
@@ -64,7 +75,7 @@ export default function Report() {
     setBusy(true);
     setNote(null);
     try {
-      const err = await rewriteReport(db, d, Date.now(), liveDeps());
+      const err = await runRewrite(d);
       if (dayRef.current === d) setNote(err === 'limit' ? 'limit' : err ? 'failed' : null);
     } catch (e) {
       console.warn('daily: rewrite failed', e);
@@ -82,7 +93,7 @@ export default function Report() {
       .catch((e) => { console.warn('daily: PDF share failed', e); if (dayRef.current === d) setNote('pdf'); })
       .finally(() => { sharing.current = false; });
   };
-  const toggle = (i: number) => { setPlanDone(db, day, i, !view.plan[i].done); load(); };
+  const toggle = (p: PlanItem) => { setPlanDone(db, day, p.text, !p.done); load(); };
   const showFailed = note === 'failed' || (note === null && plus && view.aiError === 'failed');
 
   return (
@@ -129,7 +140,7 @@ export default function Report() {
           <Animated.View entering={rise(3)} style={s.box}>
             <Text style={s.sec}>Tomorrow, try</Text>
             {view.plan.map((p, i) => (
-              <Pressable key={i} onPress={() => toggle(i)} disabled={!view.saved} accessibilityRole="checkbox" accessibilityState={{ checked: p.done, disabled: !view.saved }} style={s.plan}>
+              <Pressable key={i} onPress={() => toggle(p)} disabled={!view.saved} accessibilityRole="checkbox" accessibilityState={{ checked: p.done, disabled: !view.saved }} style={s.plan}>
                 <View style={[s.check, p.done && s.checkOn]}>{p.done && <Icon name="check" size={14} color={C.white} />}</View>
                 <Text style={[s.planText, p.done && s.planDone]}>{p.text}</Text>
               </Pressable>
