@@ -4,10 +4,11 @@ import * as Notifications from 'expo-notifications';
 import * as Sharing from 'expo-sharing';
 import { clock12 } from '@worksight/core/reminders';
 import { useCallback, useState, type ReactNode } from 'react';
-import { Alert, AppState, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, Image, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DailyNative from '../../modules/daily-native';
+import { account, firstName, SIGN_IN_MESSAGE, signedIn, signInWithGoogle, signOut, type Account } from '../../src/account/account';
 import { getDb } from '../../src/db/expoDb';
 import { getNumber, getSetting, setSetting } from '../../src/db/settings';
 import { canStepWindDown, stepWindDown } from '../../src/coach/rules';
@@ -21,6 +22,7 @@ import { runSync } from '../../src/tracking/runSync';
 import { Sunny } from '../../src/sunny/Sunny';
 import { C, F } from '../../src/theme';
 import { GoalStepper } from '../../src/ui/GoalStepper';
+import { GoogleG } from '../../src/ui/GoogleButton';
 import { Icon } from '../../src/ui/icons';
 import { rise } from '../../src/ui/motion';
 
@@ -61,6 +63,24 @@ export default function Settings() {
 
   const [status, setStatus] = useState(() => plusStatus(db, Date.now()));
   useFocusEffect(useCallback(() => { setStatus(plusStatus(db, Date.now())); setPlusDev(getSetting(db, 'dev_plus') === '1'); }, [db]));
+
+  const [acct, setAcct] = useState<Account | null>(null);
+  useFocusEffect(useCallback(() => { account().then(setAcct).catch(() => setAcct(null)); }, []));
+  const [signingIn, setSigningIn] = useState(false);
+  const [acctNote, setAcctNote] = useState<string | null>(null);
+  const refreshPlus = () => { setStatus(plusStatus(db, Date.now())); setPlusNow(isPlus(db, Date.now())); };
+  const google = async () => {
+    if (signingIn) return;
+    setSigningIn(true);
+    setAcctNote(null);
+    const r = await signInWithGoogle();
+    if (signedIn(r)) { setAcct(await account().catch(() => null)); refreshPlus(); } else setAcctNote(SIGN_IN_MESSAGE[r] ?? null);
+    setSigningIn(false);
+  };
+  const confirmSignOut = () => Alert.alert('Sign out?', 'Daily Plus stays with your Google account. Sign in again to get it back on this phone.', [
+    { text: 'Cancel', style: 'cancel' },
+    { text: 'Sign out', style: 'destructive', onPress: () => { void signOut().catch(() => {}).then(() => { setAcct(null); refreshPlus(); }); } }
+  ]);
 
   const changeGoal = (min: number) => { setGoal(min); setSetting(db, 'goal_min', min); };
   const cycleRetention = () => {
@@ -103,7 +123,34 @@ export default function Settings() {
         <Text style={s.h1}>Settings</Text>
       </Animated.View>
 
-      <Group i={1} label="Goals">
+      <Group i={1} label="Account">
+        {acct ? (
+          <>
+            <View style={[s.row, { paddingVertical: 10 }]}>
+              {acct.photoUrl
+                ? <Image source={{ uri: acct.photoUrl }} style={s.avatar} accessibilityIgnoresInvertColors />
+                : <View style={[s.avatar, s.initial]}><Text style={s.initialText}>{firstName(acct).slice(0, 1).toUpperCase()}</Text></View>}
+              <View style={{ flex: 1 }}>
+                <Text style={s.rowText}>{acct.name ?? 'Google account'}</Text>
+                {acct.email ? <Text style={s.sub}>{acct.email}</Text> : null}
+              </View>
+            </View>
+            <Pressable accessibilityRole="button" onPress={confirmSignOut} style={s.row}><Text style={s.rowText}>Sign out</Text></Pressable>
+          </>
+        ) : (
+          <Pressable accessibilityRole="button" accessibilityLabel="Sign in with Google" onPress={google} disabled={signingIn} style={[s.row, { paddingVertical: 10 }]}>
+            <GoogleG size={20} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.rowText}>Sign in with Google</Text>
+              <Text style={s.sub}>Keep Daily Plus if you change phones</Text>
+            </View>
+            {signingIn ? <ActivityIndicator size="small" color={C.ink} /> : <Icon name="forward" size={16} />}
+          </Pressable>
+        )}
+        {acctNote ? <Text style={[s.sub, { paddingBottom: 12 }]} accessibilityLiveRegion="polite">{acctNote}</Text> : null}
+      </Group>
+
+      <Group i={2} label="Goals">
         <View style={s.row}><Sunny face="happy" size={30} /><Text style={s.rowText}>Your buddy</Text><Text style={s.value}>Sunny · more soon</Text></View>
         <View style={[s.row, { flexDirection: 'column', alignItems: 'flex-start', paddingVertical: 12, gap: 10 }]}>
           <Text style={s.rowText}>Daily phone goal</Text>
@@ -119,7 +166,7 @@ export default function Settings() {
         </View>
       </Group>
 
-      <Group i={2} label="Sunny">
+      <Group i={3} label="Sunny">
         <View style={s.row}>
           <Text style={s.rowText}>Sunny in the status bar</Text>
           <Switch value={sunny} accessibilityLabel="Sunny in the status bar" trackColor={{ false: C.line, true: C.ink }} thumbColor={C.white} style={{ marginLeft: 'auto' }}
@@ -161,7 +208,7 @@ export default function Settings() {
         </Link>
       </Group>
 
-      <Group i={3} label="Report">
+      <Group i={4} label="Report">
         {status ? (
           <Link href="/settings/plus" asChild>
             <Pressable accessibilityRole="button" style={s.row}><Text style={s.rowText}>Your subscription</Text><Text style={s.value}>{status.sub}</Text></Pressable>
@@ -186,7 +233,7 @@ export default function Settings() {
         </View>
       </Group>
 
-      <Group i={4} label="Privacy">
+      <Group i={5} label="Privacy">
         <Link href="/settings/categories" asChild><Pressable accessibilityRole="button" style={s.row}><Text style={s.rowText}>App categories</Text><Text style={s.value}>Edit</Text></Pressable></Link>
         <Pressable accessibilityRole="button" onPress={cycleRetention} style={s.row}><Text style={s.rowText}>Keep history for</Text><Text style={s.value}>{retention} days</Text></Pressable>
         <Pressable accessibilityRole="button" onPress={exportData} style={s.row}><Text style={s.rowText}>Export my data</Text></Pressable>
@@ -194,7 +241,7 @@ export default function Settings() {
       </Group>
 
       {__DEV__ && (
-        <Group i={5} label="Developer">
+        <Group i={6} label="Developer">
           <View style={s.row}>
             <Text style={s.rowText}>Pretend Daily Plus</Text>
             <Switch value={plusDev} accessibilityLabel="Pretend Daily Plus" trackColor={{ false: C.line, true: C.ink }} thumbColor={C.white} style={{ marginLeft: 'auto' }}
@@ -230,5 +277,9 @@ const s = StyleSheet.create({
   rowText: { fontFamily: F.regular, fontSize: 14, color: C.ink },
   value: { marginLeft: 'auto', fontFamily: F.regular, fontSize: 13, color: C.muted },
   plusPill: { backgroundColor: C.ink, color: '#FFC861', fontFamily: F.semi, fontSize: 10, letterSpacing: 1, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 999, overflow: 'hidden' },
-  note: { fontFamily: F.regular, fontSize: 12, lineHeight: 18, color: C.muted, marginTop: 16, marginHorizontal: 2 }
+  note: { fontFamily: F.regular, fontSize: 12, lineHeight: 18, color: C.muted, marginTop: 16, marginHorizontal: 2 },
+  avatar: { width: 36, height: 36, borderRadius: 18 },
+  initial: { backgroundColor: C.panel, alignItems: 'center', justifyContent: 'center' },
+  initialText: { fontFamily: F.semi, fontSize: 15, color: C.ink },
+  sub: { fontFamily: F.regular, fontSize: 12, color: C.muted, marginTop: 2 }
 });

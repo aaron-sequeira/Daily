@@ -4,6 +4,7 @@ import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, Vi
 import Animated, { FadeInDown, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSequence, withTiming, ZoomIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
+import { account, SIGN_IN_MESSAGE, signedIn, signInWithGoogle } from '../src/account/account';
 import { getDb } from '../src/db/expoDb';
 import { getSetting } from '../src/db/settings';
 import { purchaseMessage, savePercent, type Offer, type PlanId } from '../src/plus/billing';
@@ -46,6 +47,13 @@ export default function Paywall() {
   const left = useRef(false);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const [anon, setAnon] = useState(false); // hidden until we know, so it never flashes for a signed-in user
+  useEffect(() => { account().then((a) => setAnon(!a)).catch(() => {}); }, []);
+  const [signNote, setSignNote] = useState<string | null>(null);
+  const signIn = async () => {
+    const r = await signInWithGoogle();
+    if (signedIn(r)) setAnon(false); else setSignNote(SIGN_IN_MESSAGE[r] ?? null);
+  };
 
   /** Leaves once: a purchase landing after the user already went back must not pop a second screen. */
   const leave = () => {
@@ -231,6 +239,13 @@ export default function Paywall() {
             <Text style={s.dotSep}>·</Text>
             <Pressable onPress={() => open(PRIVACY)} accessibilityRole="link" style={s.footBtn}><Text style={s.link}>Privacy</Text></Pressable>
           </Animated.View>
+          {anon ? (
+            <Animated.View entering={rise(12)} style={s.footer}>
+              <Text style={s.link}>Sign in so Plus follows you to a new phone.</Text>
+              <Pressable onPress={signIn} accessibilityRole="button" style={s.footBtn}><Text style={[s.link, { color: C.ink, textDecorationLine: 'underline' }]}>Sign in</Text></Pressable>
+            </Animated.View>
+          ) : null}
+          {signNote ? <Text style={[s.note, { marginTop: 4 }]}>{signNote}</Text> : null}
         </>
       )}
     </ScrollView>
