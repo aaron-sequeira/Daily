@@ -135,4 +135,18 @@ describe('sync', () => {
     expect(phoneMsSince(db, at(9, 10), at(10, 20))).toBe((20 + 20) * 60_000);
     expect(phoneMsSince(db, at(10, 10), at(10, 20))).toBe(10 * 60_000);
   });
+
+  it("stores Android's own app category", async () => {
+    const db = await makeTestDb();
+    await sync(db, fakeNative(morning), at(9));
+    expect(db.get<{ android_category: number }>("SELECT android_category FROM apps WHERE package = 'com.whatsapp'")).toEqual({ android_category: 4 });
+  });
+
+  it('forgets nudges older than the retention setting', async () => {
+    const db = await makeTestDb();
+    setSetting(db, 'retention_days', 30);
+    db.run("INSERT INTO nudges (kind, key, ts_ms) VALUES ('goal80', 'old', ?), ('goal80', 'new', ?)", [at(9) - 40 * 86_400_000, at(8)]);
+    await sync(db, fakeNative(morning), at(9));
+    expect(db.all<{ key: string }>('SELECT key FROM nudges').map((r) => r.key)).toEqual(['new']);
+  });
 });

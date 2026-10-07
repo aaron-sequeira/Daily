@@ -1,5 +1,6 @@
 import DailyNative from '../../modules/daily-native';
 import { getDb } from '../db/expoDb';
+import { noteExactAlarms } from '../reminders/exact';
 import { expoNotifier } from '../reminders/expoNotifier';
 import { tickReminders } from '../reminders/tick';
 import { sync } from './sync';
@@ -13,6 +14,7 @@ export function runSync(): Promise<'ok' | 'no_access'> {
     try {
       return await sync(getDb(), DailyNative, Date.now());
     } finally {
+      try { noteExactAlarms(getDb(), DailyNative.canScheduleExactAlarms()); } catch (e) { console.warn('daily: exact-alarm check failed', e); }
       await tickReminders(getDb(), expoNotifier, Date.now()).catch((e) => console.warn('daily: reminder tick failed', e));
     }
   })().finally(() => { running = null; });

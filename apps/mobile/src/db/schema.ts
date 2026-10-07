@@ -14,7 +14,10 @@ export const MIGRATIONS: string[] = [
   `CREATE TABLE reminders (id INTEGER PRIMARY KEY, builtin TEXT UNIQUE, name TEXT NOT NULL, message TEXT NOT NULL, animation TEXT NOT NULL, schedule TEXT NOT NULL, break_sec INTEGER NOT NULL, enabled INTEGER NOT NULL);
    CREATE TABLE reminder_state (id INTEGER PRIMARY KEY, last_fired_at INTEGER, last_done_at INTEGER, skip_date TEXT);
    CREATE TABLE water_log (ts_ms INTEGER PRIMARY KEY, day TEXT NOT NULL);
-   CREATE INDEX water_log_day ON water_log(day);`
+   CREATE INDEX water_log_day ON water_log(day);`,
+  `ALTER TABLE apps ADD COLUMN android_category INTEGER;
+   CREATE TABLE nudges (id INTEGER PRIMARY KEY, kind TEXT NOT NULL, key TEXT NOT NULL UNIQUE, ts_ms INTEGER NOT NULL);
+   CREATE INDEX nudges_ts ON nudges(ts_ms);`
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

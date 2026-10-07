@@ -11,6 +11,7 @@ export function exportJson(db: Db): string {
     pickups: db.all('SELECT ts_ms, day FROM pickups ORDER BY ts_ms'),
     apps: db.all('SELECT package, label, category, user_category FROM apps ORDER BY package'),
     mood_log: db.all('SELECT day, ts_ms, mood FROM mood_log ORDER BY ts_ms'),
+    nudges: db.all('SELECT kind, key, ts_ms FROM nudges ORDER BY ts_ms'),
     reminders: db.all('SELECT id, builtin, name, message, animation, schedule, break_sec, enabled FROM reminders ORDER BY id'),
     reminder_state: db.all('SELECT id, last_fired_at, last_done_at, skip_date FROM reminder_state ORDER BY id'),
     water_log: db.all('SELECT ts_ms, day FROM water_log ORDER BY ts_ms'),
@@ -20,7 +21,7 @@ export function exportJson(db: Db): string {
 
 export function deleteEverything(db: Db, nowMs: number): void {
   db.tx(() => {
-    for (const t of ['sessions', 'pickups', 'apps', 'ingest_state', 'mood_log', 'settings', 'reminders', 'reminder_state', 'water_log']) db.run(`DELETE FROM ${t}`);
+    for (const t of ['sessions', 'pickups', 'apps', 'ingest_state', 'mood_log', 'nudges', 'settings', 'reminders', 'reminder_state', 'water_log']) db.run(`DELETE FROM ${t}`);
     // Park the cursor at now so the next sync does not backfill the 7 days we just deleted.
     db.run('INSERT INTO ingest_state (id, last_event_ms, open_pkg, open_start_ms) VALUES (1, ?, NULL, NULL)', [nowMs]);
   });

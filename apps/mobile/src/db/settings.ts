@@ -5,7 +5,11 @@ export const DEFAULTS = {
   retention_days: '90',
   onboarded: '0',
   clock_plan: '',
-  last_response: ''
+  last_response: '',
+  wind_down: '23:00',
+  coach_snooze_until: '0',
+  sunny_service: '1',
+  exact_alarms: ''
 } as const;
 
 export type SettingKey = keyof typeof DEFAULTS;

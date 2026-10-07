@@ -44,6 +44,7 @@ function logMood(db: Db, nowMs: number): void {
 function sweep(db: Db, nowMs: number): void {
   const cutoff = localDate(nowMs - getNumber(db, 'retention_days') * DAY_MS);
   for (const table of ['sessions', 'pickups', 'mood_log', 'water_log']) db.run(`DELETE FROM ${table} WHERE day < ?`, [cutoff]);
+  db.run('DELETE FROM nudges WHERE ts_ms < ?', [nowMs - getNumber(db, 'retention_days') * DAY_MS]);
 }
 
 /** Phone time between fromMs and nowMs: finished sessions clipped to the window, plus the open app. */
@@ -87,7 +88,7 @@ export async function sync(db: Db, native: SyncNative, nowMs: number): Promise<'
     }
     for (const t of res.pickups) db.run('INSERT OR IGNORE INTO pickups (ts_ms, day) VALUES (?, ?)', [t, localDate(t)]);
     for (const a of infos) {
-      db.run('INSERT OR IGNORE INTO apps (package, label, category, icon_png) VALUES (?, ?, ?, ?)', [a.pkg, a.label, categoryFor(a.pkg, a.category, null), a.icon]);
+      db.run('INSERT OR IGNORE INTO apps (package, label, category, icon_png, android_category) VALUES (?, ?, ?, ?, ?)', [a.pkg, a.label, categoryFor(a.pkg, a.category, null), a.icon, a.category]);
     }
     saveState(db, res.state);
     logMood(db, nowMs);
