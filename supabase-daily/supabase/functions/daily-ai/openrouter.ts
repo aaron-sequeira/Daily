@@ -5,7 +5,7 @@ export const DEFAULT_MODELS = ['openai/gpt-6-luna', 'google/gemini-3.1-flash-lit
 export const TIMEOUT_MS = 25_000;
 
 export type FetchFn = (url: string, init: RequestInit) => Promise<Response>;
-export type ModelCall = { apiKey: string; models: string[]; messages: Msg[]; schemaName: string; schema: Record<string, unknown>; fetchFn: FetchFn };
+export type ModelCall = { apiKey: string; models: string[]; messages: Msg[]; schemaName: string; schema: Record<string, unknown>; fetchFn: FetchFn; timeoutMs: number };
 
 /** One chat completion, with OpenRouter falling back through `models` itself (spec §11). Throws on network, timeout
  * and HTTP errors; returns null when the answer isn't JSON, so the caller can retry it like any other bad answer. */
@@ -21,7 +21,7 @@ export async function callModel(c: ModelCall): Promise<unknown> {
       max_tokens: 900,
       reasoning: { effort: 'low' }
     }),
-    signal: AbortSignal.timeout(TIMEOUT_MS)
+    signal: AbortSignal.timeout(c.timeoutMs)
   });
   if (!res.ok) throw new Error(`openrouter ${res.status}`);
   const body = (await res.json()) as { choices?: { message?: { content?: unknown } }[] };

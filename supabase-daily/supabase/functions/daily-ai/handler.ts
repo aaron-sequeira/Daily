@@ -1,10 +1,14 @@
 import { MAX_BODY_BYTES, parseRequest, type AiRequest } from './contract.ts';
 import { checkReport, checkWeek } from './ground.ts';
-import { callModel, type FetchFn } from './openrouter.ts';
+import { callModel, TIMEOUT_MS, type FetchFn } from './openrouter.ts';
 import { buildPrompt } from './prompt.ts';
 
 export type AiError = 'not_plus' | 'limit' | 'invalid' | 'failed';
-export type Deps = { apiKey: string; models: string[]; fetchFn: FetchFn; isPlus(authorization: string): Promise<boolean> };
+export type Deps = { apiKey: string; models: string[]; fetchFn: FetchFn; isPlus(authorization: string): Promise<boolean>; now?: () => number };
+
+/** The whole request, both attempts included, ends inside the app's 35 s wait. */
+export const DEADLINE_MS = 30_000;
+const RETRY_MIN_MS = 6_000; // less than this left: a retry would only time out
 
 const reply = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 const failure = (status: number, error: AiError) => reply(status, { ok: false, error });
@@ -12,6 +16,8 @@ const check = (r: AiRequest, raw: unknown) => (r.kind === 'report' ? checkReport
 
 /** spec §11: validate → Plus → model (one retry on a bad answer) → grounded JSON. Never logs the key or the input. */
 export async function handle(req: Request, deps: Deps): Promise<Response> {
+  const now = deps.now ?? Date.now;
+  const start = now();
   if (req.method !== 'POST') return failure(405, 'failed');
   const auth = req.headers.get('authorization') ?? '';
   if (!auth.startsWith('Bearer ')) return failure(401, 'failed');
@@ -31,9 +37,11 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
 
   const prompt = buildPrompt(request);
   for (let attempt = 0; attempt < 2; attempt++) {
+    const left = DEADLINE_MS - (now() - start);
+    if (attempt > 0 && left < RETRY_MIN_MS) break;
     let answer: unknown;
     try {
-      answer = await callModel({ apiKey: deps.apiKey, models: deps.models, fetchFn: deps.fetchFn, ...prompt });
+      answer = await callModel({ apiKey: deps.apiKey, models: deps.models, fetchFn: deps.fetchFn, timeoutMs: Math.max(0, Math.min(TIMEOUT_MS, left)), ...prompt });
     } catch (e) {
       console.warn('daily-ai: model call failed:', e instanceof Error ? e.message : 'unknown');
       return failure(502, 'failed');

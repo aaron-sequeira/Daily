@@ -29,6 +29,15 @@ describe('grounding (spec §10.3)', () => {
     expect(checkReport({ ...good, tomorrow: ['Cut Instagram to 37 minutes', 'Phone away by 11 pm'] }, input)).toBeNull();
   });
 
+  it('lets a tip use a round target the data lacks, but not the headline or story', () => {
+    const day = { ...input, last7: [] }; // no 45-minute average: 45 is only a TIP_TARGETS value here
+    const tip = { ...good, tomorrow: ['Leave Instagram after 45 minutes', 'Phone away by 11 pm'] };
+    expect(checkReport(tip, day)).toEqual(tip);
+    expect(checkReport({ ...good, headline: 'Instagram took 45 minutes.' }, day)).toBeNull();
+    expect(checkReport({ ...good, story: 'Instagram took 42 minutes at lunch. Then 45 minutes of WhatsApp.' }, day))
+      .toEqual({ ...good, story: 'Instagram took 42 minutes at lunch.' });
+  });
+
   it('refuses the wrong shape or length', () => {
     expect(checkReport({ ...good, tomorrow: ['One'] }, input)).toBeNull();
     expect(checkReport({ ...good, tomorrow: [...good.tomorrow, 'Three'] }, input)).toBeNull();

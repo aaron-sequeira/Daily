@@ -20,6 +20,8 @@ function openRouterKey(): string {
 }
 
 const apiKey = openRouterKey();
+const envModels = (process.env.DAILY_AI_MODELS ?? '').split(',').map((m) => m.trim()).filter(Boolean);
+const models = envModels.length ? envModels : DEFAULT_MODELS;
 
 const json = (res: ServerResponse, status: number, text: string) => res.writeHead(status, { 'content-type': 'application/json' }).end(text);
 const FAILED = JSON.stringify({ ok: false, error: 'failed' });
@@ -52,7 +54,7 @@ const server = createServer(async (req, res) => {
         headers: { authorization: req.headers.authorization ?? '', 'content-type': 'application/json' },
         body: req.method === 'POST' ? Buffer.concat(chunks).toString('utf8') : undefined
       }),
-      { apiKey, models: DEFAULT_MODELS, fetchFn: fetch, isPlus: async () => true }
+      { apiKey, models, fetchFn: fetch, isPlus: async () => true }
     );
     status = r.status;
     json(res, r.status, await r.text());

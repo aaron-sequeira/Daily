@@ -75,11 +75,36 @@ describe('daily-ai handler (spec §11)', () => {
     expect((await json(await handle(post(sample), c.deps))).body).toEqual({ ok: true, json: good });
   });
 
-  it('reports failed when OpenRouter is down or errors', async () => {
-    const a = setup(new Error('network down'));
+  it('reports failed when OpenRouter is down or errors, without retrying', async () => {
+    const a = setup(new Error('network down'), answer(good));
     expect(await json(await handle(post(sample), a.deps))).toEqual({ status: 502, body: { ok: false, error: 'failed' } });
+    expect(a.fetchFn).toHaveBeenCalledTimes(1);
     const b = setup(new Response('{"error":"rate limited"}', { status: 429 }));
     expect(await json(await handle(post(sample), b.deps))).toEqual({ status: 502, body: { ok: false, error: 'failed' } });
+  });
+
+  it('says failed without calling a model when the key is missing', async () => {
+    const { deps, fetchFn } = setup(answer(good));
+    expect(await json(await handle(post(sample), { ...deps, apiKey: '' }))).toEqual({ status: 500, body: { ok: false, error: 'failed' } });
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it('keeps to a 30 s overall deadline: a slow bad answer leaves no time for the retry', async () => {
+    const invented = { ...good, headline: 'You spent 5 hours on your phone.' };
+    const timeout = vi.spyOn(AbortSignal, 'timeout');
+    let t = 1_000_000;
+    const slow = (s: ReturnType<typeof setup>, ms: number): Deps => ({ ...s.deps, now: () => t, fetchFn: async (url, init) => { t += ms; return s.fetchFn(url, init); } });
+
+    const a = setup(answer(invented), answer(good)); // 25 s for a bad answer: 5 s left, under the 6 s a retry needs
+    expect(await json(await handle(post(sample), slow(a, 25_000)))).toEqual({ status: 200, body: { ok: false, error: 'invalid' } });
+    expect(a.fetchFn).toHaveBeenCalledTimes(1);
+    expect(timeout).toHaveBeenLastCalledWith(25_000);
+
+    const b = setup(answer(invented), answer(good)); // 20 s for a bad answer: the retry gets the 10 s that are left
+    expect((await json(await handle(post(sample), slow(b, 20_000)))).body).toEqual({ ok: true, json: good });
+    expect(b.fetchFn).toHaveBeenCalledTimes(2);
+    expect(timeout.mock.calls.slice(-2)).toEqual([[25_000], [10_000]]);
+    timeout.mockRestore();
   });
 
   it('writes the week sentence', async () => {
