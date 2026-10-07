@@ -24,12 +24,21 @@ export function isQuiet(open: OpenApp): boolean {
   return QUIET_PKGS.has(open.pkg) || open.androidCategory === 6 || open.androidCategory === 1;
 }
 
+/** Settings stepper for the wind-down time: the nights run 18:00 … 04:30 without wrapping; stored values outside move into range. */
+const NIGHT_START_MIN = 18 * 60;
+export const WIND_DOWN_LAST_STEP = (24 * 60 - NIGHT_START_MIN + WIND_DOWN_END_MIN - 30) / 30; // 04:30 as steps after 18:00
+const stepOf = (t: string): number => { const [h, m] = t.split(':').map(Number); return Math.round((((h * 60 + m - NIGHT_START_MIN) % 1440) + 1440) % 1440 / 30); };
+const timeOf = (step: number): string => { const t = (NIGHT_START_MIN + step * 30) % 1440; return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`; };
+export const canStepWindDown = (t: string, dir: -1 | 1): boolean => (dir < 0 ? stepOf(t) > 0 : stepOf(t) < WIND_DOWN_LAST_STEP);
+export const stepWindDown = (t: string, dir: -1 | 1): string => timeOf(Math.min(WIND_DOWN_LAST_STEP, Math.max(0, stepOf(t) + dir)));
+
 const minutesOfDay = (ms: number): number => { const d = new Date(ms); return d.getHours() * 60 + d.getMinutes(); };
 
 export function inWindDown(nowMs: number, windDown: string): boolean {
   const [h, m] = windDown.split(':').map(Number);
   const start = h * 60 + m;
   const now = minutesOfDay(nowMs);
+  if (start === WIND_DOWN_END_MIN) return false; // starts when the night ends: no window at all
   return start >= WIND_DOWN_END_MIN ? now >= start || now < WIND_DOWN_END_MIN : now >= start && now < WIND_DOWN_END_MIN;
 }
 

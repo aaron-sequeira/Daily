@@ -23,13 +23,13 @@ export default function Onboarding() {
   const [step, setStep] = useState(0);
   const finishing = useRef(false);
   const [busy, setBusy] = useState(false);
-  const [showSunny, setShowSunny] = useState(true);
+  const [showSunny, setShowSunny] = useState(() => { try { return DailyNative.hasUsageAccess(); } catch { return false; } });
   const [goal, setGoal] = useState(() => getNumber(getDb(), 'goal_min'));
 
   // Coming back from Android Settings with access granted moves on by itself.
   useEffect(() => {
     if (step !== 1) return;
-    const sub = AppState.addEventListener('change', (s) => { if (s === 'active' && DailyNative.hasUsageAccess()) setStep(2); });
+    const sub = AppState.addEventListener('change', (s) => { if (s === 'active' && DailyNative.hasUsageAccess()) { setShowSunny(true); setStep(2); } });
     return () => sub.remove();
   }, [step]);
 

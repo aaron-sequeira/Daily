@@ -71,10 +71,16 @@ export async function sync(db: Db, native: SyncNative, nowMs: number): Promise<'
   const seen = new Set(res.sessions.map((s) => s.pkg));
   if (res.state.openPkg) seen.add(res.state.openPkg);
   const fresh = [...seen].filter((p) => !known.has(p));
+  // Apps stored before migration v3 have no android_category yet; appInfo returns -1 for unknown ones, so this settles.
+  const nullCat = new Set(db.all<{ package: string }>('SELECT package FROM apps WHERE android_category IS NULL').map((r) => r.package));
+  const backfill = [...seen].filter((p) => nullCat.has(p));
   let infos: Awaited<ReturnType<SyncNative['appInfo']>> = [];
-  if (fresh.length > 0) {
+  let backfilled: Awaited<ReturnType<SyncNative['appInfo']>> = [];
+  if (fresh.length + backfill.length > 0) {
     try {
-      infos = await native.appInfo(fresh);
+      const got = await native.appInfo([...fresh, ...backfill]);
+      infos = got.filter((a) => fresh.includes(a.pkg));
+      backfilled = got.filter((a) => backfill.includes(a.pkg));
     } catch (e) {
       // ponytail: these rows keep label = package forever (INSERT OR IGNORE); a later sync could refresh label/icon for rows whose label equals the package.
       console.warn('daily: appInfo failed', e);
@@ -90,6 +96,7 @@ export async function sync(db: Db, native: SyncNative, nowMs: number): Promise<'
     for (const a of infos) {
       db.run('INSERT OR IGNORE INTO apps (package, label, category, icon_png, android_category) VALUES (?, ?, ?, ?, ?)', [a.pkg, a.label, categoryFor(a.pkg, a.category, null), a.icon, a.category]);
     }
+    for (const a of backfilled) db.run('UPDATE apps SET android_category = ? WHERE package = ? AND android_category IS NULL', [a.category, a.pkg]);
     saveState(db, res.state);
     logMood(db, nowMs);
     sweep(db, nowMs);

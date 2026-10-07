@@ -1,5 +1,6 @@
 package expo.modules.dailynative
 
+import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
@@ -26,6 +27,7 @@ class SunnyService : Service() {
   }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    if (Build.VERSION.SDK_INT >= 26) getSystemService(NotificationManager::class.java).deleteNotificationChannel("sunny") // legacy channel
     val notification = Chip.build(this, Chip.load(this))
     try {
       if (Build.VERSION.SDK_INT >= 34) startForeground(Chip.ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)

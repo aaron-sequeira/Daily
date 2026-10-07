@@ -65,6 +65,7 @@ class DailyNativeModule : Module() {
 
     Function("stopSunnyService") {
       Chip.setEnabled(context, false)
+      Chip.clearSaved(context)
       context.stopService(Intent(context, SunnyService::class.java))
       NotificationManagerCompat.from(context).cancel(Chip.ID)
     }

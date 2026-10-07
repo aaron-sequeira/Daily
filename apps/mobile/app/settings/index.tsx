@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DailyNative from '../../modules/daily-native';
 import { getDb } from '../../src/db/expoDb';
 import { getNumber, getSetting, setSetting } from '../../src/db/settings';
-import { stepTime } from '../../src/reminders/form';
+import { canStepWindDown, stepWindDown } from '../../src/coach/rules';
 import { deleteEverything, exportJson, RETENTION_CHOICES, seedSampleDay } from '../../src/settings/data';
 import { syncSunnyService } from '../../src/sunny/service';
 import { runSync } from '../../src/tracking/runSync';
@@ -76,9 +76,9 @@ export default function Settings() {
         <View style={s.row}>
           <Text style={s.rowText}>Wind down after</Text>
           <View style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Pressable onPress={() => { const t = stepTime(windDown, -30); setWindDown(t); setSetting(db, 'wind_down', t); }} accessibilityRole="button" accessibilityLabel="Earlier" style={s.small}><Icon name="minus" size={16} /></Pressable>
+            <Pressable disabled={!canStepWindDown(windDown, -1)} onPress={() => { const t = stepWindDown(windDown, -1); setWindDown(t); setSetting(db, 'wind_down', t); }} accessibilityRole="button" accessibilityLabel="Earlier" accessibilityState={{ disabled: !canStepWindDown(windDown, -1) }} style={[s.small, !canStepWindDown(windDown, -1) && { opacity: 0.35 }]}><Icon name="minus" size={16} /></Pressable>
             <Text style={s.value} accessibilityLiveRegion="polite">{clock12(windDown)}</Text>
-            <Pressable onPress={() => { const t = stepTime(windDown, 30); setWindDown(t); setSetting(db, 'wind_down', t); }} accessibilityRole="button" accessibilityLabel="Later" style={s.small}><Icon name="plus" size={16} /></Pressable>
+            <Pressable disabled={!canStepWindDown(windDown, 1)} onPress={() => { const t = stepWindDown(windDown, 1); setWindDown(t); setSetting(db, 'wind_down', t); }} accessibilityRole="button" accessibilityLabel="Later" accessibilityState={{ disabled: !canStepWindDown(windDown, 1) }} style={[s.small, !canStepWindDown(windDown, 1) && { opacity: 0.35 }]}><Icon name="plus" size={16} /></Pressable>
           </View>
         </View>
       </Group>

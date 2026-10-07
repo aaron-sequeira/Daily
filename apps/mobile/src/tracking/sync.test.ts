@@ -63,6 +63,32 @@ describe('sync', () => {
     expect(native.appInfo).toHaveBeenCalledTimes(1);
   });
 
+  it('fills the missing android_category of an older app without touching anything else, once', async () => {
+    const db = await makeTestDb();
+    db.run("INSERT INTO apps (package, label, category, icon_png, android_category) VALUES ('com.whatsapp', 'Old label', 'work', NULL, NULL)");
+    const native = fakeNative(morning);
+    await sync(db, native, at(9));
+    expect(db.get('SELECT label, category, android_category FROM apps WHERE package = ?', ['com.whatsapp'])).toEqual({ label: 'Old label', category: 'work', android_category: 4 });
+    expect(native.appInfo).toHaveBeenCalledTimes(1);
+    expect(native.appInfo.mock.calls[0][0]).toContain('com.whatsapp');
+    db.run('UPDATE ingest_state SET last_event_ms = 0');
+    await sync(db, native, at(9, 5));
+    expect(native.appInfo).toHaveBeenCalledTimes(1);
+  });
+
+  it('writes nothing for an older app when appInfo fails, and retries next sync', async () => {
+    const db = await makeTestDb();
+    db.run("INSERT INTO apps (package, label, category, icon_png, android_category) VALUES ('com.whatsapp', 'Old label', 'work', NULL, NULL)");
+    const native = fakeNative(morning);
+    native.appInfo.mockRejectedValueOnce(new Error('boom'));
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await sync(db, native, at(9));
+    expect(db.get<{ android_category: number | null }>('SELECT android_category FROM apps WHERE package = ?', ['com.whatsapp'])?.android_category).toBeNull();
+    db.run('UPDATE ingest_state SET last_event_ms = 0');
+    await sync(db, native, at(9, 5));
+    expect(db.get<{ android_category: number | null }>('SELECT android_category FROM apps WHERE package = ?', ['com.whatsapp'])?.android_category).toBe(4);
+  });
+
   it('logs a mood only when it changes', async () => {
     const db = await makeTestDb();
     setSetting(db, 'goal_min', 60);

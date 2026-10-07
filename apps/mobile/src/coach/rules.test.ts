@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GAP_MS, inWindDown, isQuiet, planNudge, type CoachInput, type OpenApp } from './rules';
+import { canStepWindDown, GAP_MS, inWindDown, stepWindDown, isQuiet, planNudge, type CoachInput, type OpenApp } from './rules';
 
 // Tue 6 Oct 2026, Asia/Kolkata.
 const at = (h: number, m = 0, d = 6) => new Date(2026, 9, d, h, m).getTime();
@@ -64,5 +64,27 @@ describe('helpers', () => {
     expect(inWindDown(at(5, 0, 7), '23:00')).toBe(false);
     expect(inWindDown(at(0, 15, 7), '00:30')).toBe(false);
     expect(inWindDown(at(1, 0, 7), '00:30')).toBe(true);
+  });
+  it('never treats a start at or after the 05:00 night end as a window', () => {
+    expect(inWindDown(at(12), '05:00')).toBe(false);
+    expect(inWindDown(at(23, 30), '23:00')).toBe(true);
+    expect(inWindDown(at(2), '23:00')).toBe(true);
+  });
+});
+
+describe('wind-down stepper', () => {
+  it('runs 18:00 to 04:30 across midnight and stops at both ends', () => {
+    expect(stepWindDown('23:30', 1)).toBe('00:00');
+    expect(stepWindDown('00:00', -1)).toBe('23:30');
+    expect(stepWindDown('18:00', -1)).toBe('18:00');
+    expect(stepWindDown('04:30', 1)).toBe('04:30');
+    expect(canStepWindDown('18:00', -1)).toBe(false);
+    expect(canStepWindDown('18:00', 1)).toBe(true);
+    expect(canStepWindDown('04:30', 1)).toBe(false);
+    expect(canStepWindDown('04:30', -1)).toBe(true);
+  });
+  it('moves an out-of-range stored value into range on the next step', () => {
+    expect(stepWindDown('05:00', -1)).toBe('04:30');
+    expect(stepWindDown('05:00', 1)).toBe('04:30');
   });
 });
