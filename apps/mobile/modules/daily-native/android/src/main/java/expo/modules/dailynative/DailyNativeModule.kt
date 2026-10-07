@@ -16,6 +16,7 @@ import android.os.Build
 import android.os.Process
 import android.provider.Settings
 import android.util.Base64
+import androidx.core.content.ContextCompat
 import expo.modules.kotlin.exception.Exceptions
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -55,6 +56,24 @@ class DailyNativeModule : Module() {
       context.packageManager.resolveActivity(home, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName
     }
 
+    Function("startSunnyService") {
+      Chip.setEnabled(context, true)
+      ContextCompat.startForegroundService(context, Intent(context, SunnyService::class.java))
+    }
+
+    Function("stopSunnyService") {
+      Chip.setEnabled(context, false)
+      context.stopService(Intent(context, SunnyService::class.java))
+    }
+
+    Function("updateChip") { title: String, short: String, text: String, mood: String ->
+      Chip.update(context, Chip.Data(title, short, text, mood))
+    }
+
+    Function("openBatterySettings") {
+      context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+
     AsyncFunction("queryEvents") { fromMs: Double, toMs: Double -> queryEvents(fromMs.toLong(), toMs.toLong()) }
 
     AsyncFunction("appInfo") { packages: List<String> -> packages.map { appInfo(it) } }
@@ -81,15 +100,7 @@ class DailyNativeModule : Module() {
     val out = ArrayList<Map<String, Any>>()
     while (events.hasNextEvent()) {
       events.getNextEvent(e)
-      val type = when (e.eventType) {
-        1 -> "resumed"      // ACTIVITY_RESUMED (MOVE_TO_FOREGROUND before API 29)
-        2 -> "paused"       // ACTIVITY_PAUSED (MOVE_TO_BACKGROUND before API 29)
-        15 -> "screen_on"   // SCREEN_INTERACTIVE
-        16 -> "screen_off"  // SCREEN_NON_INTERACTIVE
-        26 -> "screen_off"  // DEVICE_SHUTDOWN: closes an app left open when the phone powers off
-        18 -> "unlock"      // KEYGUARD_HIDDEN
-        else -> null
-      } ?: continue
+      val type = Events.type(e.eventType) ?: continue
       out.add(mapOf("type" to type, "pkg" to e.packageName, "ts" to e.timeStamp.toDouble()))
     }
     return out

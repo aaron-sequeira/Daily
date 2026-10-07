@@ -12,6 +12,10 @@ export type DailyNativeApi = {
   appInfo(packages: string[]): Promise<NativeAppInfo[]>;
   canScheduleExactAlarms(): boolean;
   openExactAlarmSettings(): void;
+  startSunnyService(): void;
+  stopSunnyService(): void;
+  updateChip(title: string, short: string, text: string, mood: string): void;
+  openBatterySettings(): void;
 };
 
 export default requireNativeModule<DailyNativeApi>('DailyNative');
