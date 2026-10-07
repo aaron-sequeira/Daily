@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { handle, type Deps } from '../supabase/functions/daily-ai/handler.ts';
 import { OPENROUTER_URL } from '../supabase/functions/daily-ai/openrouter.ts';
+import { DAILY_CEILING } from '../supabase/functions/daily-ai/quota.ts';
 import sample from './sample-request.json';
 
 const good = { headline: 'A calm day: 1h 32m on your phone.', story: 'Instagram took 42 minutes at lunch. The evening stayed quiet.', tomorrow: ['Leave Instagram after 20 minutes', 'Phone away by 11 pm'] };
+const T0 = Date.parse('2026-10-07T12:00:00Z'); // the sample report's day is yesterday
 const answer = (json: unknown, raw?: string) => new Response(JSON.stringify({ choices: [{ message: { content: raw ?? JSON.stringify(json) } }] }), { status: 200 });
 
 function setup(...replies: (Response | Error)[]) {
@@ -14,8 +16,8 @@ function setup(...replies: (Response | Error)[]) {
     if (!r || r instanceof Error) throw r ?? new Error('no reply');
     return r;
   });
-  const quota = { use: vi.fn(async () => true), refund: vi.fn(async () => {}) };
-  const deps: Deps = { apiKey: 'sk-test', models: ['openai/gpt-6-luna', 'google/gemini-3.1-flash-lite'], fetchFn, userId: async (a) => (a === 'Bearer jwt' ? 'u1' : null), isPlus: async () => true, quota };
+  const quota = { use: vi.fn(async (): Promise<'yes' | 'no' | 'error'> => 'yes'), refund: vi.fn(async () => {}) };
+  const deps: Deps = { apiKey: 'sk-test', models: ['openai/gpt-6-luna', 'google/gemini-3.1-flash-lite'], fetchFn, now: () => T0, userId: async (a) => (a === 'Bearer jwt' ? 'u1' : null), isPlus: async () => 'yes', quota };
   return { deps, sent, fetchFn, quota };
 }
 const post = (body: unknown, auth = 'Bearer jwt') =>
@@ -61,7 +63,7 @@ describe('daily-ai handler (spec §11)', () => {
 
   it('says not_plus without calling a model', async () => {
     const { deps, fetchFn } = setup();
-    expect(await json(await handle(post(sample), { ...deps, isPlus: async () => false }))).toEqual({ status: 403, body: { ok: false, error: 'not_plus' } });
+    expect(await json(await handle(post(sample), { ...deps, isPlus: async () => 'no' as const }))).toEqual({ status: 403, body: { ok: false, error: 'not_plus' } });
     expect(fetchFn).not.toHaveBeenCalled();
   });
 
@@ -74,10 +76,11 @@ describe('daily-ai handler (spec §11)', () => {
 
   it('says limit when the quota is used up, without calling the model', async () => {
     const { deps, fetchFn, quota } = setup();
-    quota.use.mockResolvedValueOnce(false);
+    quota.use.mockResolvedValueOnce('yes').mockResolvedValueOnce('no');
     expect(await json(await handle(post(sample), deps))).toEqual({ status: 429, body: { ok: false, error: 'limit' } });
     expect(fetchFn).not.toHaveBeenCalled();
-    expect(quota.use).toHaveBeenCalledWith('u1', 'report:2026-10-06', 1);
+    expect(quota.use).toHaveBeenNthCalledWith(1, 'u1', 'all:2026-10-07', DAILY_CEILING);
+    expect(quota.use).toHaveBeenNthCalledWith(2, 'u1', 'report:2026-10-06', 1);
   });
 
   it('gives the slot back after failed or invalid, keeps it after success (Review Focus 3)', async () => {
@@ -91,6 +94,61 @@ describe('daily-ai handler (spec §11)', () => {
     const c = setup(answer(good));
     await handle(post(sample), c.deps);
     expect(c.quota.refund).not.toHaveBeenCalled();
+  });
+
+  it('refuses dates the client could pick to dodge the quota, before any quota call', async () => {
+    for (const day of ['2026-09-01', '2026-10-09', '2026-02-30']) {
+      const { deps, fetchFn, quota } = setup();
+      const r = JSON.parse(JSON.stringify(sample));
+      r.input.day = day;
+      expect(await json(await handle(post(r), deps))).toEqual({ status: 400, body: { ok: false, error: 'failed' } });
+      expect(quota.use).not.toHaveBeenCalled();
+      expect(fetchFn).not.toHaveBeenCalled();
+    }
+  });
+
+  it('takes the never-refunded daily ceiling first; a refusal there means limit with no model call', async () => {
+    const { deps, fetchFn, quota } = setup();
+    quota.use.mockResolvedValueOnce('no');
+    expect(await json(await handle(post(sample), deps))).toEqual({ status: 429, body: { ok: false, error: 'limit' } });
+    expect(quota.use).toHaveBeenCalledTimes(1);
+    expect(quota.use).toHaveBeenCalledWith('u1', 'all:2026-10-07', DAILY_CEILING);
+    expect(fetchFn).not.toHaveBeenCalled();
+    expect(quota.refund).not.toHaveBeenCalled();
+  });
+
+  it('refunds only the per-type bucket after invalid, never all:', async () => {
+    const invented = { ...good, headline: 'You spent 5 hours on your phone.' };
+    const { deps, quota } = setup(answer(invented), answer(invented));
+    await handle(post(sample), deps);
+    expect(quota.refund.mock.calls).toEqual([['u1', 'report:2026-10-06']]);
+  });
+
+  it('says failed (503) when a quota or Plus check is down, not limit or not_plus', async () => {
+    const a = setup();
+    a.quota.use.mockResolvedValueOnce('error');
+    expect(await json(await handle(post(sample), a.deps))).toEqual({ status: 503, body: { ok: false, error: 'failed' } });
+    const b = setup();
+    expect(await json(await handle(post(sample), { ...b.deps, isPlus: async () => 'error' as const }))).toEqual({ status: 503, body: { ok: false, error: 'failed' } });
+    expect(b.fetchFn).not.toHaveBeenCalled();
+  });
+
+  it('not_plus never takes a quota slot', async () => {
+    const { deps, quota } = setup();
+    await handle(post(sample), { ...deps, isPlus: async () => 'no' as const });
+    expect(quota.use).not.toHaveBeenCalled();
+  });
+
+  it('refunds exactly once on a 502 and on the time-skip failed', async () => {
+    const a = setup(new Error('down'));
+    expect((await json(await handle(post(sample), a.deps))).status).toBe(502);
+    expect(a.quota.refund).toHaveBeenCalledTimes(1);
+    let t = T0;
+    const invented = { ...good, headline: 'You spent 5 hours on your phone.' };
+    const b = setup(answer(invented));
+    b.fetchFn.mockImplementationOnce(async () => { t = T0 + 26_000; return answer(invented); });
+    await handle(post(sample), { ...b.deps, now: () => t });
+    expect(b.quota.refund).toHaveBeenCalledTimes(1);
   });
 
   it('retries a bad answer once, then gives up with invalid (Review Focus 4)', async () => {
@@ -121,7 +179,7 @@ describe('daily-ai handler (spec §11)', () => {
   it('keeps to a 30 s overall deadline: a slow bad answer leaves no time for the retry', async () => {
     const invented = { ...good, headline: 'You spent 5 hours on your phone.' };
     const timeout = vi.spyOn(AbortSignal, 'timeout');
-    let t = 1_000_000;
+    let t = T0;
     const slow = (s: ReturnType<typeof setup>, ms: number): Deps => ({ ...s.deps, now: () => t, fetchFn: async (url, init) => { t += ms; return s.fetchFn(url, init); } });
 
     const a = setup(answer(invented), answer(good)); // 25 s for a bad answer: 5 s left, under the 6 s a retry needs
@@ -145,16 +203,16 @@ describe('daily-ai handler (spec §11)', () => {
   });
 
   it('says failed, not invalid, when there is no time left for the retry', async () => {
-    let t = 0;
+    let t = T0;
     const invented = { ...good, headline: 'You spent 5 hours on your phone.' };
     const { deps, fetchFn } = setup(answer(invented));
-    fetchFn.mockImplementationOnce(async () => { t = 26_000; return answer(invented); });
+    fetchFn.mockImplementationOnce(async () => { t = T0 + 26_000; return answer(invented); });
     expect((await json(await handle(post(sample), { ...deps, now: () => t }))).body).toEqual({ ok: false, error: 'failed' });
   });
 
   it('writes the week sentence', async () => {
     const { deps } = setup(answer({ sentence: 'You averaged 40m a day, 50m less than last week.' }));
-    const week = { kind: 'week', mode: 'auto', input: { weekStart: '2026-10-05', avgMin: 40, lastAvgMin: 90, days: [{ day: '2026-10-05', phoneMin: 60 }], topApps: [{ name: 'Instagram', minutes: 30 }] } };
+    const week = { kind: 'week', mode: 'auto', input: { weekStart: '2026-09-28', avgMin: 40, lastAvgMin: 90, days: [{ day: '2026-09-28', phoneMin: 60 }], topApps: [{ name: 'Instagram', minutes: 30 }] } };
     expect((await json(await handle(post(week), deps))).body).toEqual({ ok: true, json: { sentence: 'You averaged 40m a day, 50m less than last week.' } });
   });
 });

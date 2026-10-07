@@ -58,8 +58,8 @@ const server = createServer(async (req, res) => {
       {
         apiKey, models, fetchFn: fetch,
         userId: async (auth) => (auth.startsWith('Bearer ') ? 'dev-user' : null),
-        isPlus: async () => true,
-        quota: { use: async () => true, refund: async () => {} }
+        isPlus: async () => 'yes' as const,
+        quota: { use: async () => 'yes' as const, refund: async () => {} }
       }
     );
     status = r.status;

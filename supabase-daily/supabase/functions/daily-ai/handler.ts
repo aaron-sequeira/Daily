@@ -2,13 +2,13 @@ import { MAX_BODY_BYTES, parseRequest, type AiRequest } from './contract.ts';
 import { checkReport, checkWeek } from './ground.ts';
 import { callModel, TIMEOUT_MS, type FetchFn } from './openrouter.ts';
 import { buildPrompt } from './prompt.ts';
-import { bucketFor, type Quota } from './quota.ts';
+import { bucketFor, DAILY_CEILING, requestAllowed, type Quota } from './quota.ts';
 
 export type AiError = 'not_plus' | 'limit' | 'invalid' | 'failed';
 export type Deps = {
   apiKey: string; models: string[]; fetchFn: FetchFn; now?: () => number;
   userId(authorization: string): Promise<string | null>;
-  isPlus(userId: string): Promise<boolean>;
+  isPlus(userId: string): Promise<'yes' | 'no' | 'error'>;
   quota: Quota;
 };
 
@@ -57,12 +57,22 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
   }
   const request = parseRequest(raw);
   if (!request) return failure(400, 'failed');
+  const utcDay = new Date(start).toISOString().slice(0, 10);
+  if (!requestAllowed(request, utcDay)) return failure(400, 'failed'); // the quota key is built from this date
   const userId = await deps.userId(auth);
   if (!userId) return failure(401, 'failed');
-  if (!(await deps.isPlus(userId))) return failure(403, 'not_plus');
+  const plus = await deps.isPlus(userId);
+  if (plus === 'error') return failure(503, 'failed');
+  if (plus === 'no') return failure(403, 'not_plus');
   if (!deps.apiKey) return failure(500, 'failed');
-  const slot = bucketFor(request, new Date(start).toISOString().slice(0, 10));
-  if (!(await deps.quota.use(userId, slot.bucket, slot.limit))) return failure(429, 'limit');
+  // The daily ceiling is never refunded, so refund loops cannot spend without end.
+  const ceiling = await deps.quota.use(userId, `all:${utcDay}`, DAILY_CEILING);
+  if (ceiling === 'error') return failure(503, 'failed');
+  if (ceiling === 'no') return failure(429, 'limit');
+  const slot = bucketFor(request, utcDay);
+  const taken = await deps.quota.use(userId, slot.bucket, slot.limit);
+  if (taken === 'error') return failure(503, 'failed');
+  if (taken === 'no') return failure(429, 'limit');
   const refund = () => deps.quota.refund(userId, slot.bucket);
 
   const prompt = buildPrompt(request);
