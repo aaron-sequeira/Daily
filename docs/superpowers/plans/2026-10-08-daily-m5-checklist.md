@@ -14,6 +14,7 @@
 
 1. **Supabase**: create a project "daily" (region near India).
    - Authentication → Sign In / Providers → turn on **Anonymous sign-ins**.
+   - Authentication → Rate limits: keep anonymous sign-ins limited (or turn on CAPTCHA).
    - From the repo root:
      - `supabase init --workdir supabase-daily` (once)
      - `supabase link --workdir supabase-daily --project-ref <ref>`
@@ -38,7 +39,7 @@
 5. **Deploy**: `supabase functions deploy daily-ai --workdir supabase-daily`.
 6. **Check the gate**:
    - (a) In the function's Logs, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` are present. If the project disabled the legacy JWT keys, re-enable them or update the function.
-   - (b) `curl` `POST <SUPABASE_URL>/rest/v1/rpc/use_ai` with the anon key fails, and with the service key it returns true.
+   - (b) `curl` `POST <SUPABASE_URL>/rest/v1/rpc/use_ai` with the anon key fails. With the service key it returns true; use a real anonymous user's id from Authentication → Users as `p_user` (a random uuid fails the foreign key), e.g. body `{"p_user":"<id>","p_bucket":"check","p_limit":1}`. Then `POST <SUPABASE_URL>/rest/v1/rpc/refund_ai` with the service key and `{"p_user":"<id>","p_bucket":"check"}` to give the slot back.
    - (c) `curl` the `daily-ai` function with only the anon key returns 401.
 7. **App env**: in `apps/mobile/.env` (gitignored), set:
    - `EXPO_PUBLIC_SUPABASE_URL`
@@ -52,6 +53,7 @@
 - [ ] Buy the trial with the licence tester account → Plus turns on; tonight's report is the written story
 - [ ] Rewrite 3 times → the 4th says "You've used today's rewrites"
 - [ ] Rewrite a report from 30 days ago → works (old days can be rewritten)
+- [ ] Switch to yearly on a monthly subscription → Play shows one subscription (yearly) afterwards.
 - [ ] In Play, cancel the subscription → it stays on until the period ends, and Your subscription says "ends …"
 - [ ] Tap the 'Your free week ends soon' notification → opens Your subscription
 - [ ] Airplane mode with Plus → still Plus until it ends; nothing crashes
