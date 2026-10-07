@@ -23,12 +23,13 @@ dependency for ~80 lines of Kotlin); Supabase browser OAuth (Chrome tab bounce, 
 
 ## Pieces
 
-### 1. Native: `DailyNative.googleSignIn(webClientId, hashedNonce)`
+### 1. Native: `DailyNative.googleSignIn(webClientId)`
 
 Kotlin in daily-native, using `androidx.credentials` + `com.google.android.libraries.identity.googleid`:
-`GetSignInWithGoogleOption(serverClientId = webClientId).setNonce(hashedNonce)` → `CredentialManager.getCredential`.
+1. Make a random raw nonce (`SecureRandom`) and its SHA-256 hex (`MessageDigest`), so no JS crypto dependency is needed.
+2. Call `GetSignInWithGoogleOption(serverClientId = webClientId).setNonce(hashed)` → `CredentialManager.getCredential`.
 
-Resolves `{ idToken, email, name, photoUrl }`. Rejects with one of these codes:
+Resolves `{ idToken, rawNonce, email, name, photoUrl }`. Rejects with one of these codes:
 - `cancelled`: the user closed the sheet.
 - `no_account`: there is no Google account on the phone.
 - `failed`: anything else.
@@ -39,15 +40,14 @@ signing SHA-1, so no Android client ID is in the code.
 ### 2. JS: `src/account/account.ts`
 
 - `signInWithGoogle()`:
-  1. Make a random raw nonce and its SHA-256 (hex) with `expo-crypto`, which Expo already ships.
-  2. Get the Google id token through the native module, passing the hashed nonce.
-  3. Call `linkIdentity({ provider: 'google', token, nonce: raw })` on the current anonymous session. The user id is kept,
+  1. Get the Google id token and raw nonce through the native module.
+  2. Call `linkIdentity({ provider: 'google', token, nonce: raw })` on the current anonymous session. The user id is kept,
      so Plus, quotas and RevenueCat need no change.
-  4. If Supabase answers `identity_already_exists`, the Google account belongs to an earlier Daily user (a reinstall or a
+  3. If Supabase answers `identity_already_exists`, the Google account belongs to an earlier Daily user (a reinstall or a
      second phone). Call `signInWithIdToken({ provider: 'google', token, nonce: raw })` to switch to that user. Then run
      `billing.logIn(newId)` and `resyncPlus()`, so Plus follows the account. The abandoned anonymous user is left alone;
      it owns nothing.
-  5. Return `{ status: 'linked' | 'switched' | 'cancelled' | 'no_account' | 'offline' | 'failed' }`.
+  4. Return `{ status: 'linked' | 'switched' | 'cancelled' | 'no_account' | 'offline' | 'failed' }`.
 - `account()`: `{ email, name, photoUrl } | null` from the session's Google identity. It is null for an anonymous user.
 - `signOut()`: `supabase.auth.signOut()`, then `ensureUserId()` makes a fresh anonymous user, then `linkUser`. Local data is
   untouched.
