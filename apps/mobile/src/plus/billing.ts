@@ -31,6 +31,16 @@ export function toEntitlement(info: RcCustomerInfo, nowMs: number): Entitlement 
   return { active: true, untilMs, plan: planOf(e.productIdentifier), trial: e.periodType === 'TRIAL', willRenew: !!e.willRenew };
 }
 
+export type PlanChange = { action: 'buy' } | { action: 'none' } | { action: 'change'; oldProductId: string };
+
+/** A subscriber must never be sold a second subscription: the same plan needs nothing, the other plan is a Play product
+ * change from the active product (Play wants the bare product id, without RevenueCat's ':basePlan' suffix). */
+export function changeFor(activeProductId: string | null, plan: PlanId): PlanChange {
+  if (!activeProductId) return { action: 'buy' };
+  if (planOf(activeProductId) === plan) return { action: 'none' };
+  return { action: 'change', oldProductId: activeProductId.split(':')[0] };
+}
+
 export function toOffer(pkg: RcPackage): Offer | null {
   const plan: PlanId | null = pkg.packageType === 'ANNUAL' ? 'yearly' : pkg.packageType === 'MONTHLY' ? 'monthly' : null;
   if (!plan) return null;

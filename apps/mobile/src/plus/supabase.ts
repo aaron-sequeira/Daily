@@ -33,10 +33,22 @@ async function resolveUserId(): Promise<string | null> {
   }
 }
 
-/** Spec §11: an anonymous Supabase user, created once and kept. Null offline or without config; callers try again later.
- * Concurrent callers share one attempt, so a first launch can't create two users. */
+const SIGN_IN_TIMEOUT_MS = 10_000;
+
+/** The caller waits at most 10 s; on timeout it gets null and the attempt carries on in the background. */
+function within(work: Promise<string | null>): Promise<string | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<null>((resolve) => {
+    timer = setTimeout(() => { console.warn('daily: sign-in timed out'); resolve(null); }, SIGN_IN_TIMEOUT_MS);
+  });
+  return Promise.race([work, timeout]).finally(() => clearTimeout(timer));
+}
+
+/** Spec §11: an anonymous Supabase user, created once and kept. Null offline, without config or after 10 s; callers try
+ * again later. Concurrent callers share one attempt, even one that has outlived a caller's timeout, so a first launch
+ * (or a slow one) can't create two users. */
 export function ensureUserId(): Promise<string | null> {
-  return (inflight ??= resolveUserId().finally(() => { inflight = null; }));
+  return within(inflight ??= resolveUserId().finally(() => { inflight = null; }));
 }
 
 export async function accessToken(): Promise<string | null> {

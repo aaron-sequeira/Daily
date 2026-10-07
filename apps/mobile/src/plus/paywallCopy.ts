@@ -2,6 +2,13 @@ import type { Offer } from './billing';
 
 const per = (o: Offer) => (o.plan === 'yearly' ? 'a year' : 'a month');
 
+/** 'owned': a subscriber sees no buy button. 'change': only the switch to yearly (Your subscription → Switch to yearly). */
+export type PaywallMode = 'buy' | 'owned' | 'change';
+export function paywallMode(plus: boolean, change: string | string[] | undefined): PaywallMode {
+  if (!plus) return 'buy';
+  return change === 'yearly' ? 'change' : 'owned';
+}
+
 export function ctaLabel(o: Offer | undefined): string {
   if (!o) return 'Loading prices…';
   return o.trialDays ? `Start ${o.trialDays}-day free trial` : `Subscribe for ${o.priceString} ${per(o)}`;

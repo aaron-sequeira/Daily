@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { errorName, purchaseMessage, savePercent, toEntitlement, toOffer, type Offer } from './billing';
+import { changeFor, errorName, purchaseMessage, savePercent, toEntitlement, toOffer, type Offer } from './billing';
 
 const NOW = Date.parse('2026-10-08T12:00:00Z');
 const offer = (plan: 'monthly' | 'yearly', price: number): Offer => ({ plan, productId: `plus_${plan}`, price, priceString: `$${price}`, perMonthString: '', currencyCode: 'USD', trialDays: 7 });
@@ -40,6 +40,17 @@ describe('billing helpers', () => {
     expect(errorName('99', codes)).toBeNull();
     expect(errorName(null, codes)).toBeNull();
     expect(purchaseMessage(errorName('99', codes))).toBe('Something went wrong. You haven’t been charged.');
+  });
+
+  it('never starts a second subscription: buys, does nothing, or changes plan', () => {
+    expect(changeFor(null, 'yearly')).toEqual({ action: 'buy' });
+    expect(changeFor(null, 'monthly')).toEqual({ action: 'buy' });
+    expect(changeFor('plus_yearly', 'yearly')).toEqual({ action: 'none' });
+    expect(changeFor('plus_yearly:yearly', 'yearly')).toEqual({ action: 'none' });
+    expect(changeFor('plus_monthly:monthly', 'monthly')).toEqual({ action: 'none' });
+    expect(changeFor('plus_monthly', 'yearly')).toEqual({ action: 'change', oldProductId: 'plus_monthly' });
+    expect(changeFor('plus_monthly:monthly', 'yearly')).toEqual({ action: 'change', oldProductId: 'plus_monthly' });
+    expect(changeFor('plus_yearly:yearly', 'monthly')).toEqual({ action: 'change', oldProductId: 'plus_yearly' });
   });
 
   it('says one calm line per purchase problem (spec §13; Review Focus 1)', () => {

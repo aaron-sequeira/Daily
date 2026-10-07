@@ -12,6 +12,7 @@ import { getDb } from '../../src/db/expoDb';
 import { getNumber, getSetting, setSetting } from '../../src/db/settings';
 import { canStepWindDown, stepWindDown } from '../../src/coach/rules';
 import { isPlus } from '../../src/plus/plus';
+import { resyncPlus } from '../../src/plus/start';
 import { plusStatus } from '../../src/plus/status';
 import { canStepWriteTime, stepWriteTime } from '../../src/report/days';
 import { deleteEverything, exportJson, RETENTION_CHOICES, seedSampleDay } from '../../src/settings/data';
@@ -82,6 +83,8 @@ export default function Settings() {
     syncSunnyService(db, DailyNative);
     await Notifications.cancelAllScheduledNotificationsAsync().catch((e) => console.warn('daily: cancelling alarms failed', e));
     await Notifications.dismissAllNotificationsAsync().catch((e) => console.warn('daily: dismissing notifications failed', e));
+    // The subscription outlives Delete everything: bring the plus_* cache and the trial reminder (cancelled above) back.
+    void resyncPlus();
     try {
       const file = new File(Paths.cache, 'daily-export.json');
       if (file.exists) file.delete();

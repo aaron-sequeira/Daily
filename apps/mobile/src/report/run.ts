@@ -1,14 +1,26 @@
 import { getDb } from '../db/expoDb';
 import { isPlus } from '../plus/plus';
+import { resyncPlus } from '../plus/start';
 import { noteRewrite, noteRewriteLimit } from '../plus/status';
 import { expoNotifier } from '../reminders/expoNotifier';
-import { aiConfig, aiReport, aiWeek } from './ai';
+import { aiConfig, aiReport, aiWeek, type AiResult } from './ai';
 import type { AiError } from './store';
 import { rewriteReport, writeDueReports, type WriterDeps } from './writer';
 
+/** The server says not_plus: the cached entitlement may be stale (a lapse, a refund, or a plan the phone missed), so
+ * re-read it in the background. The answer is passed on unchanged. */
+function resyncOnNotPlus<T>(r: AiResult<T>): AiResult<T> {
+  if (!r.ok && r.error === 'not_plus') void resyncPlus();
+  return r;
+}
+
 export function liveDeps(): WriterDeps {
   const cfg = aiConfig();
-  return { isPlus: isPlus(getDb()), notifier: expoNotifier, aiReport: (i, mode) => aiReport(cfg, i, mode), aiWeek: (i) => aiWeek(cfg, i), now: () => Date.now() };
+  return {
+    isPlus: isPlus(getDb()), notifier: expoNotifier, now: () => Date.now(),
+    aiReport: (i, mode) => aiReport(cfg, i, mode).then(resyncOnNotPlus),
+    aiWeek: (i) => aiWeek(cfg, i).then(resyncOnNotPlus)
+  };
 }
 
 let writing: Promise<unknown> | null = null;

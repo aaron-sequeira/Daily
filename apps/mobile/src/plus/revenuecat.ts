@@ -1,5 +1,5 @@
 import Purchases, { PURCHASES_ERROR_CODE, type CustomerInfo, type PurchasesPackage } from 'react-native-purchases';
-import { NO_ENTITLEMENT, errorName, purchaseMessage, toEntitlement, toOffer, type Billing, type Entitlement, type PlanId, type RcCustomerInfo, type RcPackage } from './billing';
+import { ENTITLEMENT_ID, NO_ENTITLEMENT, changeFor, errorName, purchaseMessage, toEntitlement, toOffer, type Billing, type Entitlement, type PlanId, type RcCustomerInfo, type RcPackage } from './billing';
 
 const PACKAGE = 'com.aaronalex.daily';
 const ent = (info: CustomerInfo): Entitlement => toEntitlement(info as unknown as RcCustomerInfo, Date.now());
@@ -32,7 +32,13 @@ export function revenueCatBilling(apiKey: string): Billing {
         if (!packages.size) await loadPackages();
         const pkg = packages.get(plan);
         if (!pkg) return { ok: false, cancelled: false, message: purchaseMessage(null) };
-        const { customerInfo } = await Purchases.purchasePackage(pkg);
+        // A subscriber is never sold a second subscription: same plan → nothing to buy; other plan → a Play product change.
+        const info = await Purchases.getCustomerInfo();
+        const change = changeFor(info.entitlements.active[ENTITLEMENT_ID]?.productIdentifier ?? null, plan);
+        if (change.action === 'none') return { ok: true, ent: ent(info) };
+        const { customerInfo } = change.action === 'change'
+          ? await Purchases.purchasePackage(pkg, null, { oldProductIdentifier: change.oldProductId, replacementMode: Purchases.STORE_REPLACEMENT_MODE.WITH_TIME_PRORATION })
+          : await Purchases.purchasePackage(pkg);
         return { ok: true, ent: ent(customerInfo) };
       } catch (e) {
         const err = e as { userCancelled?: boolean; code?: string };

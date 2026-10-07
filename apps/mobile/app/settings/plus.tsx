@@ -11,6 +11,8 @@ import { savePercent, type Offer } from '../../src/plus/billing';
 import { saveEntitlement } from '../../src/plus/entitlement';
 import { getBilling } from '../../src/plus/getBilling';
 import { yearlyInsteadOf } from '../../src/plus/price';
+import { linkUser } from '../../src/plus/start';
+import { ensureUserId } from '../../src/plus/supabase';
 import { plusStatus, REWRITES_PER_DAY, rewritesLeft, type PlusStatus } from '../../src/plus/status';
 import { shiftDay, weekStartOf } from '../../src/report/days';
 import { loadReport, loadWeekSentence } from '../../src/report/store';
@@ -57,6 +59,7 @@ export default function Subscription() {
     setRestoring(true);
     setNote(null);
     try {
+      await linkUser({ billing: getBilling(), ensureUserId });
       const ent = await getBilling().restore();
       await saveEntitlement(getDb(), ent, expoNotifier, Date.now());
       if (!ent.active) setNote('No Daily Plus purchase found for this Google account.');
@@ -100,7 +103,7 @@ export default function Subscription() {
 
           {status.monthly && (
             <Animated.View entering={rise(2)}>
-              <Pressable accessibilityRole="button" onPress={() => router.push('/paywall')} style={s.switch}>
+              <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/paywall', params: { change: 'yearly' } })} style={s.switch}>
                 <View style={{ flex: 1 }}>
                   <Text style={s.switchTitle}>Switch to yearly</Text>
                   {yearly && <Text style={s.switchSub}>{monthly ? yearlyInsteadOf(monthly, yearly) : `${yearly.priceString} a year`}</Text>}

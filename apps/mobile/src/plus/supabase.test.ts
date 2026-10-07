@@ -49,6 +49,33 @@ describe('anonymous identity', () => {
     expect(await m.accessToken()).toBeNull();
   });
 
+  it('a stalled sign-in gives up after 10 s with null, and a later call never starts a second sign-in', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    let land!: (v: unknown) => void;
+    auth.getSession.mockReturnValue(new Promise((r) => { land = r; }));
+    auth.signInAnonymously.mockResolvedValue({ data: { user: { id: 'u4' } }, error: null });
+    const m = await load();
+    vi.useFakeTimers();
+    try {
+      const first = m.ensureUserId();
+      await vi.advanceTimersByTimeAsync(9_999);
+      let settled = false;
+      void first.then(() => { settled = true; });
+      await Promise.resolve();
+      expect(settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await first).toBeNull();
+      expect(warn).toHaveBeenCalled();
+      const second = m.ensureUserId(); // the first attempt is still running: share it, don't mint another user
+      land({ data: { session: null }, error: null });
+      expect(await second).toBe('u4');
+      expect(auth.getSession).toHaveBeenCalledTimes(1);
+      expect(auth.signInAnonymously).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('without env there is no client and no user', async () => {
     const m = await load(false);
     expect(m.supabase()).toBeNull();

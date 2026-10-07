@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Offer } from './billing';
-import { ctaLabel, day7Label, endDayLabel, finePrint, reminderDayLabel } from './paywallCopy';
+import { ctaLabel, day7Label, endDayLabel, finePrint, paywallMode, reminderDayLabel } from './paywallCopy';
 
 const y: Offer = { plan: 'yearly', productId: 'plus_yearly', price: 29.99, priceString: '$29.99', perMonthString: '$2.50', currencyCode: 'USD', trialDays: 7 };
 const m: Offer = { plan: 'monthly', productId: 'plus_monthly', price: 3.99, priceString: '$3.99', perMonthString: '$3.99', currencyCode: 'USD', trialDays: 7 };
@@ -28,5 +28,14 @@ describe('paywall copy', () => {
     expect(reminderDayLabel({ ...y, trialDays: 14 })).toBe('Day 12');
     expect(endDayLabel({ ...y, trialDays: 14 })).toBe('Day 14');
     expect(reminderDayLabel({ ...y, trialDays: null })).toBe('');
+  });
+
+  it('never sells Plus to someone who has it: a calm owned state, or the switch to yearly when asked', () => {
+    expect(paywallMode(false, undefined)).toBe('buy');
+    expect(paywallMode(false, 'yearly')).toBe('buy');
+    expect(paywallMode(true, undefined)).toBe('owned');
+    expect(paywallMode(true, 'monthly')).toBe('owned');
+    expect(paywallMode(true, ['yearly'])).toBe('owned');
+    expect(paywallMode(true, 'yearly')).toBe('change');
   });
 });

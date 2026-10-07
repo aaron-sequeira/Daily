@@ -11,7 +11,7 @@ import DailyNative from '../modules/daily-native';
 import { DB_NAME, getDb } from '../src/db/expoDb';
 import { getSetting } from '../src/db/settings';
 import { getBilling } from '../src/plus/getBilling';
-import { startPlus } from '../src/plus/start';
+import { resyncPlus, startPlus } from '../src/plus/start';
 import { ensureUserId, supabase } from '../src/plus/supabase';
 import { runReportWriter } from '../src/report/run';
 import { expoNotifier, setupNotifications } from '../src/reminders/expoNotifier';
@@ -65,7 +65,13 @@ function Gate() {
     refresh();
     supabase()?.auth.startAutoRefresh();
     const sub = AppState.addEventListener('change', (s) => {
-      if (s === 'active') { try { DailyNative.updateBubble(false, 'happy'); } catch { /* bubble is optional */ } supabase()?.auth.startAutoRefresh(); syncSunnyService(getDb(), DailyNative); refresh(); }
+      if (s === 'active') {
+        try { DailyNative.updateBubble(false, 'happy'); } catch { /* bubble is optional */ }
+        supabase()?.auth.startAutoRefresh();
+        syncSunnyService(getDb(), DailyNative);
+        refresh();
+        void resyncPlus(); // a renewal, a cancel or a plan change made in Play while Daily was away
+      }
       else if (s === 'background') supabase()?.auth.stopAutoRefresh();
     });
     return () => sub.remove();

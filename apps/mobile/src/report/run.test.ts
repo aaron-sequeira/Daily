@@ -4,8 +4,9 @@ import { setSetting } from '../db/settings';
 import { makeTestDb } from '../db/testDb';
 import { expoNotifier } from '../reminders/expoNotifier';
 import type { FakeNotifier } from '../reminders/fakeNotifier';
-import { aiReport, type AiResult, type ReportOut } from './ai';
-import { onReportsWritten, runReportWriter, runRewrite } from './run';
+import { resyncPlus } from '../plus/start';
+import { aiReport, aiWeek, type AiResult, type ReportOut } from './ai';
+import { liveDeps, onReportsWritten, runReportWriter, runRewrite } from './run';
 import { loadReport } from './store';
 
 // run.ts glues the writer to the app: its database, notifier and AI client are swapped for test ones here.
@@ -13,6 +14,7 @@ const h = vi.hoisted(() => ({ db: null as unknown as Db, dbFails: false }));
 vi.mock('../db/expoDb', () => ({ getDb: () => { if (h.dbFails) throw new Error('database unavailable'); return h.db; } }));
 vi.mock('../reminders/expoNotifier', async () => ({ expoNotifier: new (await import('../reminders/fakeNotifier')).FakeNotifier() }));
 vi.mock('./ai', () => ({ aiConfig: () => null, aiReport: vi.fn(), aiWeek: vi.fn() }));
+vi.mock('../plus/start', () => ({ resyncPlus: vi.fn(async () => {}) }));
 
 const at = (h: number, m = 0) => new Date(2026, 9, 6, h, m).getTime();
 const AI: ReportOut = { headline: 'AI headline', story: 'AI story.', tomorrow: ['Tip one', 'Tip two'] };
@@ -34,6 +36,21 @@ describe('report runner', () => {
     ai.mockResolvedValue({ ok: true, json: AI });
   });
   afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+
+  it('re-reads the entitlement when the server says not_plus, and passes the answer on unchanged', async () => {
+    const resync = vi.mocked(resyncPlus);
+    resync.mockClear();
+    ai.mockResolvedValueOnce({ ok: false, error: 'not_plus' });
+    expect(await liveDeps().aiReport({} as never, 'auto')).toEqual({ ok: false, error: 'not_plus' });
+    expect(resync).toHaveBeenCalledTimes(1);
+    vi.mocked(aiWeek).mockResolvedValueOnce({ ok: false, error: 'not_plus' });
+    expect(await liveDeps().aiWeek({} as never)).toEqual({ ok: false, error: 'not_plus' });
+    expect(resync).toHaveBeenCalledTimes(2);
+    ai.mockResolvedValueOnce({ ok: false, error: 'limit' });
+    await liveDeps().aiReport({} as never, 'auto');
+    expect(await liveDeps().aiReport({} as never, 'rewrite')).toEqual({ ok: true, json: AI });
+    expect(resync).toHaveBeenCalledTimes(2);
+  });
 
   it('catches a writer that throws straight away', async () => {
     h.dbFails = true;

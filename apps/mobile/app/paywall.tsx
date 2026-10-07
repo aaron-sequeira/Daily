@@ -1,14 +1,18 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSequence, withTiming, ZoomIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { getDb } from '../src/db/expoDb';
+import { getSetting } from '../src/db/settings';
 import { purchaseMessage, savePercent, type Offer, type PlanId } from '../src/plus/billing';
 import { saveEntitlement } from '../src/plus/entitlement';
 import { getBilling } from '../src/plus/getBilling';
-import { ctaLabel, day7Label, endDayLabel, finePrint, reminderDayLabel } from '../src/plus/paywallCopy';
+import { ctaLabel, day7Label, endDayLabel, finePrint, paywallMode, reminderDayLabel } from '../src/plus/paywallCopy';
+import { isPlus } from '../src/plus/plus';
+import { linkUser } from '../src/plus/start';
+import { ensureUserId } from '../src/plus/supabase';
 import { expoNotifier } from '../src/reminders/expoNotifier';
 import { Sunny } from '../src/sunny/Sunny';
 import { C, F } from '../src/theme';
@@ -25,14 +29,12 @@ const PERKS: { icon: IconName | 'sun'; bg: string; title: string; line: string }
   { icon: 'sun', bg: '#F9DDB9', title: 'Sunny on top', line: 'A floating Sunny bubble that cheers you on in other apps.' }
 ];
 
-function leave() {
-  if (router.canGoBack()) router.back();
-  else router.replace('/');
-}
-
 export default function Paywall() {
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
+  const { change } = useLocalSearchParams<{ change?: string }>();
+  // A subscriber is never sold a second subscription: a calm "you have it" state, or only the switch to yearly.
+  const [mode] = useState(() => paywallMode(isPlus(getDb()), change));
   const [offers, setOffers] = useState<Offer[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [plan, setPlan] = useState<PlanId>('yearly');
@@ -41,6 +43,17 @@ export default function Paywall() {
   const [loading, setLoading] = useState(true);
   const [note, setNote] = useState<string | null>(null);
   const busy = useRef(false);
+  const left = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+
+  /** Leaves once: a purchase landing after the user already went back must not pop a second screen. */
+  const leave = () => {
+    if (left.current || !mounted.current) return;
+    left.current = true;
+    if (router.canGoBack()) router.back();
+    else router.replace('/');
+  };
 
   const load = useCallback(() => {
     setLoading(true);
@@ -48,18 +61,18 @@ export default function Paywall() {
       .then((o) => {
         setOffers(o);
         setLoadFailed(o.length === 0);
-        if (o.length && !o.some((x) => x.plan === plan)) setPlan(o[0].plan);
+        if (o.length) setPlan((p) => (o.some((x) => x.plan === p) ? p : o[0].plan));
       })
       .catch(() => setLoadFailed(true))
       .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(load, [load]);
 
-  const offer = offers?.find((o) => o.plan === plan);
   const save = offers ? savePercent(offers) : null;
   const yearly = offers?.find((o) => o.plan === 'yearly');
   const monthly = offers?.find((o) => o.plan === 'monthly');
+  // A plan switch has no free trial, so its copy never promises one.
+  const offer = mode === 'change' ? (yearly && { ...yearly, trialDays: null }) : offers?.find((o) => o.plan === plan);
 
   const halo = useSharedValue(0);
   const ring = useSharedValue(0);
@@ -77,6 +90,7 @@ export default function Paywall() {
     setBuying(true);
     setNote(null);
     try {
+      await linkUser({ billing: getBilling(), ensureUserId }); // the purchase lands on the same user the server token names
       const r = await getBilling().purchase(offer.plan);
       if (r.ok) {
         try { await saveEntitlement(getDb(), r.ent, expoNotifier, Date.now()); } catch (e) { console.warn('daily: saving entitlement failed', e); }
@@ -96,8 +110,9 @@ export default function Paywall() {
     setRestoring(true);
     setNote(null);
     try {
+      await linkUser({ billing: getBilling(), ensureUserId });
       const ent = await getBilling().restore();
-      await saveEntitlement(getDb(), ent, expoNotifier, Date.now());
+      try { await saveEntitlement(getDb(), ent, expoNotifier, Date.now()); } catch (e) { console.warn('daily: saving entitlement failed', e); }
       if (ent.active) leave();
       else setNote('No Daily Plus purchase found for this Google account.');
     } catch {
@@ -109,14 +124,20 @@ export default function Paywall() {
   }
 
   const open = (url: string) => { Linking.openURL(url).catch(() => {}); };
+  const manage = () => {
+    const current = getSetting(getDb(), 'plus_plan');
+    try { open(getBilling().manageUrl(current === 'monthly' || current === 'yearly' ? current : null)); } catch { /* no store to open */ }
+  };
 
   return (
     <ScrollView style={s.root} contentContainerStyle={{ paddingTop: insets.top + 18, paddingBottom: insets.bottom + 20, paddingHorizontal: 20 }}>
       <Animated.View entering={rise(0)} style={s.top}>
-        <Pressable onPress={restore} disabled={restoring || buying} accessibilityRole="button" style={s.restoreBtn}>
-          {restoring ? <ActivityIndicator size="small" color={C.ink} /> : <Text style={[s.link, { color: C.ink, fontSize: 13 }]}>Restore</Text>}
-        </Pressable>
-        <Pressable onPress={leave} accessibilityRole="button" accessibilityLabel="Close" style={s.close}>
+        {mode === 'owned' ? <View /> : (
+          <Pressable onPress={restore} disabled={restoring || buying} accessibilityRole="button" style={s.restoreBtn}>
+            {restoring ? <ActivityIndicator size="small" color={C.ink} /> : <Text style={[s.link, { color: C.ink, fontSize: 13 }]}>Restore</Text>}
+          </Pressable>
+        )}
+        <Pressable onPress={leave} disabled={buying || restoring} accessibilityRole="button" accessibilityLabel="Close" accessibilityState={{ disabled: buying || restoring }} style={[s.close, (buying || restoring) && { opacity: 0.5 }]}>
           <Svg width={16} height={16} viewBox="0 0 24 24" fill="none"><Path d="M6 6l12 12M18 6 6 18" stroke={C.ink} strokeWidth={2.2} strokeLinecap="round" /></Svg>
         </Pressable>
       </Animated.View>
@@ -142,9 +163,16 @@ export default function Paywall() {
 
       <Animated.View entering={rise(2)} style={s.titleBlock}>
         <Text style={s.pill}>DAILY PLUS</Text>
-        <Text style={s.h1}>Let Sunny write your day</Text>
-        <Text style={s.sub}>Your phone time, turned into a short, kind story every evening.</Text>
+        <Text style={s.h1}>{mode === 'owned' ? 'You’re on Daily Plus' : 'Let Sunny write your day'}</Text>
+        <Text style={s.sub}>{mode === 'owned' ? 'Everything below is already yours. Thanks for being here.' : 'Your phone time, turned into a short, kind story every evening.'}</Text>
       </Animated.View>
+
+      {mode === 'owned' ? (
+        <Animated.View entering={rise(3)} style={{ marginTop: 18 }}>
+          <Pressable onPress={manage} accessibilityRole="button" style={s.cta}><Text style={s.ctaText}>Manage in Google Play</Text></Pressable>
+          <Pressable onPress={leave} accessibilityRole="button" style={s.retry}><Text style={[s.retryText, { textAlign: 'center' }]}>Back</Text></Pressable>
+        </Animated.View>
+      ) : null}
 
       <Animated.View entering={rise(4)} style={s.perks}>
         {PERKS.map((p) => (
@@ -162,45 +190,49 @@ export default function Paywall() {
         ))}
       </Animated.View>
 
-      <Animated.View entering={rise(6)} style={s.plans} accessibilityRole="radiogroup">
-        <PlanCard name="Yearly" line={yearly?.perMonthString ? `${yearly.perMonthString} a month, billed once a year` : ''} price={yearly?.priceString ?? ''} on={plan === 'yearly'} badge={save !== null ? `SAVE ${save}%` : null} onPress={() => setPlan('yearly')} />
-        <PlanCard name="Monthly" line="Billed every month" price={monthly?.priceString ?? ''} on={plan === 'monthly'} badge={null} onPress={() => setPlan('monthly')} />
-      </Animated.View>
+      {mode === 'owned' ? null : (
+        <>
+          <Animated.View entering={rise(6)} style={s.plans} accessibilityRole="radiogroup">
+            <PlanCard name={mode === 'change' ? 'Switch to yearly' : 'Yearly'} line={yearly?.perMonthString ? `${yearly.perMonthString} a month, billed once a year` : ''} price={yearly?.priceString ?? ''} on={mode === 'change' || plan === 'yearly'} badge={save !== null ? `SAVE ${save}%` : null} onPress={() => setPlan('yearly')} />
+            {mode === 'change' ? null : <PlanCard name="Monthly" line="Billed every month" price={monthly?.priceString ?? ''} on={plan === 'monthly'} badge={null} onPress={() => setPlan('monthly')} />}
+          </Animated.View>
 
-      {offer?.trialDays ? (
-        <Animated.View entering={rise(8)} style={s.timeline}>
-          <View style={s.tlLine} />
-          <TimelineCol dot="done" title="Today" line="Everything unlocks" />
-          <TimelineCol dot="next" title={reminderDayLabel(offer)} line="We remind you" />
-          <TimelineCol dot="later" title={endDayLabel(offer)} line={day7Label(offer)} />
-        </Animated.View>
-      ) : null}
+          {offer?.trialDays ? (
+            <Animated.View entering={rise(8)} style={s.timeline}>
+              <View style={s.tlLine} />
+              <TimelineCol dot="done" title="Today" line="Everything unlocks" />
+              <TimelineCol dot="next" title={reminderDayLabel(offer)} line="We remind you" />
+              <TimelineCol dot="later" title={endDayLabel(offer)} line={day7Label(offer)} />
+            </Animated.View>
+          ) : null}
 
-      {loadFailed ? (
-        <View style={s.noteBox}>
-          <Text style={s.note}>Couldn’t load prices. Check your connection.</Text>
-          <Pressable onPress={load} disabled={loading} accessibilityRole="button" style={s.retry}>
-            {loading ? <ActivityIndicator size="small" color={C.ink} /> : <Text style={s.retryText}>Try again</Text>}
-          </Pressable>
-        </View>
-      ) : null}
-      {note ? <Text style={[s.note, { marginTop: 12 }]}>{note}</Text> : null}
+          {loadFailed ? (
+            <View style={s.noteBox}>
+              <Text style={s.note}>Couldn’t load prices. Check your connection.</Text>
+              <Pressable onPress={load} disabled={loading} accessibilityRole="button" style={s.retry}>
+                {loading ? <ActivityIndicator size="small" color={C.ink} /> : <Text style={s.retryText}>Try again</Text>}
+              </Pressable>
+            </View>
+          ) : null}
+          {note ? <Text style={[s.note, { marginTop: 12 }]}>{note}</Text> : null}
 
-      <Animated.View entering={rise(9)} style={{ marginTop: 18 }}>
-        <Animated.View pointerEvents="none" style={[s.ring, ringStyle]} />
-        <Pressable onPress={buy} disabled={!offer || buying || restoring} accessibilityRole="button" accessibilityState={{ disabled: !offer || buying || restoring }} style={[s.cta, (!offer || buying || restoring) && { opacity: 0.6 }]}>
-          {buying || restoring ? <ActivityIndicator color="#fff" /> : <Text style={s.ctaText}>{ctaLabel(offer)}</Text>}
-        </Pressable>
-      </Animated.View>
-      <Animated.Text entering={rise(10)} style={s.fine}>{finePrint(offer)}</Animated.Text>
+          <Animated.View entering={rise(9)} style={{ marginTop: 18 }}>
+            <Animated.View pointerEvents="none" style={[s.ring, ringStyle]} />
+            <Pressable onPress={buy} disabled={!offer || buying || restoring} accessibilityRole="button" accessibilityState={{ disabled: !offer || buying || restoring }} style={[s.cta, (!offer || buying || restoring) && { opacity: 0.6 }]}>
+              {buying || restoring ? <ActivityIndicator color="#fff" /> : <Text style={s.ctaText}>{mode === 'change' && offer ? 'Switch to yearly' : ctaLabel(offer)}</Text>}
+            </Pressable>
+          </Animated.View>
+          <Animated.Text entering={rise(10)} style={s.fine}>{finePrint(offer)}</Animated.Text>
 
-      <Animated.View entering={rise(11)} style={s.footer}>
-        <Pressable onPress={restore} disabled={restoring || buying} accessibilityRole="button" style={s.footBtn}><Text style={s.link}>Restore purchases</Text></Pressable>
-        <Text style={s.dotSep}>·</Text>
-        <Pressable onPress={() => open(TERMS)} accessibilityRole="link" style={s.footBtn}><Text style={s.link}>Terms</Text></Pressable>
-        <Text style={s.dotSep}>·</Text>
-        <Pressable onPress={() => open(PRIVACY)} accessibilityRole="link" style={s.footBtn}><Text style={s.link}>Privacy</Text></Pressable>
-      </Animated.View>
+          <Animated.View entering={rise(11)} style={s.footer}>
+            <Pressable onPress={restore} disabled={restoring || buying} accessibilityRole="button" style={s.footBtn}><Text style={s.link}>Restore purchases</Text></Pressable>
+            <Text style={s.dotSep}>·</Text>
+            <Pressable onPress={() => open(TERMS)} accessibilityRole="link" style={s.footBtn}><Text style={s.link}>Terms</Text></Pressable>
+            <Text style={s.dotSep}>·</Text>
+            <Pressable onPress={() => open(PRIVACY)} accessibilityRole="link" style={s.footBtn}><Text style={s.link}>Privacy</Text></Pressable>
+          </Animated.View>
+        </>
+      )}
     </ScrollView>
   );
 }
