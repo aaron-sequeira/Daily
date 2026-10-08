@@ -136,8 +136,8 @@ export default function Settings() {
                 ? <Image source={{ uri: acct.photoUrl }} style={s.avatar} accessibilityIgnoresInvertColors />
                 : <View style={[s.avatar, s.initial]}><Text style={s.initialText}>{firstName(acct).slice(0, 1).toUpperCase()}</Text></View>}
               <View style={{ flex: 1 }}>
-                <Text style={s.rowText}>{acct.name ?? 'Google account'}</Text>
-                {acct.email ? <Text style={s.sub}>{acct.email}</Text> : null}
+                <Text style={s.rowText}>{acct.name ?? acct.email ?? 'Signed in'}</Text>
+                {acct.name && acct.email ? <Text style={s.sub}>{acct.email}</Text> : null}
               </View>
             </View>
             <Pressable accessibilityRole="button" onPress={confirmSignOut} style={s.row}><Text style={s.rowText}>Sign out</Text></Pressable>
