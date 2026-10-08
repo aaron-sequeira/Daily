@@ -1,22 +1,21 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getDb } from '../../src/db/expoDb';
 import { appsForSettings, setUserCategory } from '../../src/settings/data';
 import { C, F } from '../../src/theme';
+import { SafeScreen } from '../../src/ui/SafeScreen';
 import { CATEGORIES, CATEGORY_LOOK } from '../../src/tracking/categories';
 import { Icon } from '../../src/ui/icons';
 
 export default function Categories() {
-  const insets = useSafeAreaInsets();
   const db = getDb();
   const [apps, setApps] = useState(() => appsForSettings(db));
 
   return (
+    <SafeScreen>
     <FlatList
-      style={{ backgroundColor: C.bg }}
-      contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: insets.bottom + 24, gap: 10 }}
+      contentContainerStyle={{ paddingTop: 12, paddingHorizontal: 20, paddingBottom: 24, gap: 10 }}
       data={apps}
       keyExtractor={(a) => a.package}
       ListHeaderComponent={
@@ -50,5 +49,6 @@ export default function Categories() {
         </View>
       )}
     />
+    </SafeScreen>
   );
 }

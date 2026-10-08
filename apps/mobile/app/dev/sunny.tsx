@@ -3,13 +3,15 @@ import { ScrollView, Text, View } from 'react-native';
 import { Sunny } from '../../src/sunny/Sunny';
 import type { SunnyFace } from '../../src/sunny/look';
 import { C, F } from '../../src/theme';
+import { SafeScreen } from '../../src/ui/SafeScreen';
 
 const FACES: SunnyFace[] = ['glowing', 'happy', 'alright', 'fading', 'sad', 'unknown'];
 
 export default function SunnyGallery() {
   if (!__DEV__) return <Redirect href="/" />;
   return (
-    <ScrollView style={{ backgroundColor: C.bg }} contentContainerStyle={{ padding: 20, gap: 18 }}>
+    <SafeScreen>
+    <ScrollView contentContainerStyle={{ padding: 20, gap: 18 }}>
       {FACES.map((f) => (
         <View key={f} style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
           <Sunny face={f} size={120} />
@@ -18,5 +20,6 @@ export default function SunnyGallery() {
         </View>
       ))}
     </ScrollView>
+    </SafeScreen>
   );
 }

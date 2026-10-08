@@ -2,7 +2,6 @@ import { clock12 } from '@worksight/core/reminders';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getDb } from '../../src/db/expoDb';
 import { expoNotifier } from '../../src/reminders/expoNotifier';
 import { applyReminders } from '../../src/reminders/apply';
@@ -10,13 +9,13 @@ import { ANIM_LOOK, MOBILE_ANIMATIONS } from '../../src/reminders/defaults';
 import { BREAK_CHOICES, breakLabel, formFrom, stepMinutes, stepTime, toggleDay, toInput, type Form } from '../../src/reminders/form';
 import { deleteReminder, getReminder, saveReminder } from '../../src/reminders/store';
 import { C, F } from '../../src/theme';
+import { SafeScreen } from '../../src/ui/SafeScreen';
 import { Icon } from '../../src/ui/icons';
 
 const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 export default function ReminderEditor() {
-  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const existing = id === 'new' ? null : getReminder(getDb(), Number(id));
   const [f, setF] = useState<Form>(() => formFrom(existing));
@@ -45,7 +44,8 @@ export default function ReminderEditor() {
   const chipText = (on: boolean) => [s.chipText, on && { color: C.white }];
 
   return (
-    <ScrollView style={{ backgroundColor: C.bg }} contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: insets.bottom + 24, gap: 14 }} keyboardShouldPersistTaps="handled">
+    <SafeScreen>
+    <ScrollView contentContainerStyle={{ paddingTop: 12, paddingHorizontal: 20, paddingBottom: 24, gap: 14 }} keyboardShouldPersistTaps="handled">
       <View style={s.head}>
         <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back" style={s.round}><Icon name="back" size={18} /></Pressable>
         <Text style={s.h1}>{existing ? 'Edit reminder' : 'New reminder'}</Text>
@@ -112,6 +112,7 @@ export default function ReminderEditor() {
         <Pressable onPress={remove} disabled={busy} accessibilityRole="button" accessibilityState={{ disabled: busy }} style={[s.secondary, busy && { opacity: 0.5 }]}><Text style={[s.primaryText, { color: C.danger }]}>Delete</Text></Pressable>
       )}
     </ScrollView>
+    </SafeScreen>
   );
 }
 

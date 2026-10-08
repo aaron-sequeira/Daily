@@ -1,8 +1,8 @@
 import { router } from 'expo-router';
 import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DailyNative from '../../modules/daily-native';
 import { C, F } from '../../src/theme';
+import { SafeScreen } from '../../src/ui/SafeScreen';
 import { Icon } from '../../src/ui/icons';
 
 const TIPS: { brands: string[]; name: string; steps: string[] }[] = [
@@ -17,14 +17,14 @@ function brand(): string {
 }
 
 export default function KeepRunning() {
-  const insets = useSafeAreaInsets();
   const b = brand();
   const mine = TIPS.find((t) => t.brands.includes(b)) ?? TIPS[TIPS.length - 1];
   const others = TIPS.filter((t) => t !== mine);
   const open = (fn: () => unknown) => { try { fn(); } catch (e) { console.warn('daily: opening settings failed', e); } };
 
   return (
-    <ScrollView style={{ backgroundColor: C.bg }} contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: insets.bottom + 24, gap: 14 }}>
+    <SafeScreen>
+    <ScrollView contentContainerStyle={{ paddingTop: 12, paddingHorizontal: 20, paddingBottom: 24, gap: 14 }}>
       <View style={s.head}>
         <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back" style={s.round}><Icon name="back" size={18} /></Pressable>
         <Text style={s.h1}>Keep Sunny running</Text>
@@ -43,6 +43,7 @@ export default function KeepRunning() {
         </View>
       ))}
     </ScrollView>
+    </SafeScreen>
   );
 }
 

@@ -4,7 +4,6 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getDb } from '../../src/db/expoDb';
 import { getSetting } from '../../src/db/settings';
 import { savePercent, type Offer } from '../../src/plus/billing';
@@ -19,6 +18,7 @@ import { loadReport, loadWeekSentence } from '../../src/report/store';
 import { expoNotifier } from '../../src/reminders/expoNotifier';
 import { Sunny } from '../../src/sunny/Sunny';
 import { C, EASE, F } from '../../src/theme';
+import { SafeScreen } from '../../src/ui/SafeScreen';
 import { Icon } from '../../src/ui/icons';
 import { rise } from '../../src/ui/motion';
 
@@ -39,7 +39,6 @@ function read(): Snapshot {
 }
 
 export default function Subscription() {
-  const insets = useSafeAreaInsets();
   const [v, setV] = useState<Snapshot>(read);
   const [offers, setOffers] = useState<Offer[] | null>(null);
   const [restoring, setRestoring] = useState(false);
@@ -76,7 +75,8 @@ export default function Subscription() {
   };
 
   return (
-    <ScrollView style={{ backgroundColor: C.bg }} contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: insets.bottom + 24 }}>
+    <SafeScreen>
+    <ScrollView contentContainerStyle={{ paddingTop: 12, paddingHorizontal: 20, paddingBottom: 24 }}>
       <Animated.View entering={rise(0)} style={s.head}>
         <Pressable accessibilityRole="button" onPress={() => router.back()} accessibilityLabel="Back to Settings" style={s.round}><Icon name="back" size={18} /></Pressable>
         <Text style={s.h1}>Daily Plus</Text>
@@ -150,6 +150,7 @@ export default function Subscription() {
         </Animated.View>
       )}
     </ScrollView>
+    </SafeScreen>
   );
 }
 

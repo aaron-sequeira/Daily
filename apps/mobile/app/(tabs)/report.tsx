@@ -3,7 +3,6 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getDb } from '../../src/db/expoDb';
 import { getSetting } from '../../src/db/settings';
 import { isPlus } from '../../src/plus/plus';
@@ -14,7 +13,8 @@ import { shareReportPdf } from '../../src/report/share';
 import { setPlanDone, type Highlight, type PlanItem } from '../../src/report/store';
 import { C, F } from '../../src/theme';
 import { Icon, type IconName } from '../../src/ui/icons';
-import { rise } from '../../src/ui/motion';
+import { rise, useFocusKey } from '../../src/ui/motion';
+import { SafeScreen } from '../../src/ui/SafeScreen';
 
 const HL: Record<Highlight['kind'], { icon: IconName; bg: string }> = {
   quiet: { icon: 'clock', bg: '#BFEBD3' }, opened: { icon: 'social', bg: '#CFE6FB' },
@@ -24,7 +24,7 @@ const HL: Record<Highlight['kind'], { icon: IconName; bg: string }> = {
 type Note = 'failed' | 'limit' | 'pdf' | null;
 
 export default function Report() {
-  const insets = useSafeAreaInsets();
+  const focusKey = useFocusKey();
   const params = useLocalSearchParams<{ day?: string; tap?: string }>();
   const [day, setDay] = useState(() => localDate(Date.now()));
   const [view, setView] = useState<ReportScreen | null>(null);
@@ -97,7 +97,8 @@ export default function Report() {
   const showFailed = note === 'failed' || (note === null && plus && view.aiError === 'failed');
 
   return (
-    <ScrollView style={{ backgroundColor: C.bg }} contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: 24, gap: 14 }}>
+    <SafeScreen tab>
+    <ScrollView key={focusKey} contentContainerStyle={{ paddingTop: 12, paddingHorizontal: 20, paddingBottom: 24, gap: 14 }}>
       <Animated.View entering={rise(0)} style={s.header}>
         <Text style={s.h1}>Report</Text>
         <View style={s.dayNav}>
@@ -170,6 +171,7 @@ export default function Report() {
         </>
       )}
     </ScrollView>
+    </SafeScreen>
   );
 }
 

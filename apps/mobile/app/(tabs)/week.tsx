@@ -3,7 +3,6 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSpring } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getDb } from '../../src/db/expoDb';
 import { formatDuration } from '../../src/format';
 import { isPlus } from '../../src/plus/plus';
@@ -14,7 +13,8 @@ import { buildWeek, type WeekView } from '../../src/report/week';
 import { ensureWeekSentence } from '../../src/report/writer';
 import { C, F } from '../../src/theme';
 import { CATEGORIES, CATEGORY_LOOK } from '../../src/tracking/categories';
-import { rise } from '../../src/ui/motion';
+import { rise, useFocusKey } from '../../src/ui/motion';
+import { SafeScreen } from '../../src/ui/SafeScreen';
 
 const BAR_H = 120;
 
@@ -114,7 +114,7 @@ function WeekBody({ view, aiSentence }: { view: WeekView; aiSentence: string | n
 }
 
 export default function Week() {
-  const insets = useSafeAreaInsets();
+  const focusKey = useFocusKey();
   const [which, setWhich] = useState<'this' | 'last'>('this');
   const [view, setView] = useState<WeekView | null>(null);
   const [aiSentence, setAiSentence] = useState<string | null>(null);
@@ -139,7 +139,8 @@ export default function Week() {
   // A stale view (the other segment's, or one that failed to reload) never shows under the selected segment.
   const ready = !!view && view.weekStart === startFor(which, Date.now());
   return (
-    <ScrollView style={{ backgroundColor: C.bg }} contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: 24, gap: 14 }}>
+    <SafeScreen tab>
+    <ScrollView key={focusKey} contentContainerStyle={{ paddingTop: 12, paddingHorizontal: 20, paddingBottom: 24, gap: 14 }}>
       <Animated.View entering={rise(0)} style={s.header}><Text style={s.h1}>Your week</Text></Animated.View>
 
       <Animated.View entering={rise(1)} style={s.seg} accessibilityRole="tablist">
@@ -152,6 +153,7 @@ export default function Week() {
 
       {ready && view ? <WeekBody view={view} aiSentence={aiSentence} /> : failed ? <Text style={s.muted}>Couldn't load this week.</Text> : null}
     </ScrollView>
+    </SafeScreen>
   );
 }
 

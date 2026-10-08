@@ -5,7 +5,6 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { AppState, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DailyNative from '../../modules/daily-native';
 import { getDb } from '../../src/db/expoDb';
 import { applyReminders } from '../../src/reminders/apply';
@@ -16,7 +15,8 @@ import { getStates, listReminders, setEnabled, skipToday } from '../../src/remin
 import { C, F } from '../../src/theme';
 import { phoneMsSince } from '../../src/tracking/sync';
 import { Icon } from '../../src/ui/icons';
-import { rise } from '../../src/ui/motion';
+import { rise, useFocusKey } from '../../src/ui/motion';
+import { SafeScreen } from '../../src/ui/SafeScreen';
 
 type ViewModel = { reminders: Reminder[]; next: NextUp | null; notifications: boolean; exact: boolean };
 
@@ -38,7 +38,7 @@ function nextLine(n: NextUp): { title: string; sub: string } {
 }
 
 export default function RemindersTab() {
-  const insets = useSafeAreaInsets();
+  const focusKey = useFocusKey();
   const [vm, setVm] = useState<ViewModel | null>(null);
 
   const refresh = useCallback(async () => {
@@ -82,7 +82,8 @@ export default function RemindersTab() {
   };
 
   return (
-    <ScrollView style={{ backgroundColor: C.bg }} contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: 24, gap: 10 }}>
+    <SafeScreen tab>
+    <ScrollView key={focusKey} contentContainerStyle={{ paddingTop: 12, paddingHorizontal: 20, paddingBottom: 24, gap: 10 }}>
       <Animated.View entering={rise(0)} style={s.head}>
         <Text style={s.h1}>Reminders</Text>
         <Pressable onPress={() => router.push({ pathname: '/reminder/[id]', params: { id: 'new' } })} accessibilityRole="button" style={s.newBtn}>
@@ -141,6 +142,7 @@ export default function RemindersTab() {
         <Text style={s.infoText}>Water counts phone time, so it waits while you’re away. Clock reminders follow your phone’s time zone.</Text>
       </View>
     </ScrollView>
+    </SafeScreen>
   );
 }
 

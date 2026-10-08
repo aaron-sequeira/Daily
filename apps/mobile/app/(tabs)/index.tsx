@@ -2,7 +2,6 @@ import { Link } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DailyNative from '../../modules/daily-native';
 import { formatDuration } from '../../src/format';
 import { C, F } from '../../src/theme';
@@ -14,10 +13,11 @@ import { useToday } from '../../src/today/useToday';
 import { CATEGORY_LOOK, type Category } from '../../src/tracking/categories';
 import { Icon } from '../../src/ui/icons';
 import { Logo } from '../../src/ui/Logo';
-import { rise } from '../../src/ui/motion';
+import { rise, useFocusKey } from '../../src/ui/motion';
+import { SafeScreen } from '../../src/ui/SafeScreen';
 
 export default function Today() {
-  const insets = useSafeAreaInsets();
+  const focusKey = useFocusKey();
   const { view, access } = useToday();
   const [filter, setFilter] = useState<Category | 'all'>('all');
   const active = view && (filter === 'all' || view.categories.some((c) => c.id === filter)) ? filter : 'all';
@@ -27,7 +27,8 @@ export default function Today() {
   const now = Date.now();
 
   return (
-    <ScrollView style={{ backgroundColor: C.bg }} contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: 24 }}>
+    <SafeScreen tab>
+    <ScrollView key={focusKey} contentContainerStyle={{ paddingTop: 12, paddingHorizontal: 20, paddingBottom: 24 }}>
       <Animated.View entering={rise(0)} style={s.header}>
         <Logo size={30} />
         <Text style={s.brand}>Daily</Text>
@@ -73,7 +74,7 @@ export default function Today() {
         <Animated.View entering={rise(4)} style={s.empty}><Text style={s.emptyText}>Nothing yet today. Sunny's ready when you are.</Text></Animated.View>
       ) : (
         <>
-          {shown.length > 0 && <Text style={s.sec}>Where your time went</Text>}
+          {shown.length > 0 && <Animated.Text entering={rise(4)} style={s.sec}>Where your time went</Animated.Text>}
           <View style={s.grid}>{shown.map((c, i) => <CategoryCard key={c.id} cat={c} index={i} />)}</View>
           {active !== 'all' && shown[0] && (
             <View style={s.list}>
@@ -90,6 +91,7 @@ export default function Today() {
         <Timeline view={view} />
       </Animated.View>
     </ScrollView>
+    </SafeScreen>
   );
 }
 

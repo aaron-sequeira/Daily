@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
-  Easing, FadeIn, FadeOut, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSequence, withTiming
+  Easing, FadeIn, FadeOut, LayoutAnimationConfig, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSequence, withTiming
 } from 'react-native-reanimated';
 import Svg, { Circle, Ellipse, Path } from 'react-native-svg';
 import { F } from '../theme';
@@ -17,9 +17,13 @@ const LABEL: Record<SunnyFace, string> = {
 export function Sunny({ face, size }: { face: SunnyFace; size: number }) {
   return (
     <View style={{ width: size, height: size }} accessible accessibilityRole="image" accessibilityLabel={LABEL[face]}>
-      <Animated.View key={face} entering={FadeIn.duration(600)} exiting={FadeOut.duration(300)} style={fill}>
-        <Face face={face} size={size} />
-      </Animated.View>
+      {/* Mood changes cross-fade. When the whole Sunny goes away (a tab re-plays its entrance by rebuilding its page),
+          no fade-out: Reanimated would keep the old face and its card on screen over the new page until it ended. */}
+      <LayoutAnimationConfig skipExiting>
+        <Animated.View key={face} entering={FadeIn.duration(600)} exiting={FadeOut.duration(300)} style={fill}>
+          <Face face={face} size={size} />
+        </Animated.View>
+      </LayoutAnimationConfig>
     </View>
   );
 }

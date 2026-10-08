@@ -6,7 +6,6 @@ import { clock12 } from '@worksight/core/reminders';
 import { useCallback, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Alert, AppState, Image, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DailyNative from '../../modules/daily-native';
 import { account, firstName, SIGN_IN_MESSAGE, signedIn, signInWithGoogle, signOut, type Account } from '../../src/account/account';
 import { getDb } from '../../src/db/expoDb';
@@ -23,11 +22,11 @@ import { Sunny } from '../../src/sunny/Sunny';
 import { C, F } from '../../src/theme';
 import { GoalStepper } from '../../src/ui/GoalStepper';
 import { GoogleG } from '../../src/ui/GoogleButton';
+import { SafeScreen } from '../../src/ui/SafeScreen';
 import { Icon } from '../../src/ui/icons';
 import { rise } from '../../src/ui/motion';
 
 export default function Settings() {
-  const insets = useSafeAreaInsets();
   const db = getDb();
   const [goal, setGoal] = useState(() => getNumber(db, 'goal_min'));
   const [notifOff, setNotifOff] = useState(false);
@@ -120,7 +119,8 @@ export default function Settings() {
   ]);
 
   return (
-    <ScrollView style={{ backgroundColor: C.bg }} contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: insets.bottom + 24 }}>
+    <SafeScreen>
+    <ScrollView contentContainerStyle={{ paddingTop: 12, paddingHorizontal: 20, paddingBottom: 24 }}>
       <Animated.View entering={rise(0)} style={s.head}>
         <Pressable accessibilityRole="button" onPress={() => router.back()} accessibilityLabel="Back to Today" style={s.round}><Icon name="back" size={18} /></Pressable>
         <Text style={s.h1}>Settings</Text>
@@ -257,6 +257,7 @@ export default function Settings() {
 
       <Text style={s.note}>Everything Daily records stays on this phone: app names, minutes and unlock times. Never notifications, messages or what's on your screen.</Text>
     </ScrollView>
+    </SafeScreen>
   );
 }
 

@@ -2,7 +2,6 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSequence, withTiming, ZoomIn } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { account, SIGN_IN_MESSAGE, signedIn, signInWithGoogle } from '../src/account/account';
 import { getDb } from '../src/db/expoDb';
@@ -17,6 +16,7 @@ import { ensureUserId } from '../src/plus/supabase';
 import { expoNotifier } from '../src/reminders/expoNotifier';
 import { Sunny } from '../src/sunny/Sunny';
 import { C, F } from '../src/theme';
+import { SafeScreen } from '../src/ui/SafeScreen';
 import { Icon, type IconName } from '../src/ui/icons';
 import { rise } from '../src/ui/motion';
 
@@ -31,7 +31,6 @@ const PERKS: { icon: IconName | 'sun'; bg: string; title: string; line: string }
 ];
 
 export default function Paywall() {
-  const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
   const { change } = useLocalSearchParams<{ change?: string }>();
   // A subscriber is never sold a second subscription: a calm "you have it" state, or only the switch to yearly.
@@ -138,7 +137,8 @@ export default function Paywall() {
   };
 
   return (
-    <ScrollView style={s.root} contentContainerStyle={{ paddingTop: insets.top + 18, paddingBottom: insets.bottom + 20, paddingHorizontal: 20 }}>
+    <SafeScreen>
+    <ScrollView contentContainerStyle={{ paddingTop: 18, paddingBottom: 20, paddingHorizontal: 20 }}>
       <Animated.View entering={rise(0)} style={s.top}>
         {mode === 'owned' ? <View /> : (
           <Pressable onPress={restore} disabled={restoring || buying} accessibilityRole="button" style={s.restoreBtn}>
@@ -249,6 +249,7 @@ export default function Paywall() {
         </>
       )}
     </ScrollView>
+    </SafeScreen>
   );
 }
 
@@ -281,7 +282,6 @@ function TimelineCol({ dot, title, line }: { dot: 'done' | 'next' | 'later'; tit
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 44 },
   restoreBtn: { minHeight: 44, minWidth: 44, justifyContent: 'center' },
   close: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.white, alignItems: 'center', justifyContent: 'center' },
