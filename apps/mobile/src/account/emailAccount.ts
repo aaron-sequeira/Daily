@@ -4,7 +4,7 @@ import { supabase } from '../plus/supabase';
 /** Which email a 6-digit code came from: adding an email to this phone's (anonymous) user, a brand-new user, or a
  * password reset. The Supabase email templates must show {{ .Token }} for all three. */
 export type CodeKind = 'link' | 'signup' | 'recovery';
-export type StartResult = { status: 'code_sent'; kind: CodeKind } | { status: 'exists' | 'weak' | 'invalid' | 'rate' | 'offline' | 'failed' };
+export type StartResult = { status: 'code_sent'; kind: CodeKind } | { status: 'exists' | 'weak' | 'invalid' | 'no_name' | 'rate' | 'offline' | 'failed' };
 export type ConfirmResult = 'linked' | 'switched' | 'wrong_code' | 'weak' | 'offline' | 'failed';
 
 export const MIN_PASSWORD = 8;
@@ -12,6 +12,7 @@ export const EMAIL_MESSAGE: Record<string, string> = {
   exists: 'That email already has an account. Sign in instead.',
   weak: `Use at least ${MIN_PASSWORD} characters for your password.`,
   invalid: 'That doesn’t look like an email address.',
+  no_name: 'Add your name.',
   rate: 'Too many emails right now. Try again in a little while.',
   wrong_code: 'That code didn’t work. Check it, or send a new one.',
   offline: 'You’re offline. Try again when you’re connected.',
@@ -36,19 +37,21 @@ function problem(e: unknown): 'exists' | 'weak' | 'invalid' | 'rate' | 'offline'
 
 /** Create account. With an anonymous user on this phone (the usual case) the email is added to it, so its id, history and
  * Plus stay; the password is set after the code is confirmed. Without one, a new user is signed up. */
-export async function startSignUp(email: string, password: string): Promise<StartResult> {
+export async function startSignUp(email: string, password: string, name: string): Promise<StartResult> {
   const sb = supabase();
   const address = clean(email);
+  const fullName = name.trim().replace(/\s+/g, ' ').slice(0, 80);
+  if (!fullName) return { status: 'no_name' };
   if (!validEmail(address)) return { status: 'invalid' };
   if (password.length < MIN_PASSWORD) return { status: 'weak' };
   if (!sb) return { status: 'failed' };
   try {
     const { data } = await sb.auth.getSession();
     if (data.session?.user.is_anonymous) {
-      const { error } = await sb.auth.updateUser({ email: address });
+      const { error } = await sb.auth.updateUser({ email: address, data: { full_name: fullName } });
       return error ? { status: problem(error) } : { status: 'code_sent', kind: 'link' };
     }
-    const { data: up, error } = await sb.auth.signUp({ email: address, password });
+    const { data: up, error } = await sb.auth.signUp({ email: address, password, options: { data: { full_name: fullName } } });
     if (error) return { status: problem(error) };
     // With confirmations on, Supabase answers an existing email with a user that has no identities instead of an error.
     if (up.user && up.user.identities?.length === 0) return { status: 'exists' };

@@ -172,6 +172,11 @@ describe('signInWithEmail', () => {
     expect(await signInWithEmail('a@b.c', 'pw')).toBe('offline');
   });
 
+  it('account() shows the name given at sign-up', async () => {
+    auth.getSession.mockResolvedValue({ data: { session: { user: { id: 'u', user_metadata: { full_name: 'Asha Rao' }, identities: [{ provider: 'email', identity_data: { email: 'a@b.c' } }] } } }, error: null });
+    expect(await account()).toEqual({ email: 'a@b.c', name: 'Asha Rao', photoUrl: null });
+  });
+
   it('account() shows an email account', async () => {
     auth.getSession.mockResolvedValue({ data: { session: { user: { id: 'u', email: 'a@b.c', identities: [{ provider: 'email', identity_data: { email: 'a@b.c' } }] } } }, error: null });
     expect(await account()).toEqual({ email: 'a@b.c', name: null, photoUrl: null });

@@ -69,7 +69,7 @@ export async function account(): Promise<Account | null> {
   const g = ids.find((i) => i.provider === 'google')?.identity_data;
   if (g) return { email: text(g.email), name: text(g.full_name) ?? text(g.name), photoUrl: text(g.avatar_url) ?? text(g.picture) };
   const e = ids.find((i) => i.provider === 'email')?.identity_data;
-  return e ? { email: text(e.email), name: null, photoUrl: null } : null;
+  return e ? { email: text(e.email), name: text(data.session?.user.user_metadata?.full_name), photoUrl: null } : null;
 }
 
 export type EmailSignInResult = 'switched' | 'wrong' | 'unconfirmed' | 'offline' | 'failed';

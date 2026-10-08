@@ -25,6 +25,7 @@ export function EmailSignIn({ visible, onClose, onSignedIn, start = 'signin' }: 
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<Mode>(start);
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
@@ -96,7 +97,7 @@ export function EmailSignIn({ visible, onClose, onSignedIn, start = 'signin' }: 
     fail(EMAIL_SIGN_IN_MESSAGE[r]);
   });
   const signUp = () => run(async () => {
-    const r = await startSignUp(email, password);
+    const r = await startSignUp(email, password, name);
     if (r.status === 'code_sent') toCode(r.kind); else fail(EMAIL_MESSAGE[r.status]);
   });
   const forgot = () => run(async () => {
@@ -146,6 +147,8 @@ export function EmailSignIn({ visible, onClose, onSignedIn, start = 'signin' }: 
               {mode === 'signup' && (<>
                 <Text style={s.h1}>Create your account</Text>
                 <Text style={s.p}>Keep your Daily Plus and sign in on any phone.</Text>
+                {field({ value: name, onChangeText: setName, placeholder: 'Your name', autoCapitalize: 'words', autoComplete: 'name',
+                  textContentType: 'name', accessibilityLabel: 'Your name' })}
                 {emailField()}
                 {field({ value: password, onChangeText: setPassword, placeholder: `Password (${MIN_PASSWORD}+ characters)`, secureTextEntry: true,
                   autoComplete: 'new-password', textContentType: 'newPassword', onSubmitEditing: signUp, accessibilityLabel: 'Password' })}

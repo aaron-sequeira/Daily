@@ -20,35 +20,36 @@ beforeEach(() => {
 describe('startSignUp', () => {
   it('adds the email to the current anonymous user, so its id and Plus stay', async () => {
     auth.updateUser.mockResolvedValue(ok);
-    expect(await startSignUp(' New@Example.com ', 'longenough')).toEqual({ status: 'code_sent', kind: 'link' });
-    expect(auth.updateUser).toHaveBeenCalledWith({ email: 'new@example.com' });
+    expect(await startSignUp(' New@Example.com ', 'longenough', '  Asha Rao ')).toEqual({ status: 'code_sent', kind: 'link' });
+    expect(auth.updateUser).toHaveBeenCalledWith({ email: 'new@example.com', data: { full_name: 'Asha Rao' } });
     expect(auth.signUp).not.toHaveBeenCalled();
   });
 
   it('without an anonymous session it signs up a new user', async () => {
     auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
     auth.signUp.mockResolvedValue({ data: { user: { id: 'n', identities: [{}] } }, error: null });
-    expect(await startSignUp('a@b.co', 'longenough')).toEqual({ status: 'code_sent', kind: 'signup' });
-    expect(auth.signUp).toHaveBeenCalledWith({ email: 'a@b.co', password: 'longenough' });
+    expect(await startSignUp('a@b.co', 'longenough', 'Asha')).toEqual({ status: 'code_sent', kind: 'signup' });
+    expect(auth.signUp).toHaveBeenCalledWith({ email: 'a@b.co', password: 'longenough', options: { data: { full_name: 'Asha' } } });
   });
 
   it('an email that already has an account is exists', async () => {
     auth.updateUser.mockResolvedValue(err('email_exists'));
-    expect(await startSignUp('a@b.co', 'longenough')).toEqual({ status: 'exists' });
+    expect(await startSignUp('a@b.co', 'longenough', 'Asha')).toEqual({ status: 'exists' });
     auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
     auth.signUp.mockResolvedValue({ data: { user: { id: 'fake', identities: [] } }, error: null }); // Supabase hides existing emails this way
-    expect(await startSignUp('a@b.co', 'longenough')).toEqual({ status: 'exists' });
+    expect(await startSignUp('a@b.co', 'longenough', 'Asha')).toEqual({ status: 'exists' });
   });
 
   it('checks the email and password before calling Supabase', async () => {
-    expect(await startSignUp('not-an-email', 'longenough')).toEqual({ status: 'invalid' });
-    expect(await startSignUp('a@b.co', 'short')).toEqual({ status: 'weak' });
+    expect(await startSignUp('not-an-email', 'longenough', 'Asha')).toEqual({ status: 'invalid' });
+    expect(await startSignUp('a@b.co', 'short', 'Asha')).toEqual({ status: 'weak' });
+    expect(await startSignUp('a@b.co', 'longenough', '  ')).toEqual({ status: 'no_name' });
     expect(auth.updateUser).not.toHaveBeenCalled();
   });
 
   it('too many emails is rate', async () => {
     auth.updateUser.mockResolvedValue(err('over_email_send_rate_limit'));
-    expect(await startSignUp('a@b.co', 'longenough')).toEqual({ status: 'rate' });
+    expect(await startSignUp('a@b.co', 'longenough', 'Asha')).toEqual({ status: 'rate' });
   });
 });
 
