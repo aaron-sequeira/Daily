@@ -72,9 +72,10 @@ export async function account(): Promise<Account | null> {
   return e ? { email: text(e.email), name: null, photoUrl: null } : null;
 }
 
-export type EmailSignInResult = 'switched' | 'wrong' | 'offline' | 'failed';
+export type EmailSignInResult = 'switched' | 'wrong' | 'unconfirmed' | 'offline' | 'failed';
 export const EMAIL_SIGN_IN_MESSAGE: Record<Exclude<EmailSignInResult, 'switched'>, string> = {
   wrong: 'That email and password don’t match.',
+  unconfirmed: 'Confirm your email first. We’ve sent you a new code.',
   offline: 'You’re offline. Try again when you’re connected.',
   failed: 'Couldn’t sign in. Try again.'
 };
@@ -88,7 +89,11 @@ export async function signInWithEmail(email: string, password: string): Promise<
   if (!sb) return 'failed';
   try {
     const { error } = await sb.auth.signInWithPassword({ email: address, password });
-    if (error) return error.code === 'invalid_credentials' ? 'wrong' : failure(error) === 'offline' ? 'offline' : 'failed';
+    if (error) {
+      if (error.code === 'invalid_credentials') return 'wrong';
+      if (error.code === 'email_not_confirmed') return 'unconfirmed';
+      return failure(error) === 'offline' ? 'offline' : 'failed';
+    }
     await plusAfterUserChange(true);
     return 'switched';
   } catch (e) {

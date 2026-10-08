@@ -162,6 +162,11 @@ describe('signInWithEmail', () => {
     expect(auth.signInWithPassword).not.toHaveBeenCalled();
   });
 
+  it('an account whose email was never confirmed is unconfirmed, so the app can ask for the code', async () => {
+    auth.signInWithPassword.mockResolvedValue({ data: {}, error: { code: 'email_not_confirmed', name: 'AuthApiError' } });
+    expect(await signInWithEmail('a@b.c', 'pw')).toBe('unconfirmed');
+  });
+
   it('offline', async () => {
     auth.signInWithPassword.mockResolvedValue({ data: {}, error: { name: 'AuthRetryableFetchError' } });
     expect(await signInWithEmail('a@b.c', 'pw')).toBe('offline');

@@ -153,8 +153,11 @@ export default function Settings() {
           </Pressable>
         )}
         {!acct && (
-          <Pressable accessibilityRole="button" onPress={() => setEmailOpen(true)} disabled={signingIn} style={s.row}>
-            <Text style={[s.rowText, { flex: 1 }]}>Sign in with email</Text>
+          <Pressable accessibilityRole="button" onPress={() => setEmailOpen(true)} disabled={signingIn} style={[s.row, { paddingVertical: 10 }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.rowText}>Continue with email</Text>
+              <Text style={s.sub}>Sign in or create an account</Text>
+            </View>
             <Icon name="forward" size={16} />
           </Pressable>
         )}

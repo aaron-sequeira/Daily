@@ -14,6 +14,7 @@ import { syncSunnyService } from '../src/sunny/service';
 import { Sunny } from '../src/sunny/Sunny';
 import { C, F } from '../src/theme';
 import { GoalStepper } from '../src/ui/GoalStepper';
+import { EmailSignIn } from '../src/account/EmailSignIn';
 import { GoogleButton } from '../src/ui/GoogleButton';
 import { Icon } from '../src/ui/icons';
 import { rise } from '../src/ui/motion';
@@ -30,6 +31,11 @@ export default function Onboarding() {
   const [signingIn, setSigningIn] = useState(false);
   const [signInError, setSignInError] = useState<string | null>(null);
   const [who, setWho] = useState<string | null>(null);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const signedInByEmail = async () => {
+    setWho(firstName(await account().catch(() => null)));
+    setTimeout(() => { void finish(); }, 900);
+  };
   const google = async () => {
     if (signingIn || finishing.current) return;
     setSigningIn(true);
@@ -146,10 +152,12 @@ export default function Onboarding() {
         {step === 4 && !who && (
           <>
             <GoogleButton busy={signingIn} onPress={google} />
+            <Pressable onPress={() => setEmailOpen(true)} disabled={busy || signingIn} accessibilityRole="button" style={({ pressed }) => [s.outline, pressed && { transform: [{ scale: 0.97 }] }]}><Text style={s.outlineText}>Continue with email</Text></Pressable>
             <Pressable onPress={() => { void finish(); }} disabled={busy || signingIn} accessibilityRole="button" style={s.secondary}><Text style={s.secondaryText}>Skip for now</Text></Pressable>
           </>
         )}
       </View>
+      <EmailSignIn visible={emailOpen} start="signup" onClose={() => setEmailOpen(false)} onSignedIn={() => { void signedInByEmail(); }} />
     </View>
   );
 }
@@ -174,5 +182,7 @@ const s = StyleSheet.create({
   primaryText: { fontFamily: F.semi, fontSize: 16, color: C.white },
   secondary: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },
   secondaryText: { fontFamily: F.medium, fontSize: 14, color: C.body },
+  outline: { minHeight: 54, borderRadius: 999, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' },
+  outlineText: { fontFamily: F.semi, fontSize: 16, color: C.ink },
   error: { fontFamily: F.regular, fontSize: 13, lineHeight: 19, color: C.danger, marginTop: 4 }
 });

@@ -18,7 +18,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "allowBackup": false,
-      "versionCode": 3
+      "versionCode": 4
     },
     "plugins": [
       "expo-router",
