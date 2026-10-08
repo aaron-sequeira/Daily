@@ -27,7 +27,8 @@
       "expo-font",
       "expo-background-task",
       "expo-sharing",
-      "expo-notifications"
+      "expo-notifications",
+      "./plugins/withReleaseSigning"
     ],
     "experiments": {
       "typedRoutes": true
