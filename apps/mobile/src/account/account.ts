@@ -65,9 +65,35 @@ export async function account(): Promise<Account | null> {
   const sb = supabase();
   if (!sb) return null;
   const { data } = await sb.auth.getSession();
-  const g = data.session?.user.identities?.find((i) => i.provider === 'google')?.identity_data;
-  if (!g) return null;
-  return { email: text(g.email), name: text(g.full_name) ?? text(g.name), photoUrl: text(g.avatar_url) ?? text(g.picture) };
+  const ids = data.session?.user.identities ?? [];
+  const g = ids.find((i) => i.provider === 'google')?.identity_data;
+  if (g) return { email: text(g.email), name: text(g.full_name) ?? text(g.name), photoUrl: text(g.avatar_url) ?? text(g.picture) };
+  const e = ids.find((i) => i.provider === 'email')?.identity_data;
+  return e ? { email: text(e.email), name: null, photoUrl: null } : null;
+}
+
+export type EmailSignInResult = 'switched' | 'wrong' | 'offline' | 'failed';
+export const EMAIL_SIGN_IN_MESSAGE: Record<Exclude<EmailSignInResult, 'switched'>, string> = {
+  wrong: 'That email and password don’t match.',
+  offline: 'You’re offline. Try again when you’re connected.',
+  failed: 'Couldn’t sign in. Try again.'
+};
+
+/** Signs in to an existing email account (no sign-up in the app yet) and switches to it, like a Google account that is
+ * already on Daily: Plus follows the account. */
+export async function signInWithEmail(email: string, password: string): Promise<EmailSignInResult> {
+  const sb = supabase();
+  const address = email.trim().toLowerCase();
+  if (!address || !password) return 'wrong';
+  if (!sb) return 'failed';
+  try {
+    const { error } = await sb.auth.signInWithPassword({ email: address, password });
+    if (error) return error.code === 'invalid_credentials' ? 'wrong' : failure(error) === 'offline' ? 'offline' : 'failed';
+    await plusAfterUserChange(true);
+    return 'switched';
+  } catch (e) {
+    return failure(e) === 'offline' ? 'offline' : 'failed';
+  }
 }
 
 /** Local data stays. Plus stays with the Google account; this phone goes back to a fresh anonymous user.

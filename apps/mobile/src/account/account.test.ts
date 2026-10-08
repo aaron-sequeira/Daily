@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const auth = { getSession: vi.fn(), linkIdentity: vi.fn(), signInWithIdToken: vi.fn(), signOut: vi.fn(), refreshSession: vi.fn() };
+const auth = { getSession: vi.fn(), linkIdentity: vi.fn(), signInWithIdToken: vi.fn(), signOut: vi.fn(), refreshSession: vi.fn(), signInWithPassword: vi.fn() };
 const googleSignIn = vi.fn();
 const plusAfterUserChange = vi.fn();
 const ensureUserId = vi.fn();
@@ -8,7 +8,7 @@ vi.mock('../plus/supabase', () => ({ supabase: () => ({ auth }), ensureUserId: (
 vi.mock('../plus/start', () => ({ plusAfterUserChange: (restore: boolean) => plusAfterUserChange(restore) }));
 vi.mock('../../modules/daily-native', () => ({ default: { googleSignIn: (id: string) => googleSignIn(id) } }));
 
-import { account, firstName, signInWithGoogle, signOut } from './account';
+import { account, firstName, signInWithEmail, signInWithGoogle, signOut } from './account';
 
 const token = { idToken: 'tok', rawNonce: 'raw', email: 'a@b.c', name: 'Asha Rao', photoUrl: null };
 const cred = { provider: 'google', token: 'tok', nonce: 'raw' };
@@ -137,5 +137,38 @@ describe('account and signOut', () => {
     expect(firstName({ email: 'a@b.c', name: 'Asha Rao', photoUrl: null })).toBe('Asha');
     expect(firstName({ email: 'a@b.c', name: null, photoUrl: null })).toBe('a@b.c');
     expect(firstName(null)).toBe('Google');
+  });
+});
+
+describe('signInWithEmail', () => {
+  beforeEach(() => { vi.clearAllMocks(); vi.spyOn(console, 'warn').mockImplementation(() => {}); });
+
+  it('switches to the email account and moves Plus to it', async () => {
+    auth.signInWithPassword.mockResolvedValue({ data: {}, error: null });
+    expect(await signInWithEmail('  Review@Example.com ', 'pw')).toBe('switched');
+    expect(auth.signInWithPassword).toHaveBeenCalledWith({ email: 'review@example.com', password: 'pw' });
+    expect(plusAfterUserChange).toHaveBeenCalledWith(true);
+  });
+
+  it('a wrong email or password is wrong, and nothing changes', async () => {
+    auth.signInWithPassword.mockResolvedValue({ data: {}, error: { code: 'invalid_credentials', name: 'AuthApiError' } });
+    expect(await signInWithEmail('a@b.c', 'bad')).toBe('wrong');
+    expect(plusAfterUserChange).not.toHaveBeenCalled();
+  });
+
+  it('empty fields are wrong without calling Supabase', async () => {
+    expect(await signInWithEmail(' ', 'pw')).toBe('wrong');
+    expect(await signInWithEmail('a@b.c', '')).toBe('wrong');
+    expect(auth.signInWithPassword).not.toHaveBeenCalled();
+  });
+
+  it('offline', async () => {
+    auth.signInWithPassword.mockResolvedValue({ data: {}, error: { name: 'AuthRetryableFetchError' } });
+    expect(await signInWithEmail('a@b.c', 'pw')).toBe('offline');
+  });
+
+  it('account() shows an email account', async () => {
+    auth.getSession.mockResolvedValue({ data: { session: { user: { id: 'u', email: 'a@b.c', identities: [{ provider: 'email', identity_data: { email: 'a@b.c' } }] } } }, error: null });
+    expect(await account()).toEqual({ email: 'a@b.c', name: null, photoUrl: null });
   });
 });

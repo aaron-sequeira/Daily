@@ -7,6 +7,7 @@ import { useCallback, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Alert, AppState, Image, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import DailyNative from '../../modules/daily-native';
+import { EmailSignIn } from '../../src/account/EmailSignIn';
 import { account, firstName, SIGN_IN_MESSAGE, signedIn, signInWithGoogle, signOut, type Account } from '../../src/account/account';
 import { getDb } from '../../src/db/expoDb';
 import { getNumber, getSetting, setSetting } from '../../src/db/settings';
@@ -68,6 +69,7 @@ export default function Settings() {
   const [signingIn, setSigningIn] = useState(false);
   const [acctNote, setAcctNote] = useState<string | null>(null);
   const refreshPlus = () => { setStatus(plusStatus(db, Date.now())); setPlusNow(isPlus(db, Date.now())); };
+  const [emailOpen, setEmailOpen] = useState(false);
   const google = async () => {
     if (signingIn) return;
     setSigningIn(true);
@@ -150,8 +152,16 @@ export default function Settings() {
             {signingIn ? <ActivityIndicator size="small" color={C.ink} /> : <Icon name="forward" size={16} />}
           </Pressable>
         )}
+        {!acct && (
+          <Pressable accessibilityRole="button" onPress={() => setEmailOpen(true)} disabled={signingIn} style={s.row}>
+            <Text style={[s.rowText, { flex: 1 }]}>Sign in with email</Text>
+            <Icon name="forward" size={16} />
+          </Pressable>
+        )}
         {acctNote ? <Text style={[s.sub, { paddingBottom: 12 }]} accessibilityLiveRegion="polite">{acctNote}</Text> : null}
       </Group>
+      <EmailSignIn visible={emailOpen} onClose={() => setEmailOpen(false)}
+        onSignedIn={() => { setEmailOpen(false); account().then(setAcct).catch(() => setAcct(null)); refreshPlus(); }} />
 
       <Group i={2} label="Goals">
         <View style={s.row}><Sunny face="happy" size={30} /><Text style={s.rowText}>Your buddy</Text><Text style={s.value}>Sunny · more soon</Text></View>
