@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { useEffect, useRef, useState } from 'react';
-import { AppState, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { AppState, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DailyNative from '../modules/daily-native';
@@ -70,6 +70,8 @@ export default function Onboarding() {
       </View>
 
       <Animated.View key={step} entering={rise(0)} style={{ flex: 1 }}>
+        {/* Scrolls on short screens so the last row never hides behind the buttons. */}
+        <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
         {step === 0 && (
           <View style={s.body}>
             <View style={s.hero}><Sunny face="glowing" size={170} /></View>
@@ -123,6 +125,7 @@ export default function Onboarding() {
             {signInError ? <Animated.Text entering={FadeIn} style={s.error} accessibilityLiveRegion="polite">{signInError}</Animated.Text> : null}
           </View>
         )}
+        </ScrollView>
       </Animated.View>
 
       <View style={{ gap: 8 }}>
@@ -160,7 +163,7 @@ const s = StyleSheet.create({
   steps: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   bar: { width: 22, height: 6, borderRadius: 9, backgroundColor: '#D8CFC7' },
   stepText: { marginLeft: 'auto', fontFamily: F.regular, fontSize: 12, color: C.muted },
-  body: { flex: 1, paddingTop: 28 },
+  body: { flex: 1, paddingTop: 28, paddingBottom: 12 },
   hero: { backgroundColor: '#FFEFD4', borderRadius: 28, alignItems: 'center', justifyContent: 'center', paddingVertical: 26, marginBottom: 22 },
   h1: { fontFamily: F.medium, fontSize: 30, lineHeight: 33, letterSpacing: -0.6, color: C.ink, marginBottom: 10 },
   p: { fontFamily: F.regular, fontSize: 15, lineHeight: 22, color: C.body, marginBottom: 16 },
