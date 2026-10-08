@@ -28,7 +28,7 @@
       "expo-font",
       "expo-background-task",
       "expo-sharing",
-      "expo-notifications",
+      ["expo-notifications", { "icon": "./assets/notification-icon.png", "color": "#F6B35E" }],
       "./plugins/withReleaseSigning"
     ],
     "experiments": {

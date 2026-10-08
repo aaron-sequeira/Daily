@@ -26,6 +26,8 @@ await out('assets/android-icon-background.png', svg(512, { bg: INK, content: '' 
 await out('assets/android-icon-foreground.png', svg(512, { scale: 0.72 }), 512);
 await out('assets/android-icon-monochrome.png', svg(432, { scale: 0.72, content: art('#000', '#000', '#000') }), 432);
 await out('assets/splash-icon.png', svg(1024, { scale: 0.9 }), 1024);
+// Status-bar notification icon: Android shows only its alpha, so a white silhouette on transparent.
+await out('assets/notification-icon.png', svg(96, { scale: 0.9, content: art('#fff', 'rgba(0,0,0,0)', '#fff') }), 96);
 await out('assets/favicon.png', svg(48, { bg: INK, scale: 0.86 }), 48);
 writeFileSync('assets/.icons-generated', 'by scripts/make-icons.mjs\n');
 console.log('icons written');
