@@ -39,3 +39,10 @@ describe('paywall copy', () => {
     expect(paywallMode(true, 'yearly')).toBe('change');
   });
 });
+
+describe('finePrint on iPhone', () => {
+  it('names the App Store', () => {
+    const o = { plan: 'yearly', priceString: '$29.99', price: 29.99, trialDays: 7 } as Parameters<typeof finePrint>[0];
+    expect(finePrint(o, 'ios')).toBe('7 days free, then $29.99 a year. Cancel anytime in the App Store before day 7 and you won’t pay.');
+  });
+});

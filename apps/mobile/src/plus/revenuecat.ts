@@ -1,7 +1,8 @@
 import Purchases, { PURCHASES_ERROR_CODE, type CustomerInfo, type PurchasesPackage } from 'react-native-purchases';
+import { OS } from '../platformNow';
+import { manageUrlFor } from './store';
 import { ENTITLEMENT_ID, NO_ENTITLEMENT, changeFor, errorName, purchaseMessage, toEntitlement, toOffer, type Billing, type Entitlement, type PlanId, type RcCustomerInfo, type RcPackage } from './billing';
 
-const PACKAGE = 'com.aaronalex.daily';
 const ent = (info: CustomerInfo): Entitlement => toEntitlement(info as unknown as RcCustomerInfo, Date.now());
 
 export function revenueCatBilling(apiKey: string): Billing {
@@ -54,7 +55,7 @@ export function revenueCatBilling(apiKey: string): Billing {
       return () => { Purchases.removeCustomerInfoUpdateListener(listener); };
     },
     manageUrl(plan) {
-      return `https://play.google.com/store/account/subscriptions?package=${PACKAGE}${plan ? `&sku=plus_${plan}` : ''}`;
+      return manageUrlFor(OS, plan);
     }
   };
 }

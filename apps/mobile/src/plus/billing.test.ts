@@ -1,3 +1,4 @@
+import { manageUrlFor, revenueCatKey } from './store';
 import { describe, expect, it } from 'vitest';
 import { changeFor, errorName, purchaseMessage, savePercent, toEntitlement, toOffer, type Offer } from './billing';
 
@@ -59,5 +60,21 @@ describe('billing helpers', () => {
     expect(purchaseMessage('PRODUCT_ALREADY_PURCHASED_ERROR')).toBe('You already have Daily Plus. Tap Restore purchases.');
     expect(purchaseMessage('STORE_PROBLEM_ERROR')).toBe('Google Play had a problem. Try again in a moment.');
     expect(purchaseMessage(null)).toBe('Something went wrong. You haven’t been charged.');
+  });
+});
+
+describe('store per platform', () => {
+  it('picks the RevenueCat key for the platform and never crosses stores', () => {
+    const env = { android: 'goog_x', ios: 'appl_y' };
+    expect(revenueCatKey('android', env)).toBe('goog_x');
+    expect(revenueCatKey('ios', env)).toBe('appl_y');
+    expect(revenueCatKey('ios', { android: 'goog_x' })).toBe('');
+  });
+  it('manages the subscription in the right store', () => {
+    expect(manageUrlFor('ios', 'monthly')).toBe('https://apps.apple.com/account/subscriptions');
+    expect(manageUrlFor('android', 'monthly')).toBe('https://play.google.com/store/account/subscriptions?package=com.aaronalex.daily&sku=plus_monthly');
+  });
+  it('names the App Store in errors on iPhone', () => {
+    expect(purchaseMessage('NETWORK_ERROR', 'ios')).toBe('Couldn’t reach the App Store. Check your connection and try again.');
   });
 });

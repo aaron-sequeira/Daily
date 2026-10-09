@@ -15,6 +15,7 @@ import { linkUser } from '../src/plus/start';
 import { ensureUserId } from '../src/plus/supabase';
 import { expoNotifier } from '../src/reminders/expoNotifier';
 import { Sunny } from '../src/sunny/Sunny';
+import { IN_STORE } from '../src/platformNow';
 import { C, F } from '../src/theme';
 import { SafeScreen } from '../src/ui/SafeScreen';
 import { Icon, type IconName } from '../src/ui/icons';
@@ -177,7 +178,7 @@ export default function Paywall() {
 
       {mode === 'owned' ? (
         <Animated.View entering={rise(3)} style={{ marginTop: 18 }}>
-          <Pressable onPress={manage} accessibilityRole="button" style={s.cta}><Text style={s.ctaText}>Manage in Google Play</Text></Pressable>
+          <Pressable onPress={manage} accessibilityRole="button" style={s.cta}><Text style={s.ctaText}>Manage {IN_STORE.replace('in the ', 'in ')}</Text></Pressable>
           <Pressable onPress={leave} accessibilityRole="button" style={s.retry}><Text style={[s.retryText, { textAlign: 'center' }]}>Back</Text></Pressable>
         </Animated.View>
       ) : null}

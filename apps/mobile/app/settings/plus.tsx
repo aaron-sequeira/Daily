@@ -17,6 +17,7 @@ import { shiftDay, weekStartOf } from '../../src/report/days';
 import { loadReport, loadWeekSentence } from '../../src/report/store';
 import { expoNotifier } from '../../src/reminders/expoNotifier';
 import { Sunny } from '../../src/sunny/Sunny';
+import { IN_STORE, STORE } from '../../src/platformNow';
 import { C, EASE, F } from '../../src/theme';
 import { SafeScreen } from '../../src/ui/SafeScreen';
 import { Icon } from '../../src/ui/icons';
@@ -63,7 +64,7 @@ export default function Subscription() {
       await saveEntitlement(getDb(), ent, expoNotifier, Date.now());
       if (!ent.active) setNote('No Daily Plus purchase found for this Google account.');
     } catch {
-      setNote('Couldn’t reach Google Play. Check your connection and try again.');
+      setNote(`Couldn’t reach ${STORE === 'App Store' ? 'the App Store' : STORE}. Check your connection and try again.`);
     } finally {
       setV(read());
       busy.current = false;
@@ -126,7 +127,7 @@ export default function Subscription() {
           </Section>
 
           <Section i={4} label="Your plan">
-            <Pressable accessibilityRole="button" onPress={manage} style={s.row}><Text style={s.rowText}>Manage in Google Play</Text><View style={s.end}><Icon name="external" size={15} /></View></Pressable>
+            <Pressable accessibilityRole="button" onPress={manage} style={s.row}><Text style={s.rowText}>Manage {IN_STORE.replace('in the ', 'in ')}</Text><View style={s.end}><Icon name="external" size={15} /></View></Pressable>
             <Pressable accessibilityRole="button" onPress={restore} disabled={restoring} style={s.row}>
               <Text style={s.rowText}>Restore purchases</Text>
               {restoring && <ActivityIndicator size="small" color={C.ink} style={{ marginLeft: 'auto' }} />}
@@ -135,7 +136,7 @@ export default function Subscription() {
           </Section>
           {note ? <Text style={[s.foot, { marginTop: 10 }]}>{note}</Text> : null}
 
-          <Animated.Text entering={rise(5)} style={s.foot}>To write your story, Daily Plus sends app names and minutes only — never messages, notifications or what’s on your screen. Google Play handles your subscription; cancel there anytime and Plus stays on until the period ends.</Animated.Text>
+          <Animated.Text entering={rise(5)} style={s.foot}>To write your story, Daily Plus sends app names and minutes only — never messages, notifications or what’s on your screen. {STORE === 'App Store' ? 'The App Store' : STORE} handles your subscription; cancel there anytime and Plus stays on until the period ends.</Animated.Text>
         </>
       ) : (
         <Animated.View entering={rise(1)} style={s.lapsed}>
