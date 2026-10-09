@@ -46,8 +46,10 @@ export async function startSignUp(email: string, password: string, name: string)
   if (password.length < MIN_PASSWORD) return { status: 'weak' };
   if (!sb) return { status: 'failed' };
   try {
-    const { data } = await sb.auth.getSession();
-    if (data.session?.user.is_anonymous) {
+    // getUser asks the server: the cached session can be stale (e.g. the email was confirmed from a link in a browser).
+    const { data } = await sb.auth.getUser();
+    if (data.user?.email && data.user.email.toLowerCase() === address) return { status: 'exists' }; // Supabase would no-op and send nothing
+    if (data.user?.is_anonymous) {
       const { error } = await sb.auth.updateUser({ email: address, data: { full_name: fullName } });
       return error ? { status: problem(error) } : { status: 'code_sent', kind: 'link' };
     }

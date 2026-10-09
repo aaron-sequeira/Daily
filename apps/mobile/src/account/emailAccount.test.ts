@@ -1,20 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const auth = { getSession: vi.fn(), updateUser: vi.fn(), signUp: vi.fn(), verifyOtp: vi.fn(), resend: vi.fn(), refreshSession: vi.fn(), resetPasswordForEmail: vi.fn() };
+const auth = { getSession: vi.fn(), getUser: vi.fn(), updateUser: vi.fn(), signUp: vi.fn(), verifyOtp: vi.fn(), resend: vi.fn(), refreshSession: vi.fn(), resetPasswordForEmail: vi.fn() };
 const plusAfterUserChange = vi.fn();
 vi.mock('../plus/supabase', () => ({ supabase: () => ({ auth }) }));
 vi.mock('../plus/start', () => ({ plusAfterUserChange: (restore: boolean) => plusAfterUserChange(restore) }));
 
 import { confirmCode, resendCode, startPasswordReset, startSignUp } from './emailAccount';
 
-const anon = { data: { session: { user: { id: 'anon', is_anonymous: true } } }, error: null };
+const anon = { data: { user: { id: 'anon', is_anonymous: true, email: '' } }, error: null };
 const ok = { data: {}, error: null };
 const err = (code: string) => ({ data: {}, error: { code, name: 'AuthApiError' } });
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.spyOn(console, 'warn').mockImplementation(() => {});
-  auth.getSession.mockResolvedValue(anon);
+  auth.getUser.mockResolvedValue(anon);
 });
 
 describe('startSignUp', () => {
@@ -26,7 +26,7 @@ describe('startSignUp', () => {
   });
 
   it('without an anonymous session it signs up a new user', async () => {
-    auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
+    auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
     auth.signUp.mockResolvedValue({ data: { user: { id: 'n', identities: [{}] } }, error: null });
     expect(await startSignUp('a@b.co', 'longenough', 'Asha')).toEqual({ status: 'code_sent', kind: 'signup' });
     expect(auth.signUp).toHaveBeenCalledWith({ email: 'a@b.co', password: 'longenough', options: { data: { full_name: 'Asha' } } });
@@ -35,9 +35,16 @@ describe('startSignUp', () => {
   it('an email that already has an account is exists', async () => {
     auth.updateUser.mockResolvedValue(err('email_exists'));
     expect(await startSignUp('a@b.co', 'longenough', 'Asha')).toEqual({ status: 'exists' });
-    auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
+    auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
     auth.signUp.mockResolvedValue({ data: { user: { id: 'fake', identities: [] } }, error: null }); // Supabase hides existing emails this way
     expect(await startSignUp('a@b.co', 'longenough', 'Asha')).toEqual({ status: 'exists' });
+  });
+
+  it("asks the server, not the cached session: an account that already has this email gets exists, not a silent no-op", async () => {
+    auth.getUser.mockResolvedValue({ data: { user: { id: 'u', is_anonymous: false, email: 'a@b.co' } }, error: null });
+    expect(await startSignUp('A@b.co', 'longenough', 'Asha')).toEqual({ status: 'exists' });
+    expect(auth.updateUser).not.toHaveBeenCalled();
+    expect(auth.signUp).not.toHaveBeenCalled();
   });
 
   it('checks the email and password before calling Supabase', async () => {
