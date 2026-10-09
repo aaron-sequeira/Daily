@@ -14,7 +14,7 @@ export function SunnyCard({ view, access }: { view: TodayView; access: boolean }
       <View style={{ flex: 1 }}>
         <Text style={{ fontFamily: F.semi, fontSize: 15, color: C.ink }}>{access ? MOOD_COPY[view.mood].title : "Sunny can't see your day yet"}</Text>
         <Text style={{ fontFamily: F.regular, fontSize: 12, lineHeight: 17, color: C.muted, marginTop: 3 }}>
-          {access ? `${goalLine(view.leftMin, view.goalMin)} · ${view.pickups} pickups` : 'Turn on usage access so he can.'}
+          {access ? `${goalLine(view.leftMin, view.goalMin)} · ${view.pickups} ${view.pickups === 1 ? 'pickup' : 'pickups'}` : 'Turn on usage access so he can.'}
         </Text>
         {access && (
           <View accessible accessibilityLabel={`Mood ${current + 1} of 5`} style={{ flexDirection: 'row', gap: 4, marginTop: 9 }}>
