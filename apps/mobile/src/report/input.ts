@@ -60,13 +60,15 @@ export function buildReportInput(db: Db, day: string, nowMs: number): ReportInpu
   const spans = daySpans(db, day, nowMs);
   const meta = appMeta(db, spans.map((s) => s.pkg));
   const dayStart = dayStartMs(day);
+  // Filled from Android's daily totals (no event log): the minutes are real, but not when they happened.
+  const totalsOnly = !!db.get('SELECT 1 AS x FROM totals_days WHERE day = ?', [day]);
 
   const perApp = new Map<string, { ms: number; opens: number }>();
   for (const s of spans) {
     const a = perApp.get(s.pkg) ?? { ms: 0, opens: 0 };
     perApp.set(s.pkg, { ms: a.ms + (s.end - s.start), opens: a.opens + 1 });
   }
-  const apps = [...perApp].map(([pkg, a]) => ({ ...meta.get(pkg)!, minutes: mins(a.ms), opens: a.opens }))
+  const apps = [...perApp].map(([pkg, a]) => ({ ...meta.get(pkg)!, minutes: mins(a.ms), opens: totalsOnly ? 0 : a.opens }))
     .filter((a) => a.minutes > 0)
     .sort((a, b) => b.minutes - a.minutes || a.name.localeCompare(b.name))
     .slice(0, 12);
@@ -77,14 +79,14 @@ export function buildReportInput(db: Db, day: string, nowMs: number): ReportInpu
   for (const [c, ms] of catMs) if (mins(ms) > 0) categories[c] = mins(ms);
 
   // Overlapping spans can add up to more than an hour; the server refuses that.
-  const hourly = Array.from({ length: 24 }, (_, h) => Math.min(60, mins(spans.reduce((t, s) => t + overlap(s, dayStart + h * HOUR, dayStart + (h + 1) * HOUR), 0))));
+  const hourly = Array.from({ length: 24 }, (_, h) => totalsOnly ? 0 : Math.min(60, mins(spans.reduce((t, s) => t + overlap(s, dayStart + h * HOUR, dayStart + (h + 1) * HOUR), 0))));
 
-  const long = spans.reduce<Span | null>((b, s) => (!b || s.end - s.start > b.end - b.start ? s : b), null);
+  const long = totalsOnly ? null : spans.reduce<Span | null>((b, s) => (!b || s.end - s.start > b.end - b.start ? s : b), null);
   const longest = long ? { app: meta.get(long.pkg)!.name, category: meta.get(long.pkg)!.category, minutes: mins(long.end - long.start), start: hhmm(long.start) } : null;
 
   let quietest: ReportInput['quietest'] = null;
   let reach: number | null = null; // where phone use so far ends (spans may overlap)
-  for (const s of spans) {
+  for (const s of totalsOnly ? [] : spans) {
     if (reach !== null && s.start - reach >= QUIET_MIN * MIN && new Date(reach).getHours() >= QUIET_FROM_H) {
       const minutes = mins(s.start - reach);
       if (!quietest || minutes > quietest.minutes) quietest = { from: hhmm(reach), to: hhmm(s.start), minutes };
@@ -97,7 +99,7 @@ export function buildReportInput(db: Db, day: string, nowMs: number): ReportInpu
   const [wh, wm] = windDownValid.split(':').map(Number);
   const lateFrom = dayStart + (wh * 60 + wm) * MIN;
   const lateTo = wh >= 5 ? dayStartMs(shiftDay(day, 1)) : dayStart + 5 * HOUR; // the night ends at 05:00 (coach/rules.ts)
-  const late = { after: windDownValid, minutes: mins(spans.reduce((t, s) => t + overlap(s, lateFrom, lateTo), 0)) };
+  const late = { after: windDownValid, minutes: totalsOnly ? 0 : mins(spans.reduce((t, s) => t + overlap(s, lateFrom, lateTo), 0)) };
 
   const count = (table: string) => db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM ${table} WHERE day = ?`, [day])?.n ?? 0;
   const last7 = Array.from({ length: 7 }, (_, i) => shiftDay(day, i - 7))

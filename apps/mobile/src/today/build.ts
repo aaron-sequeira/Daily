@@ -9,6 +9,8 @@ export type TodayInput = {
   open: { pkg: string; startMs: number } | null;
   pickups: number[];
   apps: { package: string; label: string; category: string; user_category: string | null; icon_png: string | null }[];
+  /** Filled from Android's daily totals (no event log): minutes per app, but not when. */
+  totalsOnly?: boolean;
 };
 export type TodayApp = { pkg: string; label: string; minutes: number; icon: string | null };
 export type TodayCategory = { id: Category; minutes: number; share: number; apps: TodayApp[] };
@@ -16,7 +18,7 @@ export type TodayView = {
   phoneMin: number; pickups: number; firstPickupMs: number | null;
   categories: TodayCategory[];
   timeline: { startH: number; segments: { left: number; width: number; category: Category }[]; nowAt: number | null; ticks: { at: number; label: string }[] };
-  mood: Mood; goalMin: number; leftMin: number; empty: boolean;
+  mood: Mood; goalMin: number; leftMin: number; empty: boolean; totalsOnly: boolean;
 };
 
 const MIN = 60_000;
@@ -60,7 +62,7 @@ export function buildToday(input: TodayInput): TodayView {
   const startH = Math.min(7, firstHour, nowHour);
   const span = 24 - startH;
   const pct = (ms: number) => ((ms - dayStart) / HOUR - startH) / span * 100;
-  const segments = spans.map((s) => ({ left: pct(s.start), width: ((s.end - s.start) / HOUR / span) * 100, category: categoryOf(s.pkg) }));
+  const segments = input.totalsOnly ? [] : spans.map((s) => ({ left: pct(s.start), width: ((s.end - s.start) / HOUR / span) * 100, category: categoryOf(s.pkg) }));
   const ticks: { at: number; label: string }[] = [];
   for (let h = startH; h < 24; h += 4) ticks.push({ at: ((h - startH) / span) * 100, label: hourLabel(h) });
   const nowAt = input.nowMs >= dayStart && input.nowMs < dayEnd ? pct(input.nowMs) : null;
@@ -69,12 +71,13 @@ export function buildToday(input: TodayInput): TodayView {
   return {
     phoneMin,
     pickups: pickups.length,
-    firstPickupMs: pickups[0] ?? null,
+    firstPickupMs: input.totalsOnly ? null : pickups[0] ?? null,
     categories,
     timeline: { startH, segments, nowAt, ticks },
     mood: moodFor(phoneMin, input.goalMin),
     goalMin: input.goalMin,
     leftMin: input.goalMin - phoneMin,
-    empty: spans.length === 0
+    empty: spans.length === 0,
+    totalsOnly: !!input.totalsOnly
   };
 }

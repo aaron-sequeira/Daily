@@ -29,6 +29,18 @@ describe('buildReportInput', () => {
     });
   });
 
+  it('a totals-only day keeps app minutes but claims no times (no hours, stretches or late use)', async () => {
+    const db = await makeTestDb();
+    seedReportDay(db);
+    db.run("INSERT INTO totals_days (day) VALUES ('2026-10-06')");
+    const r = buildReportInput(db, '2026-10-06', at(10, 0, 7));
+    expect(r.phoneMin).toBe(92);
+    expect(r.hourly).toEqual(Array(24).fill(0));
+    expect(r.longest).toBeNull();
+    expect(r.quietest).toBeNull();
+    expect(r.late.minutes).toBe(0);
+  });
+
   it('counts the app that is still open when the report is written', async () => {
     const db = await makeTestDb();
     db.run("INSERT INTO apps (package, label, category) VALUES ('com.instagram.android', 'Instagram', 'social')");

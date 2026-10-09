@@ -115,6 +115,22 @@ class DailyNativeModule : Module() {
 
     AsyncFunction("appInfo") { packages: List<String> -> packages.map { appInfo(it) } }
 
+    // Per-app foreground time and unlock count from Android's aggregates, for phones that keep no event log (ColorOS).
+    AsyncFunction("usageTotals") { fromMs: Double, toMs: Double ->
+      val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+      usm.queryAndAggregateUsageStats(fromMs.toLong(), toMs.toLong()).values
+        .filter { it.totalTimeInForeground > 0 }
+        .map { mapOf("pkg" to it.packageName, "ms" to it.totalTimeInForeground.toDouble()) }
+    }
+
+    AsyncFunction("unlockCount") { fromMs: Double, toMs: Double ->
+      if (Build.VERSION.SDK_INT < 28) -1
+      else (context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager)
+        .queryEventStats(UsageStatsManager.INTERVAL_BEST, fromMs.toLong(), toMs.toLong())
+        .filter { it.eventType == UsageEvents.Event.KEYGUARD_HIDDEN }
+        .sumOf { it.count }
+    }
+
     AsyncFunction("googleSignIn") Coroutine { webClientId: String ->
       val activity = appContext.currentActivity ?: throw CodedException("failed", "No activity", null)
       GoogleSignIn.signIn(activity, webClientId)

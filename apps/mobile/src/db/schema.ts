@@ -19,7 +19,9 @@ export const MIGRATIONS: string[] = [
    CREATE TABLE nudges (id INTEGER PRIMARY KEY, kind TEXT NOT NULL, key TEXT NOT NULL UNIQUE, ts_ms INTEGER NOT NULL);
    CREATE INDEX nudges_ts ON nudges(ts_ms);`,
   `CREATE TABLE reports (day TEXT PRIMARY KEY, kind TEXT NOT NULL, json TEXT NOT NULL, created_ms INTEGER NOT NULL);
-   CREATE TABLE weeks (week_start TEXT PRIMARY KEY, sentence TEXT NOT NULL, created_ms INTEGER NOT NULL);`
+   CREATE TABLE weeks (week_start TEXT PRIMARY KEY, sentence TEXT NOT NULL, created_ms INTEGER NOT NULL);`,
+  // Days filled from Android's daily per-app totals (phones that keep no event log): no timeline for these.
+  `CREATE TABLE totals_days (day TEXT PRIMARY KEY);`
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

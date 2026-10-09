@@ -6,7 +6,7 @@ import { moodFor } from '../sunny/mood';
 import { categoryFor } from './categories';
 import { dayStartMs, ingest, INITIAL_STATE, type IngestState } from './ingest';
 
-export type SyncNative = Pick<DailyNativeApi, 'packageName' | 'defaultLauncher' | 'hasUsageAccess' | 'queryEvents' | 'appInfo'>;
+export type SyncNative = Pick<DailyNativeApi, 'packageName' | 'defaultLauncher' | 'hasUsageAccess' | 'queryEvents' | 'appInfo' | 'usageTotals' | 'unlockCount'>;
 
 const DAY_MS = 86_400_000;
 const BACKFILL_MS = 7 * DAY_MS;
@@ -68,8 +68,10 @@ export async function sync(db: Db, native: SyncNative, nowMs: number): Promise<'
   const ignore = new Set([native.packageName(), 'com.android.systemui', native.defaultLauncher() ?? '']);
   const res = ingest(events, state, ignore);
 
+  const filled = res.sessions.length || res.state.openPkg ? [] : await totalsForLogFreePhones(db, native, ignore, nowMs);
+
   const known = new Set(db.all<{ package: string }>('SELECT package FROM apps').map((r) => r.package));
-  const seen = new Set(res.sessions.map((s) => s.pkg));
+  const seen = new Set([...res.sessions.map((s) => s.pkg), ...filled.flatMap((d) => d.apps.map((a) => a.pkg))]);
   if (res.state.openPkg) seen.add(res.state.openPkg);
   const fresh = [...seen].filter((p) => !known.has(p));
   // Apps stored before migration v3 have no android_category yet; appInfo returns -1 for unknown ones, so this settles.
@@ -94,6 +96,14 @@ export async function sync(db: Db, native: SyncNative, nowMs: number): Promise<'
       db.run('INSERT OR IGNORE INTO sessions (package, start_ms, end_ms, day) VALUES (?, ?, ?, ?)', [s.pkg, s.startMs, s.endMs, s.day]);
     }
     for (const t of res.pickups) db.run('INSERT OR IGNORE INTO pickups (ts_ms, day) VALUES (?, ?)', [t, localDate(t)]);
+    for (const d of filled) {
+      // Synthetic: one session per app starting at midnight, one pickup row per unlock. Replaced on every sync.
+      db.run('DELETE FROM sessions WHERE day = ?', [d.day]);
+      db.run('DELETE FROM pickups WHERE day = ?', [d.day]);
+      for (const a of d.apps) db.run('INSERT INTO sessions (package, start_ms, end_ms, day) VALUES (?, ?, ?, ?)', [a.pkg, d.start, d.start + a.ms, d.day]);
+      for (let i = 0; i < d.unlocks; i++) db.run('INSERT OR IGNORE INTO pickups (ts_ms, day) VALUES (?, ?)', [d.start + i, d.day]);
+      db.run('INSERT OR IGNORE INTO totals_days (day) VALUES (?)', [d.day]);
+    }
     for (const a of infos) {
       db.run('INSERT OR IGNORE INTO apps (package, label, category, icon_png, android_category) VALUES (?, ?, ?, ?, ?)', [a.pkg, a.label, categoryFor(a.pkg, a.category, null), a.icon, a.category]);
     }
@@ -103,4 +113,26 @@ export async function sync(db: Db, native: SyncNative, nowMs: number): Promise<'
     sweep(db, nowMs);
   });
   return 'ok';
+}
+
+type FilledDay = { day: string; start: number; apps: { pkg: string; ms: number }[]; unlocks: number };
+
+/** Some phones (Realme/Oppo ColorOS) keep Android's per-app daily totals but no event log, so sessions never appear.
+ * Detected as: apps used today per the totals, yet not one "app opened" event in the last 24 hours. Then the backfill
+ * days without real sessions are filled from the totals (no timeline possible). */
+async function totalsForLogFreePhones(db: Db, native: SyncNative, ignore: Set<string>, nowMs: number): Promise<FilledDay[]> {
+  const usable = (list: { pkg: string; ms: number }[], cap: number) => list.filter((a) => a.ms > 0 && !ignore.has(a.pkg)).map((a) => ({ pkg: a.pkg, ms: Math.min(a.ms, cap) }));
+  if (usable(await native.usageTotals(nowMs - DAY_MS, nowMs), DAY_MS).length === 0) return []; // no app use at all lately
+  if ((await native.queryEvents(nowMs - DAY_MS, nowMs)).some((e) => e.type === 'resumed')) return []; // the log works
+  const out: FilledDay[] = [];
+  for (let i = 0; i < BACKFILL_MS / DAY_MS; i++) {
+    const day = localDate(nowMs - i * DAY_MS);
+    const start = dayStartMs(day);
+    const end = Math.min(start + DAY_MS, nowMs);
+    const real = db.get('SELECT 1 AS x FROM sessions WHERE day = ?', [day]) && !db.get('SELECT 1 AS x FROM totals_days WHERE day = ?', [day]);
+    if (real) continue;
+    const apps = usable(await native.usageTotals(start, end), end - start);
+    if (apps.length) out.push({ day, start, apps, unlocks: Math.max(0, await native.unlockCount(start, end)) });
+  }
+  return out;
 }

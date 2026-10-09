@@ -45,7 +45,9 @@ describe('settings data', () => {
       defaultLauncher: () => 'launcher',
       hasUsageAccess: () => true,
       queryEvents: async (from: number, to: number) => events.filter((e) => e.ts >= from && e.ts < to),
-      appInfo: async (pkgs: string[]) => pkgs.map((pkg) => ({ pkg, label: pkg, category: -1, icon: null }))
+      appInfo: async (pkgs: string[]) => pkgs.map((pkg) => ({ pkg, label: pkg, category: -1, icon: null })),
+      usageTotals: async () => [],
+      unlockCount: async () => 0
     };
     deleteEverything(db, now);
     expect(await sync(db, native, now + 60_000)).toBe('ok');

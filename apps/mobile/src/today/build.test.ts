@@ -25,6 +25,15 @@ describe('buildToday', () => {
     expect(v.empty).toBe(false);
   });
 
+  it('a totals-only day (phone keeps no event log) has minutes but no timeline or first pickup', () => {
+    const v = buildToday({ ...base, totalsOnly: true });
+    expect(v.phoneMin).toBe(105);
+    expect(v.pickups).toBe(2);
+    expect(v.firstPickupMs).toBeNull();
+    expect(v.timeline.segments).toEqual([]);
+    expect(v.totalsOnly).toBe(true);
+  });
+
   it('groups by category (user override wins), biggest first, with shares', () => {
     const v = buildToday(base);
     expect(v.categories.map((c) => [c.id, c.minutes])).toEqual([['social', 60], ['messages', 30], ['fun', 15]]);

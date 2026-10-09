@@ -6,8 +6,11 @@ import { loadState, phoneMsForDay, phoneMsSince, sync, type SyncNative } from '.
 
 const at = (h: number, m = 0, d = 6) => new Date(2026, 9, d, h, m).getTime();
 
-function fakeNative(events: RawEvent[], access = true): SyncNative & { appInfo: ReturnType<typeof vi.fn> } {
+type Totals = { pkg: string; ms: number }[];
+function fakeNative(events: RawEvent[], access = true, totals: (from: number, to: number) => Totals = () => [], unlocks = 0): SyncNative & { appInfo: ReturnType<typeof vi.fn>; usageTotals: ReturnType<typeof vi.fn> } {
   return {
+    usageTotals: vi.fn(async (from: number, to: number) => totals(from, to)),
+    unlockCount: async () => unlocks,
     packageName: () => 'com.aaronalex.daily',
     defaultLauncher: () => 'launcher',
     hasUsageAccess: () => access,
@@ -184,5 +187,43 @@ describe('sync', () => {
     db.run("INSERT INTO nudges (kind, key, ts_ms) VALUES ('goal80', 'old', ?), ('goal80', 'new', ?)", [at(9) - 40 * 86_400_000, at(8)]);
     await sync(db, fakeNative(morning), at(9));
     expect(db.all<{ key: string }>('SELECT key FROM nudges').map((r) => r.key)).toEqual(['new']);
+  });
+});
+
+describe('sync on phones without an event log (Realme/ColorOS keep only daily totals)', () => {
+  const MIN = 60_000;
+  const today = (_from: number, to: number) => (to > at(0) ? [{ pkg: 'com.instagram.android', ms: 3 * MIN + 42_000 }, { pkg: 'com.aaronalex.daily', ms: 30 * MIN }, { pkg: 'launcher', ms: 5 * MIN }] : []);
+
+  it("uses Android's per-app totals and unlock count for today, minus Daily and the launcher", async () => {
+    const db = await makeTestDb();
+    const native = fakeNative([], true, today, 5);
+    await sync(db, native, at(9));
+    expect(phoneMsForDay(db, '2026-10-06', at(9))).toBe(3 * MIN + 42_000);
+    expect(db.all('SELECT day FROM totals_days')).toEqual([{ day: '2026-10-06' }]);
+    expect(db.get<{ n: number }>("SELECT COUNT(*) AS n FROM pickups WHERE day = '2026-10-06'")?.n).toBe(5);
+    expect(native.appInfo).toHaveBeenCalledWith(['com.instagram.android']);
+  });
+
+  it('replaces the totals on the next sync instead of adding them up', async () => {
+    const db = await makeTestDb();
+    await sync(db, fakeNative([], true, today, 5), at(9));
+    await sync(db, fakeNative([], true, (_f, to) => (to > at(0) ? [{ pkg: 'com.instagram.android', ms: 10 * MIN }] : []), 6), at(10));
+    expect(phoneMsForDay(db, '2026-10-06', at(10))).toBe(10 * MIN);
+    expect(db.get<{ n: number }>("SELECT COUNT(*) AS n FROM pickups WHERE day = '2026-10-06'")?.n).toBe(6);
+  });
+
+  it('fills earlier empty days of the week from their totals', async () => {
+    const db = await makeTestDb();
+    const yesterday = (f: number) => (f >= at(0, 0, 5) && f < at(0) ? [{ pkg: 'com.whatsapp', ms: 45 * MIN }] : []);
+    await sync(db, fakeNative([], true, yesterday), at(9));
+    expect(phoneMsForDay(db, '2026-10-05', at(9))).toBe(45 * MIN);
+  });
+
+  it('never touches days that have real events', async () => {
+    const db = await makeTestDb();
+    const native = fakeNative(morning, true, () => [{ pkg: 'com.instagram.android', ms: 99 * MIN }]);
+    await sync(db, native, at(9));
+    expect(db.all('SELECT day FROM totals_days')).toEqual([]);
+    expect(phoneMsForDay(db, '2026-10-06', at(9))).toBeLessThan(99 * MIN);
   });
 });

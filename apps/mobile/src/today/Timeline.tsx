@@ -5,6 +5,16 @@ import type { TodayView } from './build';
 
 export function Timeline({ view }: { view: TodayView }) {
   const t = view.timeline;
+  if (view.totalsOnly) {
+    return (
+      <View style={{ backgroundColor: C.white, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 12 }}>
+        <Text style={{ fontFamily: F.regular, fontSize: 12, color: C.muted, marginBottom: 4 }}>Today</Text>
+        <Text style={{ fontFamily: F.regular, fontSize: 13, lineHeight: 19, color: C.body }}>
+          Your phone shares how long you used each app, but not when, so there’s no timeline today.
+        </Text>
+      </View>
+    );
+  }
   return (
     <View style={{ backgroundColor: C.white, borderRadius: 18, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10 }}>
       <Text style={{ fontFamily: F.regular, fontSize: 12, color: C.muted, marginBottom: 8 }}>Today</Text>

@@ -12,6 +12,10 @@ export type DailyNativeApi = {
   defaultLauncher(): string | null;
   queryEvents(fromMs: number, toMs: number): Promise<NativeEvent[]>;
   appInfo(packages: string[]): Promise<NativeAppInfo[]>;
+  /** Android's aggregated foreground time per app in [fromMs, toMs]. */
+  usageTotals(fromMs: number, toMs: number): Promise<{ pkg: string; ms: number }[]>;
+  /** Unlocks (KEYGUARD_HIDDEN) in [fromMs, toMs]; -1 before Android 9. */
+  unlockCount(fromMs: number, toMs: number): Promise<number>;
   canScheduleExactAlarms(): boolean;
   isInCall(): boolean;
   openExactAlarmSettings(): void;
