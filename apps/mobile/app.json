@@ -8,6 +8,14 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "backgroundColor": "#FBF8F4",
+    "ios": {
+      "bundleIdentifier": "com.aaronalex.daily",
+      "buildNumber": "1",
+      "supportsTablet": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
     "android": {
       "package": "com.aaronalex.daily",
       "adaptiveIcon": {
@@ -23,12 +31,26 @@
     "plugins": [
       "expo-router",
       "expo-status-bar",
-      ["expo-splash-screen", { "image": "./assets/splash-icon.png", "imageWidth": 132, "backgroundColor": "#FBF8F4", "resizeMode": "contain" }],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 132,
+          "backgroundColor": "#FBF8F4",
+          "resizeMode": "contain"
+        }
+      ],
       "expo-sqlite",
       "expo-font",
       "expo-background-task",
       "expo-sharing",
-      ["expo-notifications", { "icon": "./assets/notification-icon.png", "color": "#F6B35E" }],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#F6B35E"
+        }
+      ],
       "./plugins/withReleaseSigning",
       "./plugins/withSplashSquare"
     ],
