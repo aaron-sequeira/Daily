@@ -56,6 +56,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "4d65cea8-40b7-48ad-af5e-c890ed15c66d"
+      }
+    },
+    "owner": "aaron.alex"
   }
 }

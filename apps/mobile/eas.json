@@ -5,6 +5,7 @@
   },
   "build": {
     "base": {
+      "pnpm": "9.15.9",
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://dszptvgpgyetvrxceaxc.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_nG0F2leOvVtKmAnAq_AH9Q_r7wguN7S",
