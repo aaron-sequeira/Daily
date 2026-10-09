@@ -1,4 +1,5 @@
 import { Text, View } from 'react-native';
+import { FEATURES } from '../platformNow';
 import { LOOK } from '../sunny/look';
 import { MOOD_COPY, MOODS, moodIndex } from '../sunny/mood';
 import { Sunny } from '../sunny/Sunny';
@@ -14,7 +15,7 @@ export function SunnyCard({ view, access }: { view: TodayView; access: boolean }
       <View style={{ flex: 1 }}>
         <Text style={{ fontFamily: F.semi, fontSize: 15, color: C.ink }}>{access ? MOOD_COPY[view.mood].title : "Sunny can't see your day yet"}</Text>
         <Text style={{ fontFamily: F.regular, fontSize: 12, lineHeight: 17, color: C.muted, marginTop: 3 }}>
-          {access ? `${goalLine(view.leftMin, view.goalMin)} · ${view.pickups} ${view.pickups === 1 ? 'pickup' : 'pickups'}` : 'Turn on usage access so he can.'}
+          {access ? `${goalLine(view.leftMin, view.goalMin)} · ${view.pickups} ${view.pickups === 1 ? 'pickup' : 'pickups'}` : FEATURES.usageAccess ? 'Turn on usage access so he can.' : 'Screen Time is coming to Daily on iPhone. Reminders, breaks and water work as normal.'}
         </Text>
         {access && (
           <View accessible accessibilityLabel={`Mood ${current + 1} of 5`} style={{ flexDirection: 'row', gap: 4, marginTop: 9 }}>

@@ -15,11 +15,15 @@ import { Sunny } from '../src/sunny/Sunny';
 import { C, F } from '../src/theme';
 import { GoalStepper } from '../src/ui/GoalStepper';
 import { EmailSignIn } from '../src/account/EmailSignIn';
+import { FEATURES } from '../src/platformNow';
 import { GoogleButton } from '../src/ui/GoogleButton';
 import { Icon } from '../src/ui/icons';
 import { rise } from '../src/ui/motion';
 
-const STEPS = 5;
+// iPhone has no usage-access step (Screen Time arrives in i2), so it shows one step fewer.
+const SKIP_USAGE = !FEATURES.usageAccess;
+const STEPS = SKIP_USAGE ? 4 : 5;
+const shown = (step: number) => (SKIP_USAGE && step > 1 ? step - 1 : step);
 
 export default function Onboarding() {
   const insets = useSafeAreaInsets();
@@ -71,8 +75,8 @@ export default function Onboarding() {
   return (
     <View style={[s.root, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }]}>
       <View style={s.steps}>
-        {Array.from({ length: STEPS }, (_, i) => <View key={i} style={[s.bar, i === step && { backgroundColor: C.ink }]} />)}
-        <Text style={s.stepText}>Step {step + 1} of {STEPS}</Text>
+        {Array.from({ length: STEPS }, (_, i) => <View key={i} style={[s.bar, i === shown(step) && { backgroundColor: C.ink }]} />)}
+        <Text style={s.stepText}>Step {shown(step) + 1} of {STEPS}</Text>
       </View>
 
       <Animated.View key={step} entering={rise(0)} style={{ flex: 1 }}>
@@ -135,7 +139,7 @@ export default function Onboarding() {
       </Animated.View>
 
       <View style={{ gap: 8 }}>
-        {step === 0 && <Primary label="Get started" onPress={() => setStep(1)} />}
+        {step === 0 && <Primary label="Get started" onPress={() => setStep(SKIP_USAGE ? 2 : 1)} />}
         {step === 1 && (
           <>
             <Primary label="Open settings" onPress={() => DailyNative.openUsageAccessSettings()} />
@@ -151,7 +155,7 @@ export default function Onboarding() {
         )}
         {step === 4 && !who && (
           <>
-            <GoogleButton busy={signingIn} onPress={google} />
+            {FEATURES.googleSignIn && <GoogleButton busy={signingIn} onPress={google} />}
             <Pressable onPress={() => setEmailOpen(true)} disabled={busy || signingIn} accessibilityRole="button" style={({ pressed }) => [s.outline, pressed && { transform: [{ scale: 0.97 }] }]}><Text style={s.outlineText}>Continue with email</Text></Pressable>
             <Pressable onPress={() => { void finish(); }} disabled={busy || signingIn} accessibilityRole="button" style={s.secondary}><Text style={s.secondaryText}>Skip for now</Text></Pressable>
           </>

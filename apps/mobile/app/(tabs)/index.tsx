@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import DailyNative from '../../modules/daily-native';
 import { formatDuration } from '../../src/format';
+import { FEATURES } from '../../src/platformNow';
 import { C, F } from '../../src/theme';
 import { CategoryCard } from '../../src/today/CategoryCard';
 import { dateLine, greeting } from '../../src/today/copy';
@@ -42,6 +43,8 @@ export default function Today() {
       </Animated.View>
 
       <Animated.Text entering={rise(1)} style={s.date}>{greeting(now)} · {dateLine(now, view.firstPickupMs)}</Animated.Text>
+      {/* iPhone: no per-app data until Screen Time (i2); the Sunny card explains. */}
+      {FEATURES.usageAccess && (<>
       <Animated.Text entering={rise(2)} style={s.headline}>
         You spent <Text style={{ fontFamily: F.semi }}>{formatDuration(view.phoneMin)}</Text> on your phone today
       </Animated.Text>
@@ -86,9 +89,11 @@ export default function Today() {
         </>
       )}
 
+      </>)}
+
       <Animated.View entering={rise(9)} style={s.panel}>
         <SunnyCard view={view} access={access} />
-        <Timeline view={view} />
+        {FEATURES.usageAccess && <Timeline view={view} />}
       </Animated.View>
     </ScrollView>
     </SafeScreen>

@@ -22,6 +22,7 @@ import { runSync } from '../../src/tracking/runSync';
 import { Sunny } from '../../src/sunny/Sunny';
 import { C, F } from '../../src/theme';
 import { GoalStepper } from '../../src/ui/GoalStepper';
+import { FEATURES } from '../../src/platformNow';
 import { GoogleG } from '../../src/ui/GoogleButton';
 import { SafeScreen } from '../../src/ui/SafeScreen';
 import { Icon } from '../../src/ui/icons';
@@ -78,7 +79,7 @@ export default function Settings() {
     if (signedIn(r)) { setAcct(await account().catch(() => null)); refreshPlus(); } else setAcctNote(SIGN_IN_MESSAGE[r] ?? null);
     setSigningIn(false);
   };
-  const confirmSignOut = () => Alert.alert('Sign out?', 'Daily Plus stays with your Google account. Sign in again to get it back on this phone.', [
+  const confirmSignOut = () => Alert.alert('Sign out?', `Daily Plus stays with your ${FEATURES.googleSignIn ? 'Google ' : ''}account. Sign in again to get it back on this phone.`, [
     { text: 'Cancel', style: 'cancel' },
     { text: 'Sign out', style: 'destructive', onPress: () => {
       setAcctNote(null);
@@ -142,7 +143,7 @@ export default function Settings() {
             </View>
             <Pressable accessibilityRole="button" onPress={confirmSignOut} style={s.row}><Text style={s.rowText}>Sign out</Text></Pressable>
           </>
-        ) : (
+        ) : FEATURES.googleSignIn && (
           <Pressable accessibilityRole="button" accessibilityLabel="Sign in with Google" onPress={google} disabled={signingIn} style={[s.row, { paddingVertical: 10 }]}>
             <GoogleG size={20} />
             <View style={{ flex: 1 }}>
@@ -182,6 +183,8 @@ export default function Settings() {
         </View>
       </Group>
 
+      {/* Status-bar chip, Floating Sunny and Keep running are Android-only; iPhone gets the Dynamic Island in i3. */}
+      {FEATURES.sunnyChip && (
       <Group i={3} label="Sunny">
         <View style={s.row}>
           <Text style={s.rowText}>Sunny in the status bar</Text>
@@ -223,6 +226,7 @@ export default function Settings() {
           <Pressable accessibilityRole="button" style={s.row}><Text style={s.rowText}>Keep Sunny running</Text><Text style={s.value}>Help</Text></Pressable>
         </Link>
       </Group>
+      )}
 
       <Group i={4} label="Report">
         {status ? (
