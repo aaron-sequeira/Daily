@@ -17,7 +17,7 @@ import { shiftDay, weekStartOf } from '../../src/report/days';
 import { loadReport, loadWeekSentence } from '../../src/report/store';
 import { expoNotifier } from '../../src/reminders/expoNotifier';
 import { Sunny } from '../../src/sunny/Sunny';
-import { IN_STORE, STORE } from '../../src/platformNow';
+import { FEATURES, IN_STORE, STORE } from '../../src/platformNow';
 import { C, EASE, F } from '../../src/theme';
 import { SafeScreen } from '../../src/ui/SafeScreen';
 import { Icon } from '../../src/ui/icons';
@@ -62,7 +62,7 @@ export default function Subscription() {
       await linkUser({ billing: getBilling(), ensureUserId });
       const ent = await getBilling().restore();
       await saveEntitlement(getDb(), ent, expoNotifier, Date.now());
-      if (!ent.active) setNote('No Daily Plus purchase found for this Google account.');
+      if (!ent.active) setNote(`No Daily Plus purchase found for this ${FEATURES.googleSignIn ? 'Google ' : ''}account.`);
     } catch {
       setNote(`Couldn’t reach ${STORE === 'App Store' ? 'the App Store' : STORE}. Check your connection and try again.`);
     } finally {

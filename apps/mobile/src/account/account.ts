@@ -1,3 +1,4 @@
+import { FEATURES } from '../platformNow';
 import DailyNative, { type GoogleSignInResult } from '../../modules/daily-native';
 import { plusAfterUserChange } from '../plus/start';
 import { ensureUserId, supabase } from '../plus/supabase';
@@ -117,4 +118,4 @@ export async function signOut(): Promise<string | null> {
   return null;
 }
 
-export const firstName = (a: Account | null) => a?.name?.split(' ')[0] || a?.email || 'Google';
+export const firstName = (a: Account | null) => a?.name?.split(' ')[0] || a?.email || (FEATURES.googleSignIn ? 'Google' : 'Account');

@@ -15,7 +15,7 @@ import { linkUser } from '../src/plus/start';
 import { ensureUserId } from '../src/plus/supabase';
 import { expoNotifier } from '../src/reminders/expoNotifier';
 import { Sunny } from '../src/sunny/Sunny';
-import { IN_STORE } from '../src/platformNow';
+import { FEATURES, IN_STORE } from '../src/platformNow';
 import { C, F } from '../src/theme';
 import { SafeScreen } from '../src/ui/SafeScreen';
 import { Icon, type IconName } from '../src/ui/icons';
@@ -122,7 +122,7 @@ export default function Paywall() {
       const ent = await getBilling().restore();
       try { await saveEntitlement(getDb(), ent, expoNotifier, Date.now()); } catch (e) { console.warn('daily: saving entitlement failed', e); }
       if (ent.active) leave();
-      else setNote('No Daily Plus purchase found for this Google account.');
+      else setNote(`No Daily Plus purchase found for this ${FEATURES.googleSignIn ? 'Google ' : ''}account.`);
     } catch {
       setNote(purchaseMessage(null));
     } finally {
@@ -240,7 +240,7 @@ export default function Paywall() {
             <Text style={s.dotSep}>·</Text>
             <Pressable onPress={() => open(PRIVACY)} accessibilityRole="link" style={s.footBtn}><Text style={s.link}>Privacy</Text></Pressable>
           </Animated.View>
-          {anon ? (
+          {anon && FEATURES.googleSignIn ? (
             <Animated.View entering={rise(12)} style={s.footer}>
               <Text style={s.link}>Sign in so Plus follows you to a new phone.</Text>
               <Pressable onPress={signIn} accessibilityRole="button" style={s.footBtn}><Text style={[s.link, { color: C.ink, textDecorationLine: 'underline' }]}>Sign in</Text></Pressable>

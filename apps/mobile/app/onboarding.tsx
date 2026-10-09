@@ -112,11 +112,13 @@ export default function Onboarding() {
             <Text style={s.p}>Daily nudges you when it’s time for a break. You can change or turn off any of them.</Text>
             <View style={s.point}><View style={s.pointIco}><Icon name="drop" size={15} /></View><Text style={s.pointText}>Water after every hour of phone time.</Text></View>
             <View style={s.point}><View style={s.pointIco}><Icon name="cup" size={15} /></View><Text style={s.pointText}>Lunch at 1 pm and tea at 4 pm on weekdays.</Text></View>
+            {FEATURES.sunnyChip && (
             <View style={s.point}>
               <View style={s.pointIco}><Icon name="bell" size={15} /></View>
               <Text style={s.pointText}>Show Sunny and your phone time in the status bar</Text>
               <Switch value={showSunny} onValueChange={setShowSunny} accessibilityLabel="Show Sunny in the status bar" trackColor={{ false: C.line, true: C.ink }} thumbColor={C.white} />
             </View>
+            )}
           </View>
         )}
         {step === 4 && (
