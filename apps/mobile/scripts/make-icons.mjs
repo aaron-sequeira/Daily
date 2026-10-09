@@ -25,9 +25,12 @@ await out('assets/icon.png', svg(1024, { bg: INK, scale: 0.86 }), 1024); // iOS/
 await out('assets/android-icon-background.png', svg(512, { bg: INK, content: '' }), 512);
 await out('assets/android-icon-foreground.png', svg(512, { scale: 0.72 }), 512);
 await out('assets/android-icon-monochrome.png', svg(432, { scale: 0.72, content: art('#000', '#000', '#000') }), 432);
-await out('assets/splash-icon.png', svg(1024, { scale: 0.9 }), 1024);
+// Splash = the intro's first frame (src/ui/Intro.tsx): the icon square with only the horizon; Sunny then rises in the app.
+await out('assets/splash-icon.png', `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 100 100"><rect width="100" height="100" rx="24" fill="${INK}"/><path d="M14,67 C17,66.58 26,64.5 32,64.5 C38,64.5 44,67 50,67 C56,67 62,64.58 68,64.5 C74,64.42 83,66.17 86,66.5" stroke="${SAND}" stroke-width="6" stroke-linecap="round" fill="none"/></svg>`, 1024);
 // Status-bar notification icon: Android shows only its alpha, so a white silhouette on transparent.
 await out('assets/notification-icon.png', svg(96, { scale: 0.9, content: art('#fff', 'rgba(0,0,0,0)', '#fff') }), 96);
 await out('assets/favicon.png', svg(48, { bg: INK, scale: 0.86 }), 48);
+// Android 12+ splash icon: 240 dp canvas (960 px at xxxhdpi) with the 112 dp icon square (448 px) centred; see plugins/withSplashSquare.js.
+await sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="960" height="960" viewBox="0 0 960 960"><g transform="translate(256 256) scale(4.48)"><rect width="100" height="100" rx="24" fill="${INK}"/><path d="M14,67 C17,66.58 26,64.5 32,64.5 C38,64.5 44,67 50,67 C56,67 62,64.58 68,64.5 C74,64.42 83,66.17 86,66.5" stroke="${SAND}" stroke-width="6" stroke-linecap="round" fill="none"/></g></svg>`)).png().toFile('assets/splash-square.png');
 writeFileSync('assets/.icons-generated', 'by scripts/make-icons.mjs\n');
 console.log('icons written');

@@ -21,9 +21,13 @@ import { syncSunnyService } from '../src/sunny/service';
 import { runSync } from '../src/tracking/runSync';
 import { registerSyncTask } from '../src/tracking/backgroundTask';
 import { C } from '../src/theme';
+import { Intro } from '../src/ui/Intro';
 import { FatalScreen } from '../src/ui/FatalScreen';
 
 SplashScreen.preventAutoHideAsync();
+
+/** Once per process: a cold start plays the intro, coming back from the background does not. */
+let introPlayed = false;
 
 function openDb(): string | null {
   try { getDb(); return null; } catch (e) { return String(e); }
@@ -32,8 +36,10 @@ function openDb(): string | null {
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({ DMSans_400Regular, DMSans_500Medium, DMSans_600SemiBold });
   const [dbError, setDbError] = useState<string | null>(openDb);
+  const [intro, setIntro] = useState(!introPlayed);
 
-  useEffect(() => { if (fontsLoaded) SplashScreen.hideAsync(); }, [fontsLoaded]);
+  // With the intro, the splash hides once the intro's first frame is drawn (onReady); there's no gap between them.
+  useEffect(() => { if (fontsLoaded && (!intro || dbError)) SplashScreen.hideAsync(); }, [fontsLoaded, intro, dbError]);
   useEffect(() => {
     if (dbError) return;
     registerSyncTask().catch(() => {});
@@ -43,7 +49,8 @@ export default function RootLayout() {
     });
   }, [dbError]);
 
-  if (!fontsLoaded) return null;
+  // Draw the intro's first frame (= the splash) at once; an empty first frame would end the splash early and leave a gap.
+  if (!fontsLoaded) return intro ? <Intro start={false} onReady={() => { SplashScreen.hideAsync(); }} onDone={() => {}} /> : null;
   if (dbError) {
     return (
       <FatalScreen
@@ -55,7 +62,12 @@ export default function RootLayout() {
       />
     );
   }
-  return <Gate />;
+  return (
+    <>
+      <Gate />
+      {intro && <Intro start onReady={() => { SplashScreen.hideAsync(); }} onDone={() => { introPlayed = true; setIntro(false); }} />}
+    </>
+  );
 }
 
 function Gate() {

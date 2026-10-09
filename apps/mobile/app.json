@@ -23,13 +23,14 @@
     "plugins": [
       "expo-router",
       "expo-status-bar",
-      "expo-splash-screen",
+      ["expo-splash-screen", { "image": "./assets/splash-icon.png", "imageWidth": 132, "backgroundColor": "#FBF8F4", "resizeMode": "contain" }],
       "expo-sqlite",
       "expo-font",
       "expo-background-task",
       "expo-sharing",
       ["expo-notifications", { "icon": "./assets/notification-icon.png", "color": "#F6B35E" }],
-      "./plugins/withReleaseSigning"
+      "./plugins/withReleaseSigning",
+      "./plugins/withSplashSquare"
     ],
     "experiments": {
       "typedRoutes": true
