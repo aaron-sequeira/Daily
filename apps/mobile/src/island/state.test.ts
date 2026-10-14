@@ -10,7 +10,7 @@ const reminder = (id: number, time: string, o: Partial<Reminder> = {}): Reminder
 const report = (o: Partial<StoredReport> = {}): StoredReport =>
   ({ day: '2026-10-06', kind: 'plain', headline: '', story: null, highlights: [], plan: [], aiError: null, final: true, createdMs: at(21), ...o });
 const base = (o: Partial<IslandInputs> = {}): IslandInputs =>
-  ({ reminders: [], states: new Map(), handled: {}, brk: null, report: null, reportSeen: false, ...o });
+  ({ reminders: [], states: new Map(), handled: {}, brk: null, report: null, reportSeen: false, phone: null, ...o });
 
 describe('pendingReminder', () => {
   it('is the clock reminder whose time passed in the last 30 minutes', () => {
@@ -55,5 +55,13 @@ describe('pickIsland', () => {
   });
   it('fallback is always progress', () => {
     expect(pickIsland(base({ report: report() }), at(21, 30)).fallback.phase).toBe('progress');
+  });
+  it('with Screen Time, progress shows phone time, the goal and Sunny’s mood', () => {
+    const s = pickIsland(base({ reminders: [reminder(2, '16:00', { name: 'Tea' })], phone: { min: 130, goalMin: 240 } }), at(15)).state;
+    expect(s).toMatchObject({ phase: 'progress', mood: 'happy', title: 'Sunny is happy', compact: '2h 10m', line: '1h 50m left before your 4h goal · Tea at 4:00 pm', timerEndMs: at(16) });
+  });
+  it('with Screen Time but no milestone yet, the compact view counts down to the next reminder', () => {
+    const s = pickIsland(base({ phone: { min: 0, goalMin: 240 } }), at(8)).state;
+    expect(s).toMatchObject({ mood: 'glowing', compact: '', line: '4h left before your 4h goal' });
   });
 });

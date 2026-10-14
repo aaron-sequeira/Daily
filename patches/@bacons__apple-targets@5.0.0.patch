@@ -1,0 +1,56 @@
+diff --git a/build/configuration-list.js b/build/configuration-list.js
+index 3a2a4c124ca58cae8813640dffe0667a98b69e39..c91f5145e7363b033e1f93ba91f5df2bb0fffd31 100644
+--- a/build/configuration-list.js
++++ b/build/configuration-list.js
+@@ -666,6 +666,7 @@ function getConfigurationListBuildSettingsForType(project, props) {
+         case "watch-widget":
+             return createWatchWidgetConfigurationList(project, props);
+         case "app-intent":
++        case "device-activity-report":
+             return createAppIntentConfigurationList(props);
+         case "notification-content":
+         // TODO: These just use this default value for now.
+diff --git a/build/target.js b/build/target.js
+index e968aaac9cd40dfe0231d33906b415dfeb81d74b..a43070d1c28b485fc713cd7acd91bc1173cc5a5f 100644
+--- a/build/target.js
++++ b/build/target.js
+@@ -111,6 +111,13 @@ exports.TARGET_REGISTRY = {
+         frameworks: ["AppIntents"],
+         displayName: "App Intent",
+     },
++    // Daily patch: Screen Time report (DeviceActivityReportExtension), an ExtensionKit extension like app-intent.
++    "device-activity-report": {
++        extensionPointIdentifier: "com.apple.deviceactivityui.report-extension",
++        productType: "com.apple.product-type.extensionkit-extension",
++        frameworks: ["DeviceActivity", "SwiftUI"],
++        displayName: "Device Activity Report",
++    },
+     "device-activity-monitor": {
+         extensionPointIdentifier: "com.apple.deviceactivity.monitor-extension",
+         frameworks: ["DeviceActivity"],
+@@ -337,6 +344,12 @@ function getTargetInfoPlistForType(type) {
+                     NSExtensionPrincipalClass: "$(PRODUCT_MODULE_NAME).ActionRequestHandler",
+                 },
+             };
++        case "device-activity-report":
++            return {
++                EXAppExtensionAttributes: {
++                    EXExtensionPointIdentifier: "com.apple.deviceactivityui.report-extension",
++                },
++            };
+         case "app-intent":
+             return {
+                 EXAppExtensionAttributes: {
+diff --git a/build/with-xcode-changes.js b/build/with-xcode-changes.js
+index 96ded68c694a0eaae6e4068f09a55c50b119bc0c..e508977bf51e9bc634f10c4484e7d8d190fe54b3 100644
+--- a/build/with-xcode-changes.js
++++ b/build/with-xcode-changes.js
+@@ -253,7 +253,7 @@ async function applyXcodeChanges(config, project, props) {
+             fileRef: xcode_1.PBXFileReference.create(project, {
+                 explicitFileType: explicitFileType,
+                 includeInIndex: 0,
+-                path: props.name + (isExtension ? ".appex" : ".app"),
++                path: props.name + (isExtension || isExtensionKit ? ".appex" : ".app"),
+                 sourceTree: "BUILT_PRODUCTS_DIR",
+             }),
+             settings: {

@@ -8,9 +8,5 @@ module.exports = {
   deploymentTarget: '17.0',
   frameworks: ['SwiftUI', 'WidgetKit', 'ActivityKit', 'AppIntents'],
   entitlements: { 'com.apple.security.application-groups': ['group.com.aaronalex.daily'] },
-  images: {
-    'sunny-happy': './images/sunny-happy.png',
-    'sunny-glowing': './images/sunny-glowing.png',
-    'sunny-alright': './images/sunny-alright.png'
-  }
+  images: Object.fromEntries(['glowing', 'happy', 'alright', 'fading', 'sad'].map((m) => [`sunny-${m}`, `./images/sunny-${m}.png`]))
 };

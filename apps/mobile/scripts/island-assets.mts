@@ -3,7 +3,7 @@ import sharp from 'sharp';
 import { fileURLToPath } from 'node:url';
 import { sunnySvg } from '../src/sunny/svg.ts';
 
-const FACES = ['happy', 'glowing', 'alright'] as const; // the moods src/island/state.ts can pick
+const FACES = ['glowing', 'happy', 'alright', 'fading', 'sad'] as const; // every Mood (src/sunny/mood.ts)
 
 for (const face of FACES) {
   const out = fileURLToPath(new URL(`../targets/island/images/sunny-${face}.png`, import.meta.url));

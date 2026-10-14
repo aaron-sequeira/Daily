@@ -4,11 +4,14 @@ import { ANIM_LOOK, sceneKind, type MobileAnimation } from '../reminders/default
 import { nextUp, planClockSlots } from '../reminders/plan';
 import type { ReminderState } from '../reminders/store';
 import type { StoredReport } from '../report/store';
+import { formatDuration } from '../format';
+import { MOOD_COPY, moodFor, type Mood } from '../sunny/mood';
+import { goalLine } from '../today/copy';
 
 export type IslandPhase = 'progress' | 'reminder' | 'break' | 'report';
 /** Sent to Swift as JSON; the keys must match SunnyAttributes.ContentState in SunnyShared.swift. */
 export type IslandState = {
-  phase: IslandPhase; mood: 'happy' | 'glowing' | 'alright'; title: string; line: string;
+  phase: IslandPhase; mood: Mood; title: string; line: string;
   /** '' = Swift shows the live timer to timerEndMs. */
   compact: string;
   timerStartMs: number | null; timerEndMs: number | null; color: string; icon: string; reminderId: number | null; canBreak: boolean;
@@ -19,6 +22,8 @@ export type IslandInputs = {
   /** reminderId → when Done/Snooze was pressed in the Island */
   handled: Record<number, number>;
   brk: BreakNow | null; report: StoredReport | null; reportSeen: boolean;
+  /** iPhone with Screen Time: today's phone time to the nearest milestone; null without it (Android, no permission). */
+  phone: { min: number; goalMin: number } | null;
 };
 
 const PENDING_MS = 30 * 60_000;
@@ -43,11 +48,16 @@ export function pendingReminder(i: IslandInputs, nowMs: number): { reminder: Rem
 
 function progress(i: IslandInputs, nowMs: number): IslandState {
   const next = nextUp(i.reminders, i.states, nowMs, () => 0); // ponytail: no phone time on iOS until Screen Time (i2)
-  let line = 'No more reminders today';
+  let upNext: string | null = null;
   let timerEndMs: number | null = null;
-  if (next?.kind === 'clock' && localDate(next.atMs) === localDate(nowMs)) { line = `${next.reminder.name} at ${clock(next.atMs)}`; timerEndMs = next.atMs; }
-  else if (next?.kind === 'interval') line = `${next.reminder.name} after ${next.leftMin}m on your phone`;
-  return { phase: 'progress', mood: 'happy', title: 'Sunny today', line, compact: '', timerStartMs: null, timerEndMs, color: AMBER, icon: 'sun.max.fill', reminderId: null, canBreak: false };
+  if (next?.kind === 'clock' && localDate(next.atMs) === localDate(nowMs)) { upNext = `${next.reminder.name} at ${clock(next.atMs)}`; timerEndMs = next.atMs; }
+  else if (next?.kind === 'interval') upNext = `${next.reminder.name} after ${next.leftMin}m on your phone`;
+  const base = { phase: 'progress' as const, timerStartMs: null, timerEndMs, color: AMBER, icon: 'sun.max.fill', reminderId: null, canBreak: false };
+  if (!i.phone) return { ...base, mood: 'happy', title: 'Sunny today', line: upNext ?? 'No more reminders today', compact: '' };
+  const { min, goalMin } = i.phone;
+  const mood = moodFor(min, goalMin);
+  const line = [goalLine(goalMin - min, goalMin), upNext].filter(Boolean).join(' · ');
+  return { ...base, mood, title: MOOD_COPY[mood].title, line, compact: min > 0 ? formatDuration(min) : '' };
 }
 
 export function pickIsland(i: IslandInputs, nowMs: number): { state: IslandState; fallback: IslandState } {

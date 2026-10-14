@@ -8,6 +8,11 @@ overrides:
   react: 19.2.3
   react-dom: 19.2.3
 
+patchedDependencies:
+  '@bacons/apple-targets@5.0.0':
+    hash: bclhzmikujm7t6u5mj54w53h6m
+    path: patches/@bacons__apple-targets@5.0.0.patch
+
 importers:
 
   .:
@@ -233,7 +238,7 @@ importers:
     devDependencies:
       '@bacons/apple-targets':
         specifier: 5.0.0
-        version: 5.0.0(expo@57.0.26)(typescript@6.0.3)
+        version: 5.0.0(patch_hash=bclhzmikujm7t6u5mj54w53h6m)(expo@57.0.26)(typescript@6.0.3)
       '@resvg/resvg-js':
         specifier: ^2.6.2
         version: 2.6.2
@@ -6931,7 +6936,7 @@ snapshots:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
 
-  '@bacons/apple-targets@5.0.0(expo@57.0.26)(typescript@6.0.3)':
+  '@bacons/apple-targets@5.0.0(patch_hash=bclhzmikujm7t6u5mj54w53h6m)(expo@57.0.26)(typescript@6.0.3)':
     dependencies:
       '@bacons/xcode': 1.0.0-alpha.32
       '@expo/prebuild-config': 55.0.22(expo@57.0.26)(typescript@6.0.3)
@@ -8434,9 +8439,7 @@ snapshots:
       metro-runtime: 0.84.6
     transitivePeerDependencies:
       - '@babel/core'
-      - bufferutil
       - supports-color
-      - utf-8-validate
 
   '@react-native/normalize-colors@0.79.7': {}
 
