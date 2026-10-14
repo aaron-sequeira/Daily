@@ -40,7 +40,7 @@ export const endIslandBreak = (db: Db) => setSetting(db, 'island_break', '');
 export const markIslandReportSeen = (db: Db, nowMs: number) => setSetting(db, 'island_report_seen', localDate(nowMs));
 
 /** Applies queued Island actions, then shows the current state (only when it changed, or every 6 h), or ends it when off. */
-export async function syncIsland(db: Db, api: IslandApi, nowMs: number, phoneMin: number | null = null): Promise<void> {
+export async function syncIsland(db: Db, api: Pick<IslandApi, 'isEnabled' | 'show' | 'end' | 'takeActions'>, nowMs: number, phoneMin: number | null = null): Promise<void> {
   for (const a of api.takeActions()) applyIslandAction(db, a);
   if (getSetting(db, 'island') !== '1' || !api.isEnabled()) {
     if (getSetting(db, 'island_last')) { await api.end(); setSetting(db, 'island_last', ''); }

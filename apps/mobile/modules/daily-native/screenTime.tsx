@@ -12,6 +12,8 @@ export type ScreenTimeApi = {
   startMonitoring(minutes: number[]): Promise<void>;
   milestones(): { min: number; atMs: number }[];
   clearMilestones(): void;
+  /** JSON { reminderId, minutes, title, body } for the water reminder, or '' when it is off. */
+  setWater(json: string): void;
 };
 
 const native = requireOptionalNativeModule<ScreenTimeApi>('DailyScreenTime');

@@ -185,6 +185,11 @@ public class DailyScreenTimeModule: Module {
       (ScreenTimeStore.group?.array(forKey: "milestones") as? [[String: Double]]) ?? []
     }
 
+    /// The water reminder for the ActivityMonitor, which posts it as phone time passes (JSON, or "" when off).
+    Function("setWater") { (json: String) in
+      if json.isEmpty { ScreenTimeStore.group?.removeObject(forKey: "water") } else { ScreenTimeStore.group?.set(json, forKey: "water") }
+    }
+
     /// Delete everything: the ActivityMonitor's copy too, or the next sync would bring the milestones back.
     Function("clearMilestones") {
       ScreenTimeStore.group?.removeObject(forKey: "milestones")

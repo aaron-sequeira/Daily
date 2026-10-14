@@ -60,6 +60,19 @@ function progress(i: IslandInputs, nowMs: number): IslandState {
   return { ...base, mood, title: MOOD_COPY[mood].title, line, compact: min > 0 ? formatDuration(min) : '' };
 }
 
+/** The reminder state for `r` (also sent to the server for pushes while Daily is closed). */
+export function reminderState(r: Reminder): IslandState {
+  const kind = sceneKind(r.animation);
+  return { phase: 'reminder', mood: 'happy', title: r.name, line: r.message, compact: 'now', timerStartMs: null, timerEndMs: null,
+    color: ANIM_LOOK[kind].color, icon: SYMBOL[kind], reminderId: r.id, canBreak: r.breakSec > 0 };
+}
+
+/** "Your day is written": with the headline once the report exists, otherwise an invitation to open it. */
+export function reportState(report: StoredReport | null): IslandState {
+  return { phase: 'report', mood: 'glowing', title: 'Your day is written', line: report?.headline || 'Tap to write today’s story', compact: 'Ready',
+    timerStartMs: null, timerEndMs: null, color: '#D8D2FC', icon: 'pencil', reminderId: null, canBreak: false };
+}
+
 export function pickIsland(i: IslandInputs, nowMs: number): { state: IslandState; fallback: IslandState } {
   const fallback = progress(i, nowMs);
   const pick = (): IslandState => {
@@ -70,15 +83,8 @@ export function pickIsland(i: IslandInputs, nowMs: number): { state: IslandState
         timerStartMs: i.brk.startMs, timerEndMs: i.brk.startMs + i.brk.totalSec * 1000, color: look?.color ?? AMBER, icon: 'sun.max.fill', reminderId: i.brk.reminderId, canBreak: false };
     }
     const p = pendingReminder(i, nowMs);
-    if (p) {
-      const kind = sceneKind(p.reminder.animation);
-      return { phase: 'reminder', mood: 'happy', title: p.reminder.name, line: p.reminder.message, compact: 'now', timerStartMs: null, timerEndMs: null,
-        color: ANIM_LOOK[kind].color, icon: SYMBOL[kind], reminderId: p.reminder.id, canBreak: p.reminder.breakSec > 0 };
-    }
-    if (i.report && !i.reportSeen) {
-      return { phase: 'report', mood: 'glowing', title: 'Your day is written', line: i.report.headline || 'Tap to write today’s story', compact: 'Ready',
-        timerStartMs: null, timerEndMs: null, color: '#D8D2FC', icon: 'pencil', reminderId: null, canBreak: false };
-    }
+    if (p) return reminderState(p.reminder);
+    if (i.report && !i.reportSeen) return reportState(i.report);
     return fallback;
   };
   return { state: pick(), fallback };

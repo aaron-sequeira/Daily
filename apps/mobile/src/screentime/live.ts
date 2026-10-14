@@ -3,6 +3,8 @@ import type { Db } from '../db/db';
 import { getNumber } from '../db/settings';
 import { phoneMinToday, thresholds } from './milestones';
 import { saveMilestones } from './store';
+import { listReminders } from '../reminders/store';
+import type { Reminder } from '@worksight/core/reminders';
 
 /** Screen Time is on: permission given and something chosen to count. Always false on Android. */
 export function screenTimeReady(): boolean {
@@ -48,4 +50,11 @@ export async function changeWhatCounts(db: Db): Promise<void> {
 export function syncScreenTime(db: Db): void {
   if (!screenTime) return;
   try { saveMilestones(db, screenTime.milestones()); } catch (e) { console.warn('daily: screen time sync failed', e); }
+  try { screenTime.setWater(waterJson(listReminders(db))); } catch (e) { console.warn('daily: water hand-off failed', e); }
+}
+
+/** The phone-time reminder the ActivityMonitor posts while Daily is closed (iPhone can't run it from the app). */
+export function waterJson(reminders: Reminder[]): string {
+  const w = reminders.find((r) => r.builtin === 'water' && r.enabled && r.schedule.type === 'interval');
+  return w && w.schedule.type === 'interval' ? JSON.stringify({ reminderId: w.id, minutes: w.schedule.minutes, title: w.name, body: w.message }) : '';
 }

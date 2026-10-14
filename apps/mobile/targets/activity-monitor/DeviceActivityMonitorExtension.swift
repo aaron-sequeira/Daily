@@ -1,5 +1,6 @@
 import DeviceActivity
 import Foundation
+import UserNotifications
 
 /// Runs while Daily is closed. Each `m_<minutes>` event means the user's phone time today reached that many minutes;
 /// it is appended to the App Group ("milestones"), where the app reads it (src/screentime/milestones.ts).
@@ -24,5 +25,23 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     guard min - lastMin <= (nowMs - lastAtMs) / 60_000 + 1 else { return }
     list.append(["min": min, "atMs": nowMs])
     group?.set(list, forKey: "milestones")
+    remindWater(lastMin: lastMin, min: min, midnightMs: midnightMs)
+  }
+
+  /// iPhone's "water after every hour of phone time": Daily's JavaScript can't see phone time while closed, so this
+  /// extension posts it when phone time crosses the next multiple of the reminder's interval.
+  private func remindWater(lastMin: Double, min: Double, midnightMs: Double) {
+    guard let json = group?.string(forKey: "water"), let data = json.data(using: .utf8),
+          let w = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+          let every = w["minutes"] as? Double, every > 0, let id = w["reminderId"] as? Int else { return }
+    guard Int(min / every) > Int(lastMin / every) else { return }
+    let content = UNMutableNotificationContent()
+    content.title = (w["title"] as? String) ?? "Water"
+    content.body = (w["body"] as? String) ?? "Time for a few sips."
+    content.sound = .default
+    content.categoryIdentifier = "water" // the "I had some" / "Snooze" buttons Daily registers
+    content.userInfo = ["body": ["reminderId": id]]
+    let request = UNNotificationRequest(identifier: "water-\(Int(midnightMs))-\(Int(min))", content: content, trigger: nil)
+    UNUserNotificationCenter.current().add(request) { _ in }
   }
 }

@@ -9,9 +9,9 @@ export type ApnsKey = { p8: string; keyId: string; teamId: string };
 type FetchFn = typeof fetch;
 
 const b64url = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-const text = (s: string) => new TextEncoder().encode(s);
+const text = (s: string): Uint8Array<ArrayBuffer> => new Uint8Array(new TextEncoder().encode(s));
 
-function pkcs8(p8: string): Uint8Array {
+function pkcs8(p8: string): Uint8Array<ArrayBuffer> {
   const body = p8.replace(/-----(BEGIN|END) PRIVATE KEY-----/g, '').replace(/\s+/g, '');
   return Uint8Array.from(atob(body), (c) => c.charCodeAt(0));
 }

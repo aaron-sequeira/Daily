@@ -27,7 +27,10 @@ export const DEFAULTS = {
   island_last_at: '0', // ms of that send; re-sent after 6 h so the activity is restarted before iOS's 8 h limit
   island_break: '', // BreakNow JSON while a break runs
   island_handled: '{}', // { reminderId: ms } Done/Snooze pressed in the Island
-  island_report_seen: '' // YYYY-MM-DD the Report tab was opened, which clears the report state
+  island_report_seen: '', // YYYY-MM-DD the Report tab was opened, which clears the report state
+  island_device_id: '', // random id this phone uses with the ios-push function
+  island_push_last: '', // the last /sync body the server accepted ('' = nothing there)
+  island_push_at: '0' // ms of that upload
 } as const;
 
 export type SettingKey = keyof typeof DEFAULTS;
