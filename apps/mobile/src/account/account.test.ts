@@ -1,14 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const auth = { getSession: vi.fn(), linkIdentity: vi.fn(), signInWithIdToken: vi.fn(), signOut: vi.fn(), refreshSession: vi.fn(), signInWithPassword: vi.fn() };
+const auth = { getSession: vi.fn(), linkIdentity: vi.fn(), signInWithIdToken: vi.fn(), signOut: vi.fn(), refreshSession: vi.fn(), signInWithPassword: vi.fn(), updateUser: vi.fn() };
+const appleSignIn = vi.fn();
 const googleSignIn = vi.fn();
 const plusAfterUserChange = vi.fn();
 const ensureUserId = vi.fn();
 vi.mock('../plus/supabase', () => ({ supabase: () => ({ auth }), ensureUserId: () => ensureUserId() }));
 vi.mock('../plus/start', () => ({ plusAfterUserChange: (restore: boolean) => plusAfterUserChange(restore) }));
 vi.mock('../../modules/daily-native', () => ({ default: { googleSignIn: (id: string) => googleSignIn(id) } }));
+vi.mock('expo-apple-authentication', () => ({
+  signInAsync: (o: unknown) => appleSignIn(o),
+  AppleAuthenticationScope: { FULL_NAME: 0, EMAIL: 1 }
+}));
+vi.mock('expo-crypto', () => ({
+  randomUUID: () => 'raw-nonce',
+  digestStringAsync: async (_alg: string, v: string) => `sha256(${v})`,
+  CryptoDigestAlgorithm: { SHA256: 'SHA-256' }
+}));
 
-import { account, firstName, signInWithEmail, signInWithGoogle, signOut } from './account';
+import { account, firstName, signInWithApple, signInWithEmail, signInWithGoogle, signOut } from './account';
 
 const token = { idToken: 'tok', rawNonce: 'raw', email: 'a@b.c', name: 'Asha Rao', photoUrl: null };
 const cred = { provider: 'google', token: 'tok', nonce: 'raw' };
@@ -180,5 +190,40 @@ describe('signInWithEmail', () => {
   it('account() shows an email account', async () => {
     auth.getSession.mockResolvedValue({ data: { session: { user: { id: 'u', email: 'a@b.c', identities: [{ provider: 'email', identity_data: { email: 'a@b.c' } }] } } }, error: null });
     expect(await account()).toEqual({ email: 'a@b.c', name: null, photoUrl: null });
+  });
+});
+
+describe('signInWithApple', () => {
+  const appleCred = { provider: 'apple', token: 'apple-tok', nonce: 'raw-nonce' };
+  beforeEach(() => {
+    vi.clearAllMocks();
+    ensureUserId.mockResolvedValue('anon');
+    auth.updateUser.mockResolvedValue({ data: {}, error: null });
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  it('asks Apple with the hashed nonce and links Apple to the current user, saving the first-time name', async () => {
+    appleSignIn.mockResolvedValue({ identityToken: 'apple-tok', fullName: { givenName: 'Asha', familyName: 'Rao' } });
+    auth.linkIdentity.mockResolvedValue({ data: {}, error: null });
+    expect(await signInWithApple()).toBe('linked');
+    expect(appleSignIn).toHaveBeenCalledWith(expect.objectContaining({ nonce: 'sha256(raw-nonce)' }));
+    expect(auth.linkIdentity).toHaveBeenCalledWith(appleCred);
+    expect(auth.updateUser).toHaveBeenCalledWith({ data: { full_name: 'Asha Rao' } });
+  });
+
+  it('an Apple ID already on Daily switches to that user; no name means nothing to save', async () => {
+    appleSignIn.mockResolvedValue({ identityToken: 'apple-tok', fullName: null });
+    auth.linkIdentity.mockResolvedValue({ data: {}, error: { code: 'identity_already_exists', name: 'AuthApiError' } });
+    auth.signInWithIdToken.mockResolvedValue({ data: {}, error: null });
+    expect(await signInWithApple()).toBe('switched');
+    expect(auth.signInWithIdToken).toHaveBeenCalledWith(appleCred);
+    expect(auth.updateUser).not.toHaveBeenCalled();
+    expect(plusAfterUserChange).toHaveBeenCalledWith(true);
+  });
+
+  it('a cancelled Apple sheet touches nothing', async () => {
+    appleSignIn.mockRejectedValue(coded('ERR_REQUEST_CANCELED'));
+    expect(await signInWithApple()).toBe('cancelled');
+    expect(auth.linkIdentity).not.toHaveBeenCalled();
   });
 });

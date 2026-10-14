@@ -8,7 +8,7 @@ import { ActivityIndicator, Alert, AppState, Image, Linking, Pressable, ScrollVi
 import Animated from 'react-native-reanimated';
 import DailyNative from '../../modules/daily-native';
 import { EmailSignIn } from '../../src/account/EmailSignIn';
-import { account, firstName, SIGN_IN_MESSAGE, signedIn, signInWithGoogle, signOut, type Account } from '../../src/account/account';
+import { account, firstName, SIGN_IN_MESSAGE, signedIn, signInWithApple, signInWithGoogle, signOut, type Account } from '../../src/account/account';
 import { getDb } from '../../src/db/expoDb';
 import { getNumber, getSetting, setSetting } from '../../src/db/settings';
 import { canStepWindDown, stepWindDown } from '../../src/coach/rules';
@@ -26,6 +26,7 @@ import { FEATURES } from '../../src/platformNow';
 import { refreshIsland } from '../../src/island/refresh';
 import { changeWhatCounts, startScreenTime } from '../../src/screentime/live';
 import { screenTime } from '../../modules/daily-native/screenTime';
+import { AppleButton } from '../../src/ui/AppleButton';
 import { GoogleG } from '../../src/ui/GoogleButton';
 import { SafeScreen } from '../../src/ui/SafeScreen';
 import { Icon } from '../../src/ui/icons';
@@ -79,7 +80,7 @@ export default function Settings() {
     if (signingIn) return;
     setSigningIn(true);
     setAcctNote(null);
-    const r = await signInWithGoogle();
+    const r = await (FEATURES.googleSignIn ? signInWithGoogle() : signInWithApple());
     if (signedIn(r)) { setAcct(await account().catch(() => null)); refreshPlus(); } else setAcctNote(SIGN_IN_MESSAGE[r] ?? null);
     setSigningIn(false);
   };
@@ -148,7 +149,12 @@ export default function Settings() {
             </View>
             <Pressable accessibilityRole="button" onPress={confirmSignOut} style={s.row}><Text style={s.rowText}>Sign out</Text></Pressable>
           </>
-        ) : FEATURES.googleSignIn && (
+        ) : !FEATURES.googleSignIn ? (
+          <View style={[s.row, { paddingVertical: 10, flexDirection: 'column', alignItems: 'stretch', gap: 6 }]}>
+            <AppleButton busy={signingIn} onPress={google} />
+            <Text style={s.sub}>Keep Daily Plus if you change phones</Text>
+          </View>
+        ) : (
           <Pressable accessibilityRole="button" accessibilityLabel="Sign in with Google" onPress={google} disabled={signingIn} style={[s.row, { paddingVertical: 10 }]}>
             <GoogleG size={20} />
             <View style={{ flex: 1 }}>

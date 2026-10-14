@@ -5,7 +5,7 @@ import { AppState, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 
 import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DailyNative from '../modules/daily-native';
-import { account, firstName, SIGN_IN_MESSAGE, signedIn, signInWithGoogle } from '../src/account/account';
+import { account, firstName, SIGN_IN_MESSAGE, signedIn, signInWithApple, signInWithGoogle } from '../src/account/account';
 import { getDb } from '../src/db/expoDb';
 import { getNumber, setSetting } from '../src/db/settings';
 import { applyReminders } from '../src/reminders/apply';
@@ -17,6 +17,7 @@ import { GoalStepper } from '../src/ui/GoalStepper';
 import { EmailSignIn } from '../src/account/EmailSignIn';
 import { FEATURES } from '../src/platformNow';
 import { setUpScreenTime, startScreenTime } from '../src/screentime/live';
+import { AppleButton } from '../src/ui/AppleButton';
 import { GoogleButton } from '../src/ui/GoogleButton';
 import { Icon } from '../src/ui/icons';
 import { rise } from '../src/ui/motion';
@@ -45,7 +46,7 @@ export default function Onboarding() {
     if (signingIn || finishing.current) return;
     setSigningIn(true);
     setSignInError(null);
-    const r = await signInWithGoogle();
+    const r = await (FEATURES.googleSignIn ? signInWithGoogle() : signInWithApple());
     if (signedIn(r)) {
       setWho(firstName(await account().catch(() => null)));
       setTimeout(() => { void finish(); }, 900);
@@ -168,7 +169,7 @@ export default function Onboarding() {
         )}
         {step === 4 && !who && (
           <>
-            {FEATURES.googleSignIn && <GoogleButton busy={signingIn} onPress={google} />}
+            {FEATURES.googleSignIn ? <GoogleButton busy={signingIn} onPress={google} /> : <AppleButton busy={signingIn} onPress={google} />}
             <Pressable onPress={() => setEmailOpen(true)} disabled={busy || signingIn} accessibilityRole="button" style={({ pressed }) => [s.outline, pressed && { transform: [{ scale: 0.97 }] }]}><Text style={s.outlineText}>Continue with email</Text></Pressable>
             <Pressable onPress={() => { void finish(); }} disabled={busy || signingIn} accessibilityRole="button" style={s.secondary}><Text style={s.secondaryText}>Skip for now</Text></Pressable>
           </>

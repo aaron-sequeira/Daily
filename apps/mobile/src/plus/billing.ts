@@ -21,7 +21,9 @@ export const NO_ENTITLEMENT: Entitlement = { active: false, untilMs: null, plan:
 
 /** The subset of RevenueCat's CustomerInfo and Package we read. */
 export type RcCustomerInfo = { entitlements: { active: Record<string, { isActive?: boolean; expirationDate?: string | null; periodType?: string; willRenew?: boolean; productIdentifier?: string } | undefined> } };
-export type RcPackage = { packageType: string; product: { identifier: string; price: number; priceString: string; currencyCode?: string | null; pricePerMonthString?: string | null; defaultOption?: { freePhase?: { billingPeriod?: { unit?: string; value?: number } } | null } | null } };
+export type RcPackage = { packageType: string; product: { identifier: string; price: number; priceString: string; currencyCode?: string | null; pricePerMonthString?: string | null; defaultOption?: { freePhase?: { billingPeriod?: { unit?: string; value?: number } } | null } | null;
+  /** App Store: a free trial is an introductory price of 0 */
+  introPrice?: { price: number; periodUnit?: string; periodNumberOfUnits?: number } | null } };
 
 const planOf = (productId: string | undefined): PlanId | null => (productId?.includes('yearly') ? 'yearly' : productId?.includes('monthly') ? 'monthly' : null);
 
@@ -46,7 +48,9 @@ export function changeFor(activeProductId: string | null, plan: PlanId): PlanCha
 export function toOffer(pkg: RcPackage): Offer | null {
   const plan: PlanId | null = pkg.packageType === 'ANNUAL' ? 'yearly' : pkg.packageType === 'MONTHLY' ? 'monthly' : null;
   if (!plan) return null;
-  const free = pkg.product.defaultOption?.freePhase?.billingPeriod;
+  const intro = pkg.product.introPrice;
+  const free = pkg.product.defaultOption?.freePhase?.billingPeriod
+    ?? (intro && intro.price === 0 ? { unit: intro.periodUnit, value: intro.periodNumberOfUnits } : undefined);
   const unitDays: Record<string, number> = { DAY: 1, WEEK: 7, MONTH: 30 };
   const days = free?.value && free.unit && unitDays[free.unit] ? free.value * unitDays[free.unit] : null;
   return {

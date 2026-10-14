@@ -22,7 +22,8 @@
           "group.com.aaronalex.daily"
         ],
         "com.apple.developer.family-controls": true
-      }
+      },
+      "usesAppleSignIn": true
     },
     "android": {
       "package": "com.aaronalex.daily",
@@ -61,7 +62,8 @@
       ],
       "./plugins/withReleaseSigning",
       "./plugins/withSplashSquare",
-      "@bacons/apple-targets"
+      "@bacons/apple-targets",
+      "expo-apple-authentication"
     ],
     "experiments": {
       "typedRoutes": true

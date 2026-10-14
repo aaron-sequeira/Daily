@@ -1,3 +1,5 @@
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Crypto from 'expo-crypto';
 import { FEATURES } from '../platformNow';
 import DailyNative, { type GoogleSignInResult } from '../../modules/daily-native';
 import { plusAfterUserChange } from '../plus/start';
@@ -35,7 +37,15 @@ export async function signInWithGoogle(): Promise<SignInResult> {
     const code = (e as { code?: string }).code;
     return code === 'cancelled' || code === 'no_account' ? code : failure(e);
   }
-  const cred = { provider: 'google', token: g.idToken, nonce: g.rawNonce };
+  return linkOrSwitch({ provider: 'google', token: g.idToken, nonce: g.rawNonce });
+}
+
+type IdTokenCred = { provider: 'google' | 'apple'; token: string; nonce: string };
+
+/** Links the provider to the current (anonymous) user, or switches to the Daily user who already has it. */
+async function linkOrSwitch(cred: IdTokenCred, afterLink?: () => Promise<unknown>): Promise<SignInResult> {
+  const sb = supabase();
+  if (!sb) return 'failed';
   try {
     // ensureUserId, not getSession: it joins an anonymous sign-up already in flight (the resume after the sheet closes
     // starts one), so that sign-up can't land after ours and overwrite the Google session.
@@ -46,17 +56,39 @@ export async function signInWithGoogle(): Promise<SignInResult> {
         // anonymous), so account() would see no one. A refresh stores the user as it is now; if it fails, the next
         // automatic refresh fixes it.
         await sb.auth.refreshSession();
+        await afterLink?.().catch(() => {});
         return 'linked';
       }
       if (error.code !== 'identity_already_exists' && error.code !== 'email_exists') return failure(error);
     }
     const { error } = await sb.auth.signInWithIdToken(cred);
     if (error) return failure(error);
+    await afterLink?.().catch(() => {});
     await plusAfterUserChange(true); // RevenueCat logs in as the (other) user, so Plus follows the account
     return 'switched';
   } catch (e) {
     return failure(e);
   }
+}
+
+/** iPhone: Sign in with Apple (App Store rule 4.8), with the same link-or-switch rules as Google. Apple sends the
+ * name only on the very first sign-in, so it is saved to the account then. */
+export async function signInWithApple(): Promise<SignInResult> {
+  if (!supabase()) return 'failed';
+  const rawNonce = Crypto.randomUUID();
+  let a: AppleAuthentication.AppleAuthenticationCredential;
+  try {
+    a = await AppleAuthentication.signInAsync({
+      requestedScopes: [AppleAuthentication.AppleAuthenticationScope.FULL_NAME, AppleAuthentication.AppleAuthenticationScope.EMAIL],
+      nonce: await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce)
+    });
+  } catch (e) {
+    return (e as { code?: string }).code === 'ERR_REQUEST_CANCELED' ? 'cancelled' : failure(e);
+  }
+  if (!a.identityToken) return 'failed';
+  const name = [a.fullName?.givenName, a.fullName?.familyName].filter(Boolean).join(' ');
+  return linkOrSwitch({ provider: 'apple', token: a.identityToken, nonce: rawNonce },
+    name ? () => supabase()!.auth.updateUser({ data: { full_name: name } }) : undefined);
 }
 
 const text = (v: unknown) => (typeof v === 'string' && v ? v : null);
@@ -69,6 +101,8 @@ export async function account(): Promise<Account | null> {
   const ids = data.session?.user.identities ?? [];
   const g = ids.find((i) => i.provider === 'google')?.identity_data;
   if (g) return { email: text(g.email), name: text(g.full_name) ?? text(g.name), photoUrl: text(g.avatar_url) ?? text(g.picture) };
+  const apple = ids.find((i) => i.provider === 'apple')?.identity_data;
+  if (apple) return { email: text(apple.email), name: text(data.session?.user.user_metadata?.full_name), photoUrl: null };
   const e = ids.find((i) => i.provider === 'email')?.identity_data;
   return e ? { email: text(e.email), name: text(data.session?.user.user_metadata?.full_name), photoUrl: null } : null;
 }

@@ -18,11 +18,11 @@
 <body>
 <main>
 <h1>Daily — Privacy Policy</h1>
-<p>Last updated: 8 October 2026 · App: Daily (<code>com.aaronalex.daily</code>) · Developer: Aaron Alex Sequeira</p>
+<p>Last updated: 14 October 2026 · App: Daily (<code>com.aaronalex.daily</code>) · Developer: Aaron Alex Sequeira</p>
 
 <p><strong>Short version:</strong> Daily keeps what it records on your phone. It only sends data off the phone for the
-features you choose: an optional Google sign-in, and Daily Plus, which writes a story of your day from app names and
-minutes. We never see your messages, notifications, photos or what's on your screen. We don't sell data, show ads or use
+features you choose: an optional sign-in (Google, Apple or email), Daily Plus, which writes a story of your day, and on
+iPhone, Sunny's reminders in the Dynamic Island. We never see your messages, notifications, photos or what's on your screen. We don't sell data, show ads or use
 analytics or tracking SDKs.</p>
 
 <h2>What Daily records on your phone</h2>
@@ -30,6 +30,10 @@ analytics or tracking SDKs.</p>
 your phone and when your screen was on. It also stores your goals, reminders, moods you log, water breaks and the reports
 it writes. All of this is stored only on your device, kept for the period you choose in Settings (90 days by default) and
 removed with Settings → Delete everything or by uninstalling the app. App backups to the cloud are turned off.</p>
+<p><strong>On iPhone</strong>, Daily uses Apple's Screen Time with your permission. Apple never gives Daily a list of the
+apps you used: your Screen Time is drawn inside Daily by Apple's own Screen Time extension and stays on your phone. Daily
+only learns your total phone time in steps (for example "1 hour reached at 10:05"), which it stores on your phone like
+the rest of your day.</p>
 <p>Daily does not read notification content, messages, contacts, location, photos, microphone or screen content.</p>
 
 <h2>What leaves your phone, and why</h2>
@@ -37,8 +41,11 @@ removed with Settings → Delete everything or by uninstalling the app. App back
 <tr><th>Data</th><th>When</th><th>Sent to</th><th>Why</th></tr>
 <tr><td>A random account ID</td><td>Always (created on first launch)</td><td>Supabase (our backend, hosted in the EU)</td><td>Identifies your subscription and AI usage limits. Not linked to your name unless you sign in.</td></tr>
 <tr><td>Google name, email and profile photo</td><td>Only if you choose "Continue with Google"</td><td>Google (to sign you in) and Supabase</td><td>So Daily Plus follows you to a new phone. Shown to you in Settings.</td></tr>
+<tr><td>Apple: your name (first sign-in only) and email, which may be an Apple private relay address</td><td>Only if you choose "Continue with Apple" (iPhone)</td><td>Apple (to sign you in) and Supabase</td><td>So Daily Plus follows you to a new phone. Shown to you in Settings.</td></tr>
+<tr><td>Email address, your name and a password (stored hashed)</td><td>Only if you create an account with email</td><td>Supabase</td><td>To sign you in and send sign-in codes.</td></tr>
 <tr><td>App names, app categories, minutes, times of day, pickups, your goal, logged moods and water breaks for one day or week</td><td>Only with Daily Plus, when your daily or weekly story is written</td><td>Supabase → OpenRouter → an AI model provider (currently OpenAI or Google)</td><td>To write your story. Requests are sent with provider data collection turned off; the text is not stored on our servers after it is returned to you.</td></tr>
-<tr><td>Purchase and subscription status</td><td>When you buy, restore or open Daily Plus</td><td>Google Play and RevenueCat</td><td>To process payments and check whether Plus is active. Payment details are handled by Google Play; we never see your card.</td></tr>
+<tr><td>Purchase and subscription status</td><td>When you buy, restore or open Daily Plus</td><td>Google Play or the App Store, and RevenueCat</td><td>To process payments and check whether Plus is active. Payment details are handled by Google or Apple; we never see your card.</td></tr>
+<tr><td>iPhone only: your reminder schedule (names, messages, times, days, break lengths), goal, wind-down and report times, time zone, phone-time steps (for example "1 hour reached"), Dynamic Island push tokens</td><td>While "Sunny in the Dynamic Island" is on</td><td>Supabase and Apple Push Notification service</td><td>So Sunny can show reminders and "your day is written" in the Dynamic Island while Daily is closed. No app names are sent. Turning the switch off deletes this data from our backend.</td></tr>
 </table>
 <p>Our backend keeps only your account ID, a cache of whether Plus is active, and counts of how many AI stories you
 used (deleted after 40 days). All traffic is encrypted in transit (HTTPS).</p>
@@ -49,6 +56,7 @@ used (deleted after 40 days). All traffic is encrypted in transit (HTTPS).</p>
 <li><a href="https://openrouter.ai/privacy">OpenRouter</a> and the model provider it routes to — writing Daily Plus stories</li>
 <li><a href="https://www.revenuecat.com/privacy/">RevenueCat</a> — subscription management</li>
 <li><a href="https://policies.google.com/privacy">Google</a> — Google Play billing and Google sign-in</li>
+<li><a href="https://www.apple.com/legal/privacy/">Apple</a> — App Store billing, Sign in with Apple, Screen Time and push notifications</li>
 </ul>
 <p>We share data only with these providers, only for the purposes above. We do not sell or rent personal data, and we
 do not share it for advertising.</p>
@@ -56,13 +64,13 @@ do not share it for advertising.</p>
 <h2>Your choices</h2>
 <ul>
 <li>Use Daily without signing in and without Daily Plus: then nothing about your day leaves your phone.</li>
-<li>Turn off Usage access in Android settings at any time; Daily stops recording.</li>
+<li>Turn off Usage access in Android settings, or Screen Time access for Daily in iPhone Settings, at any time; Daily stops recording.</li>
 <li>Export everything Daily stored (Settings → Export my data) or delete it (Settings → Delete everything).</li>
 <li>Sign out in Settings → Account.</li>
-<li>To delete your account and all server-side data (account ID, Google sign-in details, Plus cache and usage counts),
+<li>To delete your account and all server-side data (account ID, sign-in details, Plus cache, usage counts and Dynamic Island schedule),
 email <a href="mailto:aaronalexsequeira@gmail.com?subject=Delete%20my%20Daily%20account">aaronalexsequeira@gmail.com</a>
 from the email you signed in with, or include the account ID. We delete it within 30 days. Cancel any subscription in
-Google Play first; Google and RevenueCat keep purchase records as required by law.</li>
+Google Play or the App Store first; Google, Apple and RevenueCat keep purchase records as required by law.</li>
 </ul>
 
 <h2>Children</h2>

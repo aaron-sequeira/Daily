@@ -23,6 +23,10 @@ describe('billing helpers', () => {
     const pkg = (id: string, freePhase: { billingPeriod?: { unit?: string; value?: number } } | null) => ({ packageType: id === 'plus_yearly' ? 'ANNUAL' : 'MONTHLY', product: { identifier: id, price: id === 'plus_yearly' ? 29.99 : 3.99, priceString: id === 'plus_yearly' ? '$29.99' : '$3.99', currencyCode: 'USD', pricePerMonthString: id === 'plus_yearly' ? '$2.50' : '$3.99', defaultOption: { freePhase } } });
     expect(toOffer(pkg('plus_yearly', { billingPeriod: { unit: 'DAY', value: 7 } }))).toEqual({ plan: 'yearly', productId: 'plus_yearly', price: 29.99, priceString: '$29.99', perMonthString: '$2.50', currencyCode: 'USD', trialDays: 7 });
     expect(toOffer({ packageType: 'MONTHLY', product: { identifier: 'plus_monthly', price: 3.99, priceString: '$3.99', defaultOption: null } })!.currencyCode).toBeNull();
+    // App Store: the free trial comes as an introductory price of 0
+    const ios = { packageType: 'ANNUAL', product: { identifier: 'plus_yearly', price: 29.99, priceString: '$29.99', introPrice: { price: 0, periodUnit: 'WEEK', periodNumberOfUnits: 1 } } };
+    expect(toOffer(ios)!.trialDays).toBe(7);
+    expect(toOffer({ ...ios, product: { ...ios.product, introPrice: { price: 0.99, periodUnit: 'MONTH', periodNumberOfUnits: 1 } } })!.trialDays).toBeNull();
     expect(toOffer(pkg('plus_monthly', null))!.trialDays).toBeNull();
     expect(toOffer({ packageType: 'LIFETIME', product: { identifier: 'x', price: 1, priceString: '$1', defaultOption: null } })).toBeNull();
   });
