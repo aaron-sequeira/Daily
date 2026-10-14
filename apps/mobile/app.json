@@ -10,7 +10,7 @@
     "backgroundColor": "#FBF8F4",
     "ios": {
       "bundleIdentifier": "com.aaronalex.daily",
-      "buildNumber": "2",
+      "buildNumber": "3",
       "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
