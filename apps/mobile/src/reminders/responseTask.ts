@@ -1,3 +1,4 @@
+import { refreshIsland } from '../island/refresh';
 import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 import { getDb } from '../db/expoDb';
@@ -14,7 +15,7 @@ TaskManager.defineTask(RESPONSE_TASK, async ({ data }) => {
     if (!data || typeof data !== 'object' || !('actionIdentifier' in data)) return;
     if (isCoachResponse(data as unknown as ResponseLike)) { await handleCoachResponse(getDb(), expoNotifier, data as unknown as ResponseLike, Date.now()); return; }
     const a = fromResponse(data as unknown as Parameters<typeof fromResponse>[0]);
-    if (a && a.actionId !== 'open' && a.actionId !== 'break') await handleReminderAction(getDb(), expoNotifier, a, Date.now());
+    if (a && a.actionId !== 'open' && a.actionId !== 'break') { await handleReminderAction(getDb(), expoNotifier, a, Date.now()); await refreshIsland(); }
   } catch (e) {
     console.warn('daily: background reminder action failed', e);
   }

@@ -1,3 +1,4 @@
+import { refreshIsland } from '../island/refresh';
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
@@ -30,6 +31,7 @@ export function useReminderResponses(): void {
       .then((open) => {
         if (open?.route === '/break') router.push({ pathname: '/break', params: { id: String(open.reminderId) } });
         else if (open?.route === '/reminders') router.push('/reminders');
+        void refreshIsland();
         return applyReminders();
       })
       .catch((e) => console.warn('daily: reminder action failed', e));

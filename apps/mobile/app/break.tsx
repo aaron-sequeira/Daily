@@ -1,6 +1,9 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { getSetting } from '../src/db/settings';
+import { endIslandBreak, startIslandBreak } from '../src/island/drive';
+import { refreshIsland } from '../src/island/refresh';
+import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import { formatClock, ringOffset, secondsLeft } from '../src/break/countdown';
@@ -35,6 +38,18 @@ export default function Break() {
     const t = setInterval(() => setLeft(secondsLeft(start, total, Date.now())), 500);
     return () => clearInterval(t);
   }, [start, total]);
+
+  // The Dynamic Island shows this break's countdown; "End break" there closes this screen when Daily comes back.
+  useEffect(() => {
+    if (!reminder) return;
+    const db = getDb();
+    startIslandBreak(db, { reminderId: reminder.id, startMs: start, totalSec: total });
+    void refreshIsland();
+    const sub = AppState.addEventListener('change', (st) => {
+      if (st === 'active') void refreshIsland().then(() => { if (!getSetting(db, 'island_break') && !done.current) { done.current = true; leave(); } });
+    });
+    return () => { sub.remove(); endIslandBreak(db); void refreshIsland(); };
+  }, [reminder, start, total]);
 
   if (!reminder) {
     return (

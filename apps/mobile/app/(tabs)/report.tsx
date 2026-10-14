@@ -5,6 +5,8 @@ import { ActivityIndicator, AppState, Pressable, ScrollView, StyleSheet, Text, V
 import Animated from 'react-native-reanimated';
 import { getDb } from '../../src/db/expoDb';
 import { getSetting } from '../../src/db/settings';
+import { markIslandReportSeen } from '../../src/island/drive';
+import { refreshIsland } from '../../src/island/refresh';
 import { isPlus } from '../../src/plus/plus';
 import { clockShort, dayLabel, shiftDay } from '../../src/report/days';
 import { onReportsWritten, runRewrite } from '../../src/report/run';
@@ -57,6 +59,8 @@ export default function Report() {
   // While shown: reload when the app comes back and when a background write lands.
   useFocusEffect(useCallback(() => {
     load();
+    markIslandReportSeen(getDb(), Date.now()); // clears "Your day is written" from the Dynamic Island
+    void refreshIsland();
     const sub = AppState.addEventListener('change', (s) => { if (s === 'active') load(); });
     const stop = onReportsWritten(load);
     return () => { sub.remove(); stop(); };

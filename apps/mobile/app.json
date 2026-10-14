@@ -13,7 +13,14 @@
       "buildNumber": "1",
       "supportsTablet": false,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSSupportsLiveActivities": true
+      },
+      "appleTeamId": "B6H2KH4NKJ",
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.com.aaronalex.daily"
+        ]
       }
     },
     "android": {
@@ -52,7 +59,8 @@
         }
       ],
       "./plugins/withReleaseSigning",
-      "./plugins/withSplashSquare"
+      "./plugins/withSplashSquare",
+      "@bacons/apple-targets"
     ],
     "experiments": {
       "typedRoutes": true

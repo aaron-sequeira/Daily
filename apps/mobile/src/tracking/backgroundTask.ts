@@ -1,5 +1,6 @@
 import * as BackgroundTask from 'expo-background-task';
 import * as TaskManager from 'expo-task-manager';
+import { refreshIsland } from '../island/refresh';
 import { runReportWriter } from '../report/run';
 import { runSync } from './runSync';
 
@@ -10,6 +11,7 @@ TaskManager.defineTask(SYNC_TASK, async () => {
   try {
     await runSync();
     await runReportWriter({ retryFailed: false });
+    await refreshIsland();
     return BackgroundTask.BackgroundTaskResult.Success;
   } catch (e) {
     console.warn('daily: background sync failed', e);

@@ -23,6 +23,7 @@ import { Sunny } from '../../src/sunny/Sunny';
 import { C, F } from '../../src/theme';
 import { GoalStepper } from '../../src/ui/GoalStepper';
 import { FEATURES } from '../../src/platformNow';
+import { refreshIsland } from '../../src/island/refresh';
 import { GoogleG } from '../../src/ui/GoogleButton';
 import { SafeScreen } from '../../src/ui/SafeScreen';
 import { Icon } from '../../src/ui/icons';
@@ -40,6 +41,7 @@ export default function Settings() {
   }, []));
   const [sunny, setSunny] = useState(() => getSetting(db, 'sunny_service') === '1');
   const [bubbleOn, setBubbleOn] = useState(() => getSetting(db, 'bubble') === '1');
+  const [islandOn, setIslandOn] = useState(() => getSetting(db, 'island') === '1');
   const [noOverlay, setNoOverlay] = useState(false);
   useFocusEffect(useCallback(() => {
     const check = () => { try { setNoOverlay(!DailyNative.canDrawOverlays()); } catch { setNoOverlay(false); } };
@@ -225,6 +227,16 @@ export default function Settings() {
         <Link href="/settings/keep-running" asChild>
           <Pressable accessibilityRole="button" style={s.row}><Text style={s.rowText}>Keep Sunny running</Text><Text style={s.value}>Help</Text></Pressable>
         </Link>
+      </Group>
+      )}
+
+      {!FEATURES.sunnyChip && (
+      <Group i={3} label="Sunny">
+        <View style={s.row}>
+          <Text style={s.rowText}>Sunny in the Dynamic Island</Text>
+          <Switch value={islandOn} accessibilityLabel="Sunny in the Dynamic Island" trackColor={{ false: C.line, true: C.ink }} thumbColor={C.white} style={{ marginLeft: 'auto' }}
+            onValueChange={(on) => { setIslandOn(on); setSetting(db, 'island', on ? '1' : '0'); void refreshIsland(); }} />
+        </View>
       </Group>
       )}
 
