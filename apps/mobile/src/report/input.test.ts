@@ -3,6 +3,7 @@ import { MAX_BODY_BYTES, parseRequest } from '../../../../supabase-daily/supabas
 import { makeTestDb } from '../db/testDb';
 import { setSetting } from '../db/settings';
 import { buildReportInput } from './input';
+import { saveMilestones } from '../screentime/store';
 import { saveReport } from './store';
 import { at, seedReportDay } from './testSeed';
 
@@ -116,5 +117,25 @@ describe('buildReportInput', () => {
     const input = buildReportInput(db, '2026-10-06', at(21));
     expect(input.late).toEqual({ after: '23:00', minutes: 0 });
     expect(input.goalMin).toBe(240);
+  });
+
+  it('iPhone: builds the day from Screen Time milestones, which the server accepts', async () => {
+    const db = await makeTestDb();
+    const t = (h: number, m = 0, d = 6) => new Date(2026, 9, d, h, m).getTime();
+    saveMilestones(db, [
+      { min: 24, atMs: t(9) }, { min: 48, atMs: t(9, 40) }, { min: 60, atMs: t(10, 5) }, { min: 120, atMs: t(13) },
+      { min: 144, atMs: t(23, 20) },                       // after the 23:00 wind-down
+      { min: 90, atMs: t(21, 0, 4) }                        // Sunday: last7
+    ]);
+    const input = buildReportInput(db, '2026-10-06', t(23, 59));
+    expect(input).toMatchObject({ phoneMin: 144, pickups: 0, apps: [], categories: {}, longest: null, quietest: null, late: { after: '23:00', minutes: 24 } });
+    expect(input.hourly.reduce((a, b) => a + b, 0)).toBe(144);
+    expect(input.hourly[9]).toBe(48);
+    expect(input.hourly[13]).toBe(60);
+    expect(Math.max(...input.hourly)).toBeLessThanOrEqual(60);
+    expect(input.last7).toEqual([{ day: '2026-10-04', phoneMin: 90 }]);
+    expect(input.moods.map((m) => m.mood)).toEqual(['glowing', 'happy']);
+    const body = { kind: 'report', mode: 'auto', input };
+    expect(parseRequest(body)).toEqual(body);
   });
 });

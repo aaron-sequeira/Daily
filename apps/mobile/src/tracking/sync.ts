@@ -43,7 +43,7 @@ function logMood(db: Db, nowMs: number): void {
 
 function sweep(db: Db, nowMs: number): void {
   const cutoff = localDate(nowMs - getNumber(db, 'retention_days') * DAY_MS);
-  for (const table of ['sessions', 'pickups', 'mood_log', 'water_log', 'reports']) db.run(`DELETE FROM ${table} WHERE day < ?`, [cutoff]);
+  for (const table of ['sessions', 'pickups', 'mood_log', 'water_log', 'reports', 'st_milestones']) db.run(`DELETE FROM ${table} WHERE day < ?`, [cutoff]);
   db.run('DELETE FROM nudges WHERE ts_ms < ?', [nowMs - getNumber(db, 'retention_days') * DAY_MS]);
   db.run('DELETE FROM weeks WHERE week_start < ?', [cutoff]);
 }

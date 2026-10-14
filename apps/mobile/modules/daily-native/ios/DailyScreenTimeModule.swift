@@ -185,6 +185,11 @@ public class DailyScreenTimeModule: Module {
       (ScreenTimeStore.group?.array(forKey: "milestones") as? [[String: Double]]) ?? []
     }
 
+    /// Delete everything: the ActivityMonitor's copy too, or the next sync would bring the milestones back.
+    Function("clearMilestones") {
+      ScreenTimeStore.group?.removeObject(forKey: "milestones")
+    }
+
     View(ScreenTimeReportView.self) {
       Prop("context") { (view: ScreenTimeReportView, context: String) in
         view.context = context

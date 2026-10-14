@@ -25,6 +25,7 @@ import { GoalStepper } from '../../src/ui/GoalStepper';
 import { FEATURES } from '../../src/platformNow';
 import { refreshIsland } from '../../src/island/refresh';
 import { changeWhatCounts, startScreenTime } from '../../src/screentime/live';
+import { screenTime } from '../../modules/daily-native/screenTime';
 import { GoogleG } from '../../src/ui/GoogleButton';
 import { SafeScreen } from '../../src/ui/SafeScreen';
 import { Icon } from '../../src/ui/icons';
@@ -108,6 +109,7 @@ export default function Settings() {
   const wipe = async () => {
     await runSync().catch(() => {}); // let any sync that already started finish, so none can write after the delete
     deleteEverything(db, Date.now());
+    try { screenTime?.clearMilestones(); } catch (e) { console.warn('daily: clearing Screen Time milestones failed', e); }
     syncSunnyService(db, DailyNative);
     await Notifications.cancelAllScheduledNotificationsAsync().catch((e) => console.warn('daily: cancelling alarms failed', e));
     await Notifications.dismissAllNotificationsAsync().catch((e) => console.warn('daily: dismissing notifications failed', e));

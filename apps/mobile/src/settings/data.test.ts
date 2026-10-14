@@ -13,7 +13,7 @@ describe('settings data', () => {
     db.run("INSERT INTO apps (package, label, category, icon_png) VALUES ('com.a', 'A', 'fun', 'BIGICON')");
     setSetting(db, 'goal_min', 180);
     const out = JSON.parse(exportJson(db));
-    expect(Object.keys(out).sort()).toEqual(['apps', 'exportedAt', 'mood_log', 'nudges', 'pickups', 'reminder_state', 'reminders', 'reports', 'sessions', 'settings', 'water_log', 'weeks']);
+    expect(Object.keys(out).sort()).toEqual(['apps', 'exportedAt', 'mood_log', 'nudges', 'pickups', 'reminder_state', 'reminders', 'reports', 'sessions', 'settings', 'st_milestones', 'water_log', 'weeks']);
     expect(out.apps[0]).toEqual({ package: 'com.a', label: 'A', category: 'fun', user_category: null });
     expect(out.settings).toEqual([{ key: 'goal_min', value: '180' }]);
   });

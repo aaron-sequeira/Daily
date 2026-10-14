@@ -20,7 +20,9 @@ export type WriterDeps = {
 };
 
 const dayOver = (day: string, nowMs: number) => nowMs >= dayStartMs(shiftDay(day, 1));
-const hasData = (db: Db, day: string) => (db.get<{ n: number }>('SELECT COUNT(*) AS n FROM sessions WHERE day = ?', [day])?.n ?? 0) > 0;
+/** Phone time on Android (sessions) or iPhone (Screen Time milestones). */
+const hasData = (db: Db, day: string) =>
+  !!db.get('SELECT 1 AS x FROM sessions WHERE day = ? UNION ALL SELECT 1 AS x FROM st_milestones WHERE day = ? LIMIT 1', [day, day]);
 const timeOn = (day: string, hhmm: string) => { const [h, m] = hhmm.split(':').map(Number); return dayStartMs(day) + (h * 60 + m) * 60_000; };
 /** False once Delete everything has run (it clears `onboarded`): a write that was waiting on the AI must not bring rows back. */
 const stillOnboarded = (db: Db) => getSetting(db, 'onboarded') === '1';

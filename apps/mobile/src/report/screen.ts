@@ -18,5 +18,5 @@ export function reportScreen(db: Db, day: string, nowMs: number): ReportScreen {
 }
 
 export function firstDataDay(db: Db): string | null {
-  return db.get<{ d: string | null }>('SELECT MIN(d) AS d FROM (SELECT MIN(day) AS d FROM sessions UNION ALL SELECT MIN(day) FROM reports)')?.d ?? null;
+  return db.get<{ d: string | null }>('SELECT MIN(d) AS d FROM (SELECT MIN(day) AS d FROM sessions UNION ALL SELECT MIN(day) FROM st_milestones UNION ALL SELECT MIN(day) FROM reports)')?.d ?? null;
 }

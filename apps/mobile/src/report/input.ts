@@ -56,8 +56,26 @@ export function appMeta(db: Db, pkgs: string[]): Map<string, { name: string; cat
   return out;
 }
 
+/** iPhone: a day's Screen Time milestones as phone time per hour. Each step counts in the hour it was reached
+ * (iOS only says when a step was crossed); an hour over 60 spills into the hours before it. */
+export function milestoneHours(steps: { min: number; at_ms: number }[]): number[] {
+  const hourly = Array<number>(24).fill(0);
+  let prev = 0;
+  for (const s of steps) {
+    let add = Math.max(0, s.min - prev);
+    prev = Math.max(prev, s.min);
+    for (let h = new Date(s.at_ms).getHours(); add > 0 && h >= 0; h--) {
+      const take = Math.min(add, 60 - hourly[h]);
+      hourly[h] += take;
+      add -= take;
+    }
+  }
+  return hourly;
+}
+
 export function buildReportInput(db: Db, day: string, nowMs: number): ReportInput {
   const spans = daySpans(db, day, nowMs);
+  const steps = spans.length ? [] : db.all<{ min: number; at_ms: number }>('SELECT min, at_ms FROM st_milestones WHERE day = ? ORDER BY at_ms', [day]);
   const meta = appMeta(db, spans.map((s) => s.pkg));
   const dayStart = dayStartMs(day);
   // Filled from Android's daily totals (no event log): the minutes are real, but not when they happened.
@@ -100,10 +118,20 @@ export function buildReportInput(db: Db, day: string, nowMs: number): ReportInpu
   const lateFrom = dayStart + (wh * 60 + wm) * MIN;
   const lateTo = wh >= 5 ? dayStartMs(shiftDay(day, 1)) : dayStart + 5 * HOUR; // the night ends at 05:00 (coach/rules.ts)
   const late = { after: windDownValid, minutes: totalsOnly ? 0 : mins(spans.reduce((t, s) => t + overlap(s, lateFrom, lateTo), 0)) };
+  if (steps.length) {
+    // iPhone: Screen Time steps after wind-down (the step's minutes were reached in that window)
+    let prev = 0;
+    for (const st of steps) {
+      if (st.at_ms >= lateFrom && st.at_ms < lateTo) late.minutes += Math.max(0, st.min - prev);
+      prev = Math.max(prev, st.min);
+    }
+  }
 
   const count = (table: string) => db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM ${table} WHERE day = ?`, [day])?.n ?? 0;
   const last7 = Array.from({ length: 7 }, (_, i) => shiftDay(day, i - 7))
-    .map((d) => ({ day: d, phoneMin: mins(db.get<{ ms: number | null }>('SELECT SUM(end_ms - start_ms) AS ms FROM sessions WHERE day = ?', [d])?.ms ?? 0) }))
+    .map((d) => ({ day: d, phoneMin: Math.max(
+      mins(db.get<{ ms: number | null }>('SELECT SUM(end_ms - start_ms) AS ms FROM sessions WHERE day = ?', [d])?.ms ?? 0),
+      db.get<{ m: number | null }>('SELECT MAX(min) AS m FROM st_milestones WHERE day = ?', [d])?.m ?? 0) }))
     .filter((d) => d.phoneMin > 0);
 
   const goalMinRaw = getNumber(db, 'goal_min');
@@ -112,9 +140,9 @@ export function buildReportInput(db: Db, day: string, nowMs: number): ReportInpu
   return {
     day,
     goalMin,
-    phoneMin: mins(spans.reduce((t, s) => t + (s.end - s.start), 0)),
+    phoneMin: steps.length ? Math.max(...steps.map((x) => x.min)) : mins(spans.reduce((t, s) => t + (s.end - s.start), 0)),
     pickups: count('pickups'),
-    apps, categories, hourly, longest, quietest, late,
+    apps, categories, hourly: steps.length ? milestoneHours(steps) : hourly, longest, quietest, late,
     moods: db.all<{ mood: Mood; ts_ms: number }>('SELECT mood, ts_ms FROM mood_log WHERE day = ? ORDER BY ts_ms LIMIT 12', [day]).map((m) => ({ mood: m.mood, at: hhmm(m.ts_ms) })),
     water: Math.min(100, count('water_log')), // the server's cap
     last7,

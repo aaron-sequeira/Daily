@@ -11,6 +11,7 @@ export type ScreenTimeApi = {
   pickApps(): Promise<boolean>;
   startMonitoring(minutes: number[]): Promise<void>;
   milestones(): { min: number; atMs: number }[];
+  clearMilestones(): void;
 };
 
 const native = requireOptionalNativeModule<ScreenTimeApi>('DailyScreenTime');

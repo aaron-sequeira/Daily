@@ -17,13 +17,14 @@ export function exportJson(db: Db): string {
     reminders: db.all('SELECT id, builtin, name, message, animation, schedule, break_sec, enabled FROM reminders ORDER BY id'),
     reminder_state: db.all('SELECT id, last_fired_at, last_done_at, skip_date FROM reminder_state ORDER BY id'),
     water_log: db.all('SELECT ts_ms, day FROM water_log ORDER BY ts_ms'),
+    st_milestones: db.all('SELECT at_ms, min, day FROM st_milestones ORDER BY at_ms'),
     settings: db.all('SELECT key, value FROM settings ORDER BY key')
   }, null, 2);
 }
 
 export function deleteEverything(db: Db, nowMs: number): void {
   db.tx(() => {
-    for (const t of ['sessions', 'pickups', 'apps', 'ingest_state', 'mood_log', 'nudges', 'settings', 'reminders', 'reminder_state', 'water_log', 'reports', 'weeks']) db.run(`DELETE FROM ${t}`);
+    for (const t of ['sessions', 'pickups', 'apps', 'ingest_state', 'mood_log', 'nudges', 'settings', 'reminders', 'reminder_state', 'water_log', 'reports', 'weeks', 'totals_days', 'st_milestones']) db.run(`DELETE FROM ${t}`);
     // Park the cursor at now so the next sync does not backfill the 7 days we just deleted.
     db.run('INSERT INTO ingest_state (id, last_event_ms, open_pkg, open_start_ms) VALUES (1, ?, NULL, NULL)', [nowMs]);
   });

@@ -2,6 +2,7 @@ import { screenTime } from '../../modules/daily-native/screenTime';
 import type { Db } from '../db/db';
 import { getNumber } from '../db/settings';
 import { phoneMinToday, thresholds } from './milestones';
+import { saveMilestones } from './store';
 
 /** Screen Time is on: permission given and something chosen to count. Always false on Android. */
 export function screenTimeReady(): boolean {
@@ -41,4 +42,10 @@ export async function setUpScreenTime(db: Db): Promise<SetUpResult> {
 export async function changeWhatCounts(db: Db): Promise<void> {
   if (!screenTime) return;
   if (await screenTime.pickApps().catch(() => false)) await startScreenTime(db);
+}
+
+/** Copies new milestones from the App Group into the database (the day report, week and moods read them there). */
+export function syncScreenTime(db: Db): void {
+  if (!screenTime) return;
+  try { saveMilestones(db, screenTime.milestones()); } catch (e) { console.warn('daily: screen time sync failed', e); }
 }

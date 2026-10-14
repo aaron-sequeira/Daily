@@ -21,7 +21,10 @@ export const MIGRATIONS: string[] = [
   `CREATE TABLE reports (day TEXT PRIMARY KEY, kind TEXT NOT NULL, json TEXT NOT NULL, created_ms INTEGER NOT NULL);
    CREATE TABLE weeks (week_start TEXT PRIMARY KEY, sentence TEXT NOT NULL, created_ms INTEGER NOT NULL);`,
   // Days filled from Android's daily per-app totals (phones that keep no event log): no timeline for these.
-  `CREATE TABLE totals_days (day TEXT PRIMARY KEY);`
+  `CREATE TABLE totals_days (day TEXT PRIMARY KEY);`,
+  // iPhone: Screen Time milestones (phone time today reached `min` at `at_ms`); iOS gives Daily nothing finer.
+  `CREATE TABLE st_milestones (at_ms INTEGER PRIMARY KEY, min INTEGER NOT NULL, day TEXT NOT NULL);
+   CREATE INDEX st_milestones_day ON st_milestones(day);`
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

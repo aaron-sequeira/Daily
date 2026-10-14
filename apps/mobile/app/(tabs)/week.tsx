@@ -3,17 +3,16 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSpring } from 'react-native-reanimated';
-import { ScreenTimeReport, screenTime } from '../../modules/daily-native/screenTime';
+import { ScreenTimeReport } from '../../modules/daily-native/screenTime';
 import { getDb } from '../../src/db/expoDb';
 import { FEATURES } from '../../src/platformNow';
 import { screenTimeReady } from '../../src/screentime/live';
-import { weekAverages } from '../../src/screentime/milestones';
 import { formatDuration } from '../../src/format';
 import { isPlus } from '../../src/plus/plus';
 import { shiftDay, weekStartOf } from '../../src/report/days';
 import { liveDeps } from '../../src/report/run';
 import { loadWeekSentence } from '../../src/report/store';
-import { buildWeek, weekSentence, type WeekView } from '../../src/report/week';
+import { buildWeek, type WeekView } from '../../src/report/week';
 import { ensureWeekSentence } from '../../src/report/writer';
 import { C, F } from '../../src/theme';
 import { CATEGORIES, CATEGORY_LOOK } from '../../src/tracking/categories';
@@ -49,21 +48,18 @@ function dayLabelFor(d: WeekView['days'][number]): string {
 
 /** iPhone: Apple's Screen Time drawn by the ScreenTimeReport extension (same layout as WeekBody), and the week sentence
  * from Screen Time milestones. */
-function IosWeekBody({ weekStart, aiSentence }: { weekStart: string; aiSentence: string | null }) {
+function IosWeekBody({ weekStart, view, aiSentence }: { weekStart: string; view: WeekView | null; aiSentence: string | null }) {
   const plus = isPlus(getDb());
   if (!screenTimeReady() || !ScreenTimeReport) {
     return <Animated.View entering={rise(2)} style={s.box}><Text style={s.muted}>Turn on Screen Time from Today to see your week.</Text></Animated.View>;
   }
-  const now = Date.now();
   const startMs = new Date(`${weekStart}T00:00:00`).getTime();
-  const current = shiftDay(weekStart, 7) > localDate(now);
-  const { avg, lastAvg } = weekAverages(screenTime?.milestones() ?? [], weekStart, now);
   return (
     <>
       <Animated.View entering={rise(2)}><ScreenTimeReport context="weekChart" startMs={startMs} style={{ height: 268 }} /></Animated.View>
       <Animated.View entering={rise(3)} style={s.sentence}>
         <Text style={s.eyebrow}>Week in a sentence</Text>
-        <Text style={s.sentenceText}>{aiSentence ?? weekSentence(avg, lastAvg, current)}</Text>
+        <Text style={s.sentenceText}>{aiSentence ?? view?.sentence ?? ''}</Text>
         {!plus && (
           <Pressable onPress={() => router.push('/paywall')} accessibilityRole="button" style={s.sentenceBtn}><Text style={s.sentenceBtnText}>Daily Plus writes this for you</Text></Pressable>
         )}
@@ -182,7 +178,7 @@ export default function Week() {
       </Animated.View>
 
       {FEATURES.screenTime
-        ? <IosWeekBody weekStart={startFor(which, Date.now())} aiSentence={aiSentence} />
+        ? <IosWeekBody weekStart={startFor(which, Date.now())} view={ready ? view : null} aiSentence={aiSentence} />
         : ready && view ? <WeekBody view={view} aiSentence={aiSentence} /> : failed ? <Text style={s.muted}>Couldn't load this week.</Text> : null}
     </ScrollView>
     </SafeScreen>

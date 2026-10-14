@@ -1,4 +1,5 @@
 import { localDate } from '@worksight/core/date';
+import { stDayMin } from '../screentime/store';
 import type { Db } from '../db/db';
 import { formatDuration as f } from '../format';
 import type { Category } from '../tracking/categories';
@@ -35,7 +36,9 @@ function totals(db: Db, weekStart: string, nowMs: number) {
     }
     const byCat: Partial<Record<Category, number>> = {};
     for (const [c, cms] of catMs) byCat[c] = Math.round(cms / MIN);
-    days.push({ day, label: weekdayShort(day), phoneMin: Math.round(ms / MIN), byCat, isToday: day === today, future });
+    // iPhone keeps no sessions: the day's Screen Time milestone is its phone time
+    const phoneMin = Math.max(Math.round(ms / MIN), future ? 0 : stDayMin(db, day));
+    days.push({ day, label: weekdayShort(day), phoneMin, byCat, isToday: day === today, future });
   }
   const counted = days.filter((d) => d.phoneMin > 0).length;
   const avg = counted ? Math.round(days.reduce((t, d) => t + d.phoneMin, 0) / counted) : null;
