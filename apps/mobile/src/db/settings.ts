@@ -21,7 +21,13 @@ export const DEFAULTS = {
   last_report_tap: '',
   last_route_tap: '',
   rewrites_today: '', // '<YYYY-MM-DD>|<rewrites used that day>'
-  week_ai_try: '' // '<weekStart>|<YYYY-MM-DD>' of the last AI week-sentence try, or '<weekStart>|never' after an invalid answer
+  week_ai_try: '', // '<weekStart>|<YYYY-MM-DD>' of the last AI week-sentence try, or '<weekStart>|never' after an invalid answer
+  island: '1', // Sunny in the Dynamic Island (iPhone)
+  island_last: '', // the last IslandState JSON sent to the Live Activity
+  island_last_at: '0', // ms of that send; re-sent after 6 h so the activity is restarted before iOS's 8 h limit
+  island_break: '', // BreakNow JSON while a break runs
+  island_handled: '{}', // { reminderId: ms } Done/Snooze pressed in the Island
+  island_report_seen: '' // YYYY-MM-DD the Report tab was opened, which clears the report state
 } as const;
 
 export type SettingKey = keyof typeof DEFAULTS;

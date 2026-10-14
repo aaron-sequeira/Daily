@@ -6,7 +6,7 @@ import { pendingReminder, pickIsland, type IslandInputs } from './state';
 // Tue 6 Oct 2026 in Asia/Kolkata (vitest.setup.ts).
 const at = (h: number, m = 0) => new Date(2026, 9, 6, h, m).getTime();
 const reminder = (id: number, time: string, o: Partial<Reminder> = {}): Reminder =>
-  ({ id, name: 'Lunch', message: 'm', animation: 'meal', breakSec: 0, enabled: true, builtin: null, schedule: { type: 'time', time, days: [0, 1, 2, 3, 4, 5, 6] }, ...o });
+  ({ id, name: 'Lunch', message: 'm', animation: 'meal', breakSec: 0, enabled: true, builtin: null, schedule: { type: 'time', time, days: [1, 2, 3, 4, 5, 6, 7] }, ...o });
 const report = (o: Partial<StoredReport> = {}): StoredReport =>
   ({ day: '2026-10-06', kind: 'plain', headline: '', story: null, highlights: [], plan: [], aiError: null, final: true, createdMs: at(21), ...o });
 const base = (o: Partial<IslandInputs> = {}): IslandInputs =>
