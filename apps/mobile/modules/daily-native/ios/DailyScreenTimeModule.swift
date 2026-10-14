@@ -56,16 +56,20 @@ struct PickerSheet: View {
 /// Hosts Apple's DeviceActivityReport (drawn by targets/screentime-report) inside a React Native view.
 struct ReportHost: View {
   let context: String
+  /// Week contexts: the first day of the week shown (ms). The previous week is included for "vs last week".
+  let startMs: Double
 
   var body: some View {
     let cal = Calendar.current
     let now = Date()
     let today = cal.startOfDay(for: now)
-    if context == "week" {
-      let start = cal.date(byAdding: .day, value: -6, to: today) ?? today
+    if context == "weekChart" || context == "weekApps" {
+      let weekStart = startMs > 0 ? Date(timeIntervalSince1970: startMs / 1000) : (cal.date(byAdding: .day, value: -6, to: today) ?? today)
+      let from = cal.date(byAdding: .day, value: -7, to: weekStart) ?? weekStart
+      let to = min(cal.date(byAdding: .day, value: 7, to: weekStart) ?? now, now)
       DeviceActivityReport(
-        DeviceActivityReport.Context("week"),
-        filter: DeviceActivityFilter(segment: .daily(during: DateInterval(start: start, end: now)), users: .all, devices: .init([.iPhone]))
+        DeviceActivityReport.Context(context),
+        filter: DeviceActivityFilter(segment: .daily(during: DateInterval(start: from, end: max(to, from))), users: .all, devices: .init([.iPhone]))
       )
     } else {
       DeviceActivityReport(
@@ -83,9 +87,19 @@ class ScreenTimeReportView: ExpoView {
     didSet { render() }
   }
 
+  var startMs: Double = 0 {
+    didSet {
+      // the report extension reads the week shown from the App Group (it gets no other input)
+      if startMs > 0 { ScreenTimeStore.group?.set(startMs, forKey: "report_week_start_ms") }
+      render()
+    }
+  }
+
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
     host.view.backgroundColor = .clear
+    // The report is for looking at: let every touch through so the screen's ScrollView can scroll over it.
+    host.view.isUserInteractionEnabled = false
     addSubview(host.view)
     render()
   }
@@ -96,7 +110,7 @@ class ScreenTimeReportView: ExpoView {
   }
 
   private func render() {
-    host.rootView = AnyView(ReportHost(context: context))
+    host.rootView = AnyView(ReportHost(context: context, startMs: startMs))
   }
 }
 
@@ -174,6 +188,9 @@ public class DailyScreenTimeModule: Module {
     View(ScreenTimeReportView.self) {
       Prop("context") { (view: ScreenTimeReportView, context: String) in
         view.context = context
+      }
+      Prop("startMs") { (view: ScreenTimeReportView, startMs: Double) in
+        view.startMs = startMs
       }
     }
   }

@@ -13,7 +13,7 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
     let nowMs = now.timeIntervalSince1970 * 1000
     let midnightMs = Calendar.current.startOfDay(for: now).timeIntervalSince1970 * 1000
     var list = (group?.array(forKey: "milestones") as? [[String: Double]]) ?? []
-    list = list.filter { ($0["atMs"] ?? 0) > nowMs - 8 * 86_400_000 } // a week is all the app needs
+    list = list.filter { ($0["atMs"] ?? 0) > nowMs - 15 * 86_400_000 } // this week and last week are all the app needs
     let today = list.filter { ($0["atMs"] ?? 0) >= midnightMs }
     if today.contains(where: { ($0["min"] ?? 0) >= min }) { return }
     // iOS sometimes fires thresholds early, even all at once. Phone time can never grow faster than the clock,

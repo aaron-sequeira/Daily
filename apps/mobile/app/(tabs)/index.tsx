@@ -53,7 +53,10 @@ export default function Today() {
       <Animated.Text entering={rise(1)} style={s.date}>{greeting(now)} · {dateLine(now, view.firstPickupMs)}</Animated.Text>
       {/* iPhone: Apple's Screen Time report (drawn by the ScreenTimeReport extension) replaces the per-app sections. */}
       {FEATURES.screenTime && (access && ScreenTimeReport ? (
-        <Animated.View entering={rise(2)}><ScreenTimeReport context="today" style={{ height: 780, marginBottom: 18 }} /></Animated.View>
+        <>
+          <Animated.View entering={rise(2)} style={[s.panel, { marginBottom: 18 }]}><SunnyCard view={view} access={access} /></Animated.View>
+          <Animated.View entering={rise(3)}><ScreenTimeReport context="today" style={{ height: 820 }} /></Animated.View>
+        </>
       ) : (
         <Animated.View entering={rise(2)} style={[s.banner, { marginTop: 8 }]}>
           <Text style={s.bannerTitle}>See your Screen Time</Text>
@@ -108,10 +111,11 @@ export default function Today() {
 
       </>)}
 
-      <Animated.View entering={rise(9)} style={s.panel}>
+      {/* iPhone with Screen Time shows Sunny above the report instead */}
+      {!(FEATURES.screenTime && access) && <Animated.View entering={rise(9)} style={s.panel}>
         <SunnyCard view={view} access={access} />
         {FEATURES.usageAccess && <Timeline view={view} />}
-      </Animated.View>
+      </Animated.View>}
     </ScrollView>
     </SafeScreen>
   );

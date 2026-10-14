@@ -21,6 +21,11 @@
     "production": {
       "extends": "base",
       "autoIncrement": true
+    },
+    "ci": {
+      "extends": "base",
+      "distribution": "store",
+      "autoIncrement": false
     }
   },
   "submit": {

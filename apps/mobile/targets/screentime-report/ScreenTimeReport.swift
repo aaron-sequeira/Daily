@@ -3,13 +3,15 @@ import FamilyControls
 import ManagedSettings
 import SwiftUI
 
-/// Draws the user's Screen Time inside Daily (Today's top half and the Week chart). Apple runs this extension in a
-/// sandbox: what it reads here never leaves it, so the app itself only ever sees milestones.
+/// Draws the user's Screen Time inside Daily: Today's top half and the Week chart + top apps, in the same layout as
+/// the Android screens (app/(tabs)/index.tsx, week.tsx). Apple runs this extension in a sandbox: what it reads here
+/// never leaves it, so the app itself only ever sees milestones.
 @main
 struct ScreenTimeReport: DeviceActivityReportExtension {
   var body: some DeviceActivityReportScene {
     TodayScene { TodayReportView(model: $0) }
-    WeekScene { WeekReportView(model: $0) }
+    WeekChartScene { WeekChartView(model: $0) }
+    WeekAppsScene { WeekAppsView(model: $0) }
   }
 }
 
@@ -25,18 +27,48 @@ private enum Look {
   static let bg = Color(hex: 0xFBF8F4)
   static let ink = Color(hex: 0x171717)
   static let muted = Color(hex: 0x77716C)
+  static let line = Color(hex: 0xE7DFD8)
   static let track = Color(hex: 0xF5F1EC)
   static let card = Color.white
+  static let down = Color(hex: 0x1F7A4D)
+  static let up = Color(hex: 0x9A3B2E)
+}
 
-  /// Apple's categories onto Daily's colours (src/tracking/categories.ts).
-  static func color(for category: String) -> Color {
-    let c = category.lowercased()
-    if c.contains("social") { return Color(hex: 0xF4C6C8) }
-    if c.contains("productivity") || c.contains("finance") || c.contains("utilities") { return Color(hex: 0xD8D2FC) }
-    if c.contains("entertainment") || c.contains("games") || c.contains("creativity") { return Color(hex: 0xF9DDB9) }
-    if c.contains("education") || c.contains("reading") || c.contains("health") { return Color(hex: 0xBFEBD3) }
-    if c.contains("travel") || c.contains("shopping") { return Color(hex: 0xCFE6FB) }
-    return Color(hex: 0xE9E3DD)
+/// Daily's categories (src/tracking/categories.ts), in the same order and colours.
+enum DailyCategory: String, CaseIterable, Identifiable {
+  case social, messages, fun, learning, work, other
+  var id: String { rawValue }
+
+  var label: String {
+    switch self {
+    case .social: return "Social"
+    case .messages: return "Messages"
+    case .fun: return "Fun"
+    case .learning: return "Learning"
+    case .work: return "Work"
+    case .other: return "Other"
+    }
+  }
+
+  var color: Color {
+    switch self {
+    case .social: return Color(hex: 0xF4C6C8)
+    case .messages: return Color(hex: 0xCFE6FB)
+    case .fun: return Color(hex: 0xF9DDB9)
+    case .learning: return Color(hex: 0xBFEBD3)
+    case .work: return Color(hex: 0xD8D2FC)
+    case .other: return Color(hex: 0xE9E3DD)
+    }
+  }
+
+  /// Apple's Screen Time categories onto Daily's.
+  init(apple name: String?) {
+    let c = (name ?? "").lowercased()
+    if c.contains("social") { self = .social }
+    else if c.contains("entertainment") || c.contains("games") || c.contains("creativity") { self = .fun }
+    else if c.contains("education") || c.contains("reading") || c.contains("health") { self = .learning }
+    else if c.contains("productivity") || c.contains("finance") || c.contains("utilities") { self = .work }
+    else { self = .other }
   }
 }
 
@@ -56,25 +88,39 @@ private func clock(_ date: Date) -> String {
   return f.string(from: date)
 }
 
-// MARK: - Today
-
 struct AppRow: Identifiable {
   let id: String
   let name: String
   let token: ApplicationToken?
+  let category: DailyCategory
   var minutes: Double
 }
 
-struct CategoryRow: Identifiable {
-  let id: String
-  var minutes: Double
+struct AppIcon: View {
+  let app: AppRow
+  var body: some View {
+    if let token = app.token {
+      Label(token).labelStyle(.iconOnly).frame(width: 28, height: 28)
+    } else {
+      Circle().fill(app.category.color).frame(width: 28, height: 28)
+        .overlay(Text(String(app.name.prefix(1)).uppercased()).font(.system(size: 11, weight: .semibold)).foregroundStyle(Look.ink))
+    }
+  }
+}
+
+// MARK: - Today
+
+struct CategoryTotal: Identifiable {
+  let category: DailyCategory
+  let minutes: Double
+  var id: String { category.rawValue }
 }
 
 struct TodayModel {
   var totalMin: Double = 0
   var pickups = 0
   var firstPickup: Date?
-  var categories: [CategoryRow] = []
+  var categories: [CategoryTotal] = []
   var apps: [AppRow] = []
   var hours = Array(repeating: 0.0, count: 24)
 }
@@ -85,30 +131,29 @@ struct TodayScene: DeviceActivityReportScene {
 
   func makeConfiguration(representing data: DeviceActivityResults<DeviceActivityData>) async -> TodayModel {
     var model = TodayModel()
-    var categories: [String: Double] = [:]
+    var categories: [DailyCategory: Double] = [:]
     var apps: [String: AppRow] = [:]
     for await device in data {
       for await segment in device.activitySegments {
         let minutes = segment.totalActivityDuration / 60
-        let hour = Calendar.current.component(.hour, from: segment.dateInterval.start)
-        model.hours[hour] += minutes
+        model.hours[Calendar.current.component(.hour, from: segment.dateInterval.start)] += minutes
         model.totalMin += minutes
         model.pickups += segment.totalPickupsWithoutApplicationActivity
         if let first = segment.firstPickup, model.firstPickup.map({ first < $0 }) ?? true { model.firstPickup = first }
         for await category in segment.categories {
-          let name = category.category.localizedDisplayName ?? "Other"
-          categories[name, default: 0] += category.totalActivityDuration / 60
+          let daily = DailyCategory(apple: category.category.localizedDisplayName)
+          categories[daily, default: 0] += category.totalActivityDuration / 60
           for await app in category.applications {
             let label = app.application.localizedDisplayName ?? app.application.bundleIdentifier ?? "App"
             let key = app.application.bundleIdentifier ?? label
             model.pickups += app.numberOfPickups
-            if apps[key] == nil { apps[key] = AppRow(id: key, name: label, token: app.application.token, minutes: 0) }
+            if apps[key] == nil { apps[key] = AppRow(id: key, name: label, token: app.application.token, category: daily, minutes: 0) }
             apps[key]?.minutes += app.totalActivityDuration / 60
           }
         }
       }
     }
-    model.categories = categories.map { CategoryRow(id: $0.key, minutes: $0.value) }.filter { $0.minutes >= 1 }.sorted { $0.minutes > $1.minutes }
+    model.categories = categories.filter { $0.value >= 1 }.map { CategoryTotal(category: $0.key, minutes: $0.value) }.sorted { $0.minutes > $1.minutes }
     model.apps = apps.values.filter { $0.minutes >= 1 }.sorted { $0.minutes > $1.minutes }
     return model
   }
@@ -124,6 +169,7 @@ struct TodayReportView: View {
           .font(.system(size: 34))
           .tracking(-0.8)
           .foregroundStyle(Look.ink)
+          .fixedSize(horizontal: false, vertical: true)
         Text(pickupLine).font(.system(size: 13)).foregroundStyle(Look.muted)
       }
 
@@ -135,15 +181,15 @@ struct TodayReportView: View {
       } else {
         Text("Where your time went").font(.system(size: 15, weight: .semibold)).foregroundStyle(Look.ink)
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-          ForEach(model.categories.prefix(4)) { c in
+          ForEach(Array(model.categories.prefix(4))) { c in
             VStack(alignment: .leading, spacing: 6) {
-              Text(c.id).font(.system(size: 13, weight: .semibold)).foregroundStyle(Look.ink).lineLimit(1)
+              Text(c.category.label).font(.system(size: 13, weight: .semibold)).foregroundStyle(Look.ink)
               Text(duration(c.minutes)).font(.system(size: 22)).foregroundStyle(Look.ink)
               Text("\(Int((c.minutes / max(model.totalMin, 1) * 100).rounded()))% of today").font(.system(size: 12)).foregroundStyle(Look.ink.opacity(0.6))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(14)
-            .background(Look.color(for: c.id))
+            .background(c.category.color)
             .clipShape(RoundedRectangle(cornerRadius: 22))
           }
         }
@@ -151,9 +197,7 @@ struct TodayReportView: View {
         VStack(spacing: 0) {
           ForEach(Array(model.apps.prefix(5))) { app in
             HStack(spacing: 12) {
-              if let token = app.token {
-                Label(token).labelStyle(.iconOnly).frame(width: 28, height: 28)
-              }
+              AppIcon(app: app)
               Text(app.name).font(.system(size: 15)).foregroundStyle(Look.ink).lineLimit(1)
               Spacer()
               Text(duration(app.minutes)).font(.system(size: 15)).foregroundStyle(Look.muted)
@@ -205,69 +249,177 @@ struct HourBars: View {
   }
 }
 
-// MARK: - Week
+// MARK: - Week (the host passes the previous week too, for "vs last week")
 
-struct DayTotal: Identifiable {
+struct DayBar: Identifiable {
   let id: Date
-  var minutes: Double
+  var byCat: [DailyCategory: Double] = [:]
+  var total: Double { byCat.values.reduce(0, +) }
 }
 
 struct WeekModel {
-  var days: [DayTotal] = []
+  var days: [DayBar] = []          // the 7 days of the week shown
+  var avgMin: Double?               // over the days that have passed
+  var lastAvgMin: Double?           // the week before
+  var apps: [AppRow] = []           // minutes a day, this week
 }
 
-struct WeekScene: DeviceActivityReportScene {
-  let context = DeviceActivityReport.Context("week")
-  let content: (WeekModel) -> WeekReportView
-
-  func makeConfiguration(representing data: DeviceActivityResults<DeviceActivityData>) async -> WeekModel {
-    let cal = Calendar.current
-    var totals: [Date: Double] = [:]
-    let today = cal.startOfDay(for: Date())
-    for offset in 0..<7 {
-      if let d = cal.date(byAdding: .day, value: -offset, to: today) { totals[d] = 0 }
-    }
-    for await device in data {
-      for await segment in device.activitySegments {
-        let day = cal.startOfDay(for: segment.dateInterval.start)
-        totals[day, default: 0] += segment.totalActivityDuration / 60
+/// Reads daily segments; the first 7 days of the interval are "last week", the rest "this week".
+private func readWeek(_ data: DeviceActivityResults<DeviceActivityData>, wantApps: Bool) async -> WeekModel {
+  let cal = Calendar.current
+  // The app stores the first day of the week it shows (DailyScreenTime's ReportHost); the extension may read it.
+  let stored = UserDefaults(suiteName: "group.com.aaronalex.daily")?.double(forKey: "report_week_start_ms") ?? 0
+  let start = stored > 0
+    ? cal.startOfDay(for: Date(timeIntervalSince1970: stored / 1000))
+    : (cal.date(byAdding: .day, value: -6, to: cal.startOfDay(for: Date())) ?? Date())
+  var byDay: [Date: DayBar] = [:]
+  var apps: [String: AppRow] = [:]
+  for await device in data {
+    for await segment in device.activitySegments {
+      let day = cal.startOfDay(for: segment.dateInterval.start)
+      var bar = byDay[day] ?? DayBar(id: day)
+      for await category in segment.categories {
+        let daily = DailyCategory(apple: category.category.localizedDisplayName)
+        bar.byCat[daily, default: 0] += category.totalActivityDuration / 60
+        guard wantApps else { continue }
+        for await app in category.applications {
+          let label = app.application.localizedDisplayName ?? app.application.bundleIdentifier ?? "App"
+          let key = app.application.bundleIdentifier ?? label
+          if apps[key] == nil { apps[key] = AppRow(id: key, name: label, token: app.application.token, category: daily, minutes: 0) }
+          if day >= start { apps[key]?.minutes += app.totalActivityDuration / 60 } // this week only; a day's average below
+        }
       }
+      byDay[day] = bar
     }
-    return WeekModel(days: Array(totals.map { DayTotal(id: $0.key, minutes: $0.value) }.sorted { $0.id < $1.id }.suffix(7)))
+  }
+  let today = cal.startOfDay(for: Date())
+  var model = WeekModel()
+  model.days = (0..<7).compactMap { i in cal.date(byAdding: .day, value: i, to: start).map { byDay[$0] ?? DayBar(id: $0) } }
+  let passed = model.days.filter { $0.id <= today }
+  if !passed.isEmpty { model.avgMin = passed.reduce(0) { $0 + $1.total } / Double(passed.count) }
+  let lastWeek = (1...7).compactMap { cal.date(byAdding: .day, value: -$0, to: start) }.compactMap { byDay[$0] }
+  if !lastWeek.isEmpty { model.lastAvgMin = lastWeek.reduce(0) { $0 + $1.total } / 7 }
+  if wantApps {
+    let days = Double(max(passed.count, 1))
+    model.apps = apps.values.map { var a = $0; a.minutes /= days; return a }.filter { $0.minutes >= 1 }.sorted { $0.minutes > $1.minutes }
+  }
+  return model
+}
+
+struct WeekChartScene: DeviceActivityReportScene {
+  let context = DeviceActivityReport.Context("weekChart")
+  let content: (WeekModel) -> WeekChartView
+  func makeConfiguration(representing data: DeviceActivityResults<DeviceActivityData>) async -> WeekModel {
+    await readWeek(data, wantApps: false)
   }
 }
 
-struct WeekReportView: View {
+struct WeekAppsScene: DeviceActivityReportScene {
+  let context = DeviceActivityReport.Context("weekApps")
+  let content: (WeekModel) -> WeekAppsView
+  func makeConfiguration(representing data: DeviceActivityResults<DeviceActivityData>) async -> WeekModel {
+    await readWeek(data, wantApps: true)
+  }
+}
+
+struct WeekChartView: View {
   let model: WeekModel
 
   var body: some View {
-    let top = max(model.days.map(\.minutes).max() ?? 0, 1)
-    let total = model.days.reduce(0) { $0 + $1.minutes }
+    let cal = Calendar.current
+    let today = cal.startOfDay(for: Date())
+    let top = max(model.days.map(\.total).max() ?? 0, 1)
+    let shown = DailyCategory.allCases.filter { c in model.days.contains { ($0.byCat[c] ?? 0) >= 1 } }
     let f = DateFormatter()
-    f.dateFormat = "EEEEE"
-    return VStack(alignment: .leading, spacing: 12) {
-      HStack(alignment: .firstTextBaseline) {
-        Text("Screen Time this week").font(.system(size: 15, weight: .semibold)).foregroundStyle(Look.ink)
-        Spacer()
-        Text("\(duration(total / Double(max(model.days.count, 1)))) a day").font(.system(size: 13)).foregroundStyle(Look.muted)
-      }
-      HStack(alignment: .bottom, spacing: 8) {
-        ForEach(model.days) { d in
-          VStack(spacing: 6) {
-            Text(d.minutes >= 1 ? duration(d.minutes) : "").font(.system(size: 10)).foregroundStyle(Look.muted).lineLimit(1).minimumScaleFactor(0.7)
-            RoundedRectangle(cornerRadius: 6)
-              .fill(Calendar.current.isDateInToday(d.id) ? Look.ink : Color(hex: 0xF6B35E))
-              .frame(height: max(4, 120 * d.minutes / top))
-            Text(f.string(from: d.id)).font(.system(size: 12)).foregroundStyle(Look.muted)
-          }
-          .frame(maxWidth: .infinity)
+    f.dateFormat = "EEE"
+    return VStack(alignment: .leading, spacing: 0) {
+      Text("Phone time · daily average").font(.system(size: 13)).foregroundStyle(Look.muted)
+      HStack(alignment: .firstTextBaseline, spacing: 8) {
+        Text(model.avgMin.map(duration) ?? "—").font(.system(size: 30, weight: .semibold)).tracking(-0.6).foregroundStyle(Look.ink)
+        if let a = model.avgMin, let b = model.lastAvgMin, Int((a - b).rounded()) != 0 {
+          Text("\(a < b ? "↓" : "↑") \(duration(abs(a - b))) vs last week")
+            .font(.system(size: 13, weight: .semibold)).foregroundStyle(a < b ? Look.down : Look.up)
         }
       }
-      .frame(height: 160, alignment: .bottom)
+      .padding(.top, 4).padding(.bottom, 14)
+
+      HStack(alignment: .bottom) {
+        ForEach(model.days) { d in
+          let isToday = d.id == today
+          VStack(spacing: 6) {
+            if d.id > today || d.total < 1 {
+              RoundedRectangle(cornerRadius: 9).fill(Look.line).frame(width: 28, height: 6)
+                .overlay(RoundedRectangle(cornerRadius: 9).stroke(Look.ink, lineWidth: isToday ? 2 : 0))
+            } else {
+              VStack(spacing: 0) {
+                ForEach(DailyCategory.allCases.reversed().filter { (d.byCat[$0] ?? 0) > 0 }) { c in
+                  Rectangle().fill(c.color).frame(height: max(1, 120 * (d.byCat[c] ?? 0) / top))
+                }
+              }
+              .frame(width: 28)
+              .clipShape(RoundedRectangle(cornerRadius: 9))
+              .overlay(RoundedRectangle(cornerRadius: 9).stroke(Look.ink, lineWidth: isToday ? 2 : 0))
+            }
+            Text(isToday ? "Today" : f.string(from: d.id))
+              .font(.system(size: 11, weight: isToday ? .semibold : .regular))
+              .foregroundStyle(isToday ? Look.ink : Look.muted)
+          }
+          .frame(maxWidth: .infinity, alignment: .bottom)
+        }
+      }
+      .frame(height: 150, alignment: .bottom)
+      .padding(.top, 10)
+      .overlay(alignment: .top) { Rectangle().fill(Look.line).frame(height: 1) }
+
+      if !shown.isEmpty {
+        HStack(spacing: 12) {
+          ForEach(shown) { c in
+            HStack(spacing: 5) {
+              RoundedRectangle(cornerRadius: 3).fill(c.color).frame(width: 9, height: 9)
+              Text(c.label).font(.system(size: 11)).foregroundStyle(Look.muted)
+            }
+          }
+        }
+        .padding(.top, 12)
+      }
     }
     .padding(16)
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     .background(Look.card)
-    .clipShape(RoundedRectangle(cornerRadius: 22))
+    .clipShape(RoundedRectangle(cornerRadius: 20))
+  }
+}
+
+struct WeekAppsView: View {
+  let model: WeekModel
+
+  var body: some View {
+    let apps = Array(model.apps.prefix(5))
+    let top = max(apps.first?.minutes ?? 0, 1)
+    return VStack(alignment: .leading, spacing: 0) {
+      Text("Top apps · a day").font(.system(size: 13)).foregroundStyle(Look.muted).padding(.bottom, 4)
+      if apps.isEmpty {
+        Text("No app time yet this week.").font(.system(size: 13)).foregroundStyle(Look.muted).padding(.vertical, 12)
+      }
+      ForEach(apps) { a in
+        HStack(spacing: 10) {
+          AppIcon(app: a)
+          Text(a.name).font(.system(size: 13)).foregroundStyle(Look.ink).lineLimit(1).frame(width: 92, alignment: .leading)
+          GeometryReader { g in
+            ZStack(alignment: .leading) {
+              Capsule().fill(Look.track)
+              Capsule().fill(a.category.color).frame(width: g.size.width * a.minutes / top)
+            }
+          }
+          .frame(height: 8)
+          Text(duration(a.minutes)).font(.system(size: 13, weight: .semibold)).foregroundStyle(Look.ink).frame(width: 52, alignment: .trailing)
+        }
+        .frame(minHeight: 44)
+      }
+    }
+    .padding(.horizontal, 16).padding(.vertical, 12)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    .background(Look.card)
+    .clipShape(RoundedRectangle(cornerRadius: 20))
   }
 }

@@ -1,0 +1,70 @@
+name: iOS build (TestFlight)
+
+# Builds Daily for iPhone on GitHub's Macs with `eas build --local` (no EAS build quota used),
+# then uploads it to TestFlight with `eas submit`. Run it from the Actions tab.
+# Needs the repository secret EXPO_TOKEN (expo.dev → Account settings → Access tokens).
+on:
+  workflow_dispatch:
+    inputs:
+      submit:
+        description: Upload to TestFlight
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-build
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use the newest Xcode on the runner
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)" && xcodebuild -version
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        working-directory: .
+        run: pnpm install --frozen-lockfile
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      # Every upload to TestFlight needs a new build number: 100 + this workflow's run number.
+      - name: Build number
+        run: node -e 'const f="app.json",fs=require("fs"),a=JSON.parse(fs.readFileSync(f,"utf8"));a.expo.ios.buildNumber=String(100+Number(process.env.GITHUB_RUN_NUMBER));fs.writeFileSync(f,JSON.stringify(a,null,2));console.log("build",a.expo.ios.buildNumber)'
+
+      - name: Build (on this Mac)
+        env:
+          SHARP_IGNORE_GLOBAL_LIBVIPS: '1'
+          EAS_LOCAL_BUILD_SKIP_CLEANUP: '1'
+        run: eas build -p ios --profile ci --local --non-interactive --output "$RUNNER_TEMP/Daily.ipa"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Daily-ios
+          path: ${{ runner.temp }}/Daily.ipa
+          retention-days: 7
+
+      - name: Upload to TestFlight
+        if: ${{ inputs.submit }}
+        run: eas submit -p ios --profile production --path "$RUNNER_TEMP/Daily.ipa" --non-interactive
