@@ -16,12 +16,13 @@ import { C, F } from '../src/theme';
 import { GoalStepper } from '../src/ui/GoalStepper';
 import { EmailSignIn } from '../src/account/EmailSignIn';
 import { FEATURES } from '../src/platformNow';
+import { setUpScreenTime, startScreenTime } from '../src/screentime/live';
 import { GoogleButton } from '../src/ui/GoogleButton';
 import { Icon } from '../src/ui/icons';
 import { rise } from '../src/ui/motion';
 
-// iPhone has no usage-access step (Screen Time arrives in i2), so it shows one step fewer.
-const SKIP_USAGE = !FEATURES.usageAccess;
+// Step 2 is usage access on Android and Screen Time on iPhone; a platform with neither skips it.
+const SKIP_USAGE = !FEATURES.usageAccess && !FEATURES.screenTime;
 const STEPS = SKIP_USAGE ? 4 : 5;
 const shown = (step: number) => (SKIP_USAGE && step > 1 ? step - 1 : step);
 
@@ -68,6 +69,7 @@ export default function Onboarding() {
     setSetting(db, 'sunny_service', showSunny ? '1' : '0');
     setSetting(db, 'onboarded', '1');
     syncSunnyService(db, DailyNative);
+    await startScreenTime(db); // iPhone: milestones for the goal just chosen
     await applyReminders();
     router.replace('/');
   };
@@ -92,10 +94,17 @@ export default function Onboarding() {
         {step === 1 && (
           <View style={s.body}>
             <View style={[s.hero, { backgroundColor: '#D8D2FC' }]}><Sunny face="happy" size={120} /></View>
-            <Text style={s.h1}>Let Daily see which apps you use</Text>
-            <Text style={s.p}>Android asks once. Turn on Daily on the next screen, then come back.</Text>
-            <View style={s.point}><View style={s.pointIco}><Icon name="lock" size={15} /></View><Text style={s.pointText}>Stays on this phone. No cloud copy.</Text></View>
-            <View style={s.point}><View style={s.pointIco}><Icon name="eyeOff" size={15} /></View><Text style={s.pointText}>Only app names and minutes. Never your messages, photos or screen.</Text></View>
+            {FEATURES.screenTime ? (<>
+              <Text style={s.h1}>Let Daily see your Screen Time</Text>
+              <Text style={s.p}>Apple asks once, then you choose what counts. Tick All Apps & Categories to count everything.</Text>
+              <View style={s.point}><View style={s.pointIco}><Icon name="lock" size={15} /></View><Text style={s.pointText}>Stays on this phone. No cloud copy.</Text></View>
+              <View style={s.point}><View style={s.pointIco}><Icon name="eyeOff" size={15} /></View><Text style={s.pointText}>App details stay inside Apple's Screen Time. Daily only learns your total.</Text></View>
+            </>) : (<>
+              <Text style={s.h1}>Let Daily see which apps you use</Text>
+              <Text style={s.p}>Android asks once. Turn on Daily on the next screen, then come back.</Text>
+              <View style={s.point}><View style={s.pointIco}><Icon name="lock" size={15} /></View><Text style={s.pointText}>Stays on this phone. No cloud copy.</Text></View>
+              <View style={s.point}><View style={s.pointIco}><Icon name="eyeOff" size={15} /></View><Text style={s.pointText}>Only app names and minutes. Never your messages, photos or screen.</Text></View>
+            </>)}
           </View>
         )}
         {step === 2 && (
@@ -144,7 +153,9 @@ export default function Onboarding() {
         {step === 0 && <Primary label="Get started" onPress={() => setStep(SKIP_USAGE ? 2 : 1)} />}
         {step === 1 && (
           <>
-            <Primary label="Open settings" onPress={() => DailyNative.openUsageAccessSettings()} />
+            {FEATURES.screenTime
+              ? <Primary label="Turn on Screen Time" onPress={() => { void setUpScreenTime(getDb()).finally(() => setStep(2)); }} />
+              : <Primary label="Open settings" onPress={() => DailyNative.openUsageAccessSettings()} />}
             <Pressable onPress={() => setStep(2)} accessibilityRole="button" style={s.secondary}><Text style={s.secondaryText}>Not now, just reminders</Text></Pressable>
           </>
         )}

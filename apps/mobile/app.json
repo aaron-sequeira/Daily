@@ -10,7 +10,7 @@
     "backgroundColor": "#FBF8F4",
     "ios": {
       "bundleIdentifier": "com.aaronalex.daily",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "supportsTablet": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -20,7 +20,8 @@
       "entitlements": {
         "com.apple.security.application-groups": [
           "group.com.aaronalex.daily"
-        ]
+        ],
+        "com.apple.developer.family-controls": true
       }
     },
     "android": {

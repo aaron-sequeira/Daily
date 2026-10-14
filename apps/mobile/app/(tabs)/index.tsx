@@ -4,7 +4,10 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import DailyNative from '../../modules/daily-native';
 import { formatDuration } from '../../src/format';
+import { ScreenTimeReport } from '../../modules/daily-native/screenTime';
+import { getDb } from '../../src/db/expoDb';
 import { FEATURES } from '../../src/platformNow';
+import { setUpScreenTime } from '../../src/screentime/live';
 import { C, F } from '../../src/theme';
 import { CategoryCard } from '../../src/today/CategoryCard';
 import { dateLine, greeting } from '../../src/today/copy';
@@ -19,7 +22,12 @@ import { SafeScreen } from '../../src/ui/SafeScreen';
 
 export default function Today() {
   const focusKey = useFocusKey();
-  const { view, access } = useToday();
+  const { view, access, refresh } = useToday();
+  const [settingUp, setSettingUp] = useState(false);
+  const turnOnScreenTime = () => {
+    setSettingUp(true);
+    setUpScreenTime(getDb()).finally(() => { setSettingUp(false); void refresh(); });
+  };
   const [filter, setFilter] = useState<Category | 'all'>('all');
   const active = view && (filter === 'all' || view.categories.some((c) => c.id === filter)) ? filter : 'all';
   if (!view) return <View style={{ flex: 1, backgroundColor: C.bg }} />;
@@ -43,7 +51,16 @@ export default function Today() {
       </Animated.View>
 
       <Animated.Text entering={rise(1)} style={s.date}>{greeting(now)} · {dateLine(now, view.firstPickupMs)}</Animated.Text>
-      {/* iPhone: no per-app data until Screen Time (i2); the Sunny card explains. */}
+      {/* iPhone: Apple's Screen Time report (drawn by the ScreenTimeReport extension) replaces the per-app sections. */}
+      {FEATURES.screenTime && (access && ScreenTimeReport ? (
+        <Animated.View entering={rise(2)}><ScreenTimeReport context="today" style={{ height: 780, marginBottom: 18 }} /></Animated.View>
+      ) : (
+        <Animated.View entering={rise(2)} style={[s.banner, { marginTop: 8 }]}>
+          <Text style={s.bannerTitle}>See your Screen Time</Text>
+          <Text style={s.bannerBody}>Daily shows your iPhone's Screen Time here and Sunny follows it. Apple asks once. Your Screen Time stays on this phone.</Text>
+          <Pressable onPress={turnOnScreenTime} disabled={settingUp} accessibilityRole="button" style={[s.bannerBtn, settingUp && { opacity: 0.5 }]}><Text style={s.bannerBtnText}>Turn on Screen Time</Text></Pressable>
+        </Animated.View>
+      ))}
       {FEATURES.usageAccess && (<>
       <Animated.Text entering={rise(2)} style={s.headline}>
         You spent <Text style={{ fontFamily: F.semi }}>{formatDuration(view.phoneMin)}</Text> on your phone today

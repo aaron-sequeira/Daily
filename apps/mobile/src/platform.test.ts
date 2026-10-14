@@ -3,10 +3,14 @@ import { features, inStore, storeName } from './platform';
 
 describe('platform', () => {
   it('turns every Android-only feature on for android', () => {
-    expect(Object.values(features('android')).every(Boolean)).toBe(true);
+    const { screenTime, ...android } = features('android');
+    expect(Object.values(android).every(Boolean)).toBe(true);
+    expect(screenTime).toBe(false);
   });
   it('turns every Android-only feature off for ios', () => {
-    expect(Object.values(features('ios')).some(Boolean)).toBe(false);
+    const { screenTime, ...ios } = features('ios');
+    expect(Object.values(ios).some(Boolean)).toBe(false);
+    expect(screenTime).toBe(true);
   });
   it('names the store', () => {
     expect(storeName('android')).toBe('Google Play');

@@ -3,6 +3,9 @@ import { useCallback, useState } from 'react';
 import { AppState } from 'react-native';
 import DailyNative from '../../modules/daily-native';
 import { getDb } from '../db/expoDb';
+import { FEATURES } from '../platformNow';
+import { phoneMinNow, screenTimeReady } from '../screentime/live';
+import { withPhoneTime } from '../screentime/today';
 import { runSync } from '../tracking/runSync';
 import { loadToday } from './load';
 import type { TodayView } from './build';
@@ -19,8 +22,15 @@ export function useToday() {
       } catch (e) {
         console.warn('daily: sync failed', e); // a failed sync still shows what's stored
       }
-      setAccess(result !== 'no_access' && DailyNative.hasUsageAccess());
-      setView(loadToday(getDb(), Date.now()));
+      const now = Date.now();
+      if (FEATURES.screenTime) {
+        // iPhone: Screen Time milestones stand in for app sessions, which iOS never gives Daily
+        setAccess(screenTimeReady());
+        setView(withPhoneTime(loadToday(getDb(), now), phoneMinNow(now) ?? 0));
+      } else {
+        setAccess(result !== 'no_access' && DailyNative.hasUsageAccess());
+        setView(loadToday(getDb(), now));
+      }
     } catch (e) {
       console.warn('daily: refresh failed', e); // keep the previous view
     }

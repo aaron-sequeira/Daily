@@ -2,11 +2,13 @@
 export type Features = {
   usageAccess: boolean; sunnyChip: boolean; floatingSunny: boolean;
   keepRunningHelp: boolean; exactAlarms: boolean; googleSignIn: boolean;
+  /** iPhone: Apple's Screen Time (report view + milestones) instead of usage access. */
+  screenTime: boolean;
 };
 
 export function features(os: string): Features {
   const a = os !== 'ios';
-  return { usageAccess: a, sunnyChip: a, floatingSunny: a, keepRunningHelp: a, exactAlarms: a, googleSignIn: a };
+  return { usageAccess: a, sunnyChip: a, floatingSunny: a, keepRunningHelp: a, exactAlarms: a, googleSignIn: a, screenTime: !a };
 }
 
 export type Store = 'Google Play' | 'App Store';

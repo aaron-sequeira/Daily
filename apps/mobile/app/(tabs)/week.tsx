@@ -3,7 +3,10 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSpring } from 'react-native-reanimated';
+import { ScreenTimeReport } from '../../modules/daily-native/screenTime';
 import { getDb } from '../../src/db/expoDb';
+import { FEATURES } from '../../src/platformNow';
+import { screenTimeReady } from '../../src/screentime/live';
 import { formatDuration } from '../../src/format';
 import { isPlus } from '../../src/plus/plus';
 import { shiftDay, weekStartOf } from '../../src/report/days';
@@ -143,6 +146,12 @@ export default function Week() {
     <ScrollView key={focusKey} contentContainerStyle={{ paddingTop: 12, paddingHorizontal: 20, paddingBottom: 24, gap: 14 }}>
       <Animated.View entering={rise(0)} style={s.header}><Text style={s.h1}>Your week</Text></Animated.View>
 
+      {FEATURES.screenTime ? (
+        // iPhone: Apple's Screen Time for the last 7 days, drawn by the ScreenTimeReport extension
+        screenTimeReady() && ScreenTimeReport
+          ? <Animated.View entering={rise(1)}><ScreenTimeReport context="week" style={{ height: 250 }} /></Animated.View>
+          : <Animated.View entering={rise(1)} style={s.box}><Text style={s.muted}>Turn on Screen Time from Today to see your week.</Text></Animated.View>
+      ) : (<>
       <Animated.View entering={rise(1)} style={s.seg} accessibilityRole="tablist">
         {(['this', 'last'] as const).map((w) => (
           <Pressable key={w} onPress={() => setWhich(w)} accessibilityRole="tab" accessibilityState={{ selected: which === w }} style={[s.segBtn, which === w && s.segOn]}>
@@ -152,6 +161,7 @@ export default function Week() {
       </Animated.View>
 
       {ready && view ? <WeekBody view={view} aiSentence={aiSentence} /> : failed ? <Text style={s.muted}>Couldn't load this week.</Text> : null}
+      </>)}
     </ScrollView>
     </SafeScreen>
   );

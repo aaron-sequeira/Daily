@@ -24,6 +24,7 @@ import { C, F } from '../../src/theme';
 import { GoalStepper } from '../../src/ui/GoalStepper';
 import { FEATURES } from '../../src/platformNow';
 import { refreshIsland } from '../../src/island/refresh';
+import { changeWhatCounts, startScreenTime } from '../../src/screentime/live';
 import { GoogleG } from '../../src/ui/GoogleButton';
 import { SafeScreen } from '../../src/ui/SafeScreen';
 import { Icon } from '../../src/ui/icons';
@@ -89,7 +90,7 @@ export default function Settings() {
     } }
   ]);
 
-  const changeGoal = (min: number) => { setGoal(min); setSetting(db, 'goal_min', min); };
+  const changeGoal = (min: number) => { setGoal(min); setSetting(db, 'goal_min', min); void startScreenTime(db); }; // iPhone: milestones follow the goal
   const cycleRetention = () => {
     const next = RETENTION_CHOICES[(RETENTION_CHOICES.indexOf(retention as (typeof RETENTION_CHOICES)[number]) + 1) % RETENTION_CHOICES.length];
     const apply = () => { setRetention(next); setSetting(db, 'retention_days', next); };
@@ -237,6 +238,9 @@ export default function Settings() {
           <Switch value={islandOn} accessibilityLabel="Sunny in the Dynamic Island" trackColor={{ false: C.line, true: C.ink }} thumbColor={C.white} style={{ marginLeft: 'auto' }}
             onValueChange={(on) => { setIslandOn(on); setSetting(db, 'island', on ? '1' : '0'); void refreshIsland(); }} />
         </View>
+        <Pressable accessibilityRole="button" onPress={() => { void changeWhatCounts(db).then(refreshIsland); }} style={s.row}>
+          <Text style={s.rowText}>What counts as phone time</Text><Text style={s.value}>Choose</Text>
+        </Pressable>
       </Group>
       )}
 

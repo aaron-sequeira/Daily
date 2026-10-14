@@ -1,7 +1,7 @@
 {
   "platforms": ["apple", "android"],
   "apple": {
-    "modules": ["DailyIslandModule"]
+    "modules": ["DailyIslandModule", "DailyScreenTimeModule"]
   },
   "android": {
     "modules": ["expo.modules.dailynative.DailyNativeModule"]
