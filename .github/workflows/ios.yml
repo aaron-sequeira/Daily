@@ -1,9 +1,12 @@
 name: iOS build (TestFlight)
 
 # Builds Daily for iPhone on GitHub's Macs with `eas build --local` (no EAS build quota used),
-# then uploads it to TestFlight with `eas submit`. Run it from the Actions tab.
+# then uploads it to TestFlight with `eas submit`. Run it from the Actions tab, or push an ios-build-* tag.
 # Needs the repository secret EXPO_TOKEN (expo.dev → Account settings → Access tokens).
 on:
+  # From any branch: git tag ios-build-N && git push origin ios-build-N (builds and uploads to TestFlight)
+  push:
+    tags: ['ios-build-*']
   workflow_dispatch:
     inputs:
       submit:
@@ -66,5 +69,5 @@ jobs:
           retention-days: 7
 
       - name: Upload to TestFlight
-        if: ${{ inputs.submit }}
+        if: ${{ github.event_name == 'push' || inputs.submit }}
         run: eas submit -p ios --profile production --path "$RUNNER_TEMP/Daily.ipa" --non-interactive
