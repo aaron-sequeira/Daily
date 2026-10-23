@@ -7,8 +7,8 @@
     "base": {
       "pnpm": "9.15.9",
       "env": {
-        "EXPO_PUBLIC_SUPABASE_URL": "https://dszptvgpgyetvrxceaxc.supabase.co",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_nG0F2leOvVtKmAnAq_AH9Q_r7wguN7S",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://yasjfblbspokiuulktrm.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_O2NCtu2FxyE_RkxL7VAVWQ_dyVcGj1K",
         "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "goog_JItfGVUtvRroQOvFsJMnMXHJOKs",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "827080583200-0ncjm30n1dvhihf3d2nrar5aci6sboq0.apps.googleusercontent.com",
         "SHARP_IGNORE_GLOBAL_LIBVIPS": "1",
