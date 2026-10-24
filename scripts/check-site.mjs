@@ -7,7 +7,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', 'website');
-const DOWNLOAD = 'https://github.com/aaron-sequeira/Daylens/releases/latest/download/Daylens-Setup.exe';
+const DOWNLOAD = 'https://github.com/aaron-sequeira/Daylens/releases/latest/download/Daily-Setup.exe';
 const OPTIONAL = new Set(process.env.CHECK_SITE_ALLOW_MISSING ? process.env.CHECK_SITE_ALLOW_MISSING.split(',') : []);
 const fail = [];
 const read = (f) => (existsSync(join(root, f)) ? readFileSync(join(root, f), 'utf8') : (fail.push(`missing ${f}`), ''));
@@ -45,6 +45,11 @@ if (!/<picture>\s*<source media="\(prefers-reduced-motion: reduce\)" srcset="[^"
 if (!/\.reel a:focus-visible\s*\{[^}]*outline-color:\s*var\(--sun\)/.test(css)) fail.push('focus ring on the dark reel panel needs the sun outline (violet is under 3:1 there)');
 if (!html.includes('not unless you turn on the optional cloud writer')) fail.push('privacy FAQ must mention the optional cloud writer, not a flat "no"');
 if (!html.includes('an internet connection once')) fail.push('requirements FAQ must mention the one-time model download');
+// Daylens is now Daily: the old name may only live on in URLs (the repo keeps its name), asset file names, the
+// motion flag and the one line announcing the rename.
+const visible = html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/\s(?:src|href|srcset)="[^"]*"/g, '').replace(/https:\/\/[^"\s]*/g, '').replace('daylens is now daily', '');
+if (/daylens/i.test(visible)) fail.push(`"Daylens" is still visible: ${visible.match(/.{0,40}daylens.{0,40}/i)?.[0]}`);
+if (!/<title>Daily /.test(html)) fail.push('the title must start with "Daily"');
 if (!html.includes('daylensMotion')) fail.push('head script needs the fallback that un-hides content when main.js never runs');
 for (const f of ['assets/daylens-showreel.mp4', 'assets/daylens-showreel-teaser.gif']) {
   if (existsSync(join(root, f)) && statSync(join(root, f)).size > 95 * 1024 * 1024) fail.push(`${f} is over GitHub's 100 MB file limit`);

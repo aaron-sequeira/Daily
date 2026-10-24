@@ -24,7 +24,7 @@ window.daylensMotion = true;
         video.src = play.getAttribute('href');
         video.controls = true;
         video.playsInline = true;
-        video.setAttribute('aria-label', 'Daylens showreel');
+        video.setAttribute('aria-label', 'Daily showreel');
         media.replaceChildren(video);
       } else {
         video.currentTime = 0;

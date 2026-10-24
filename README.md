@@ -1,16 +1,18 @@
 <div align="center">
 
-<img src="apps/consumer/resources/logo-full.svg" width="112" alt="Daylens logo" />
+<img src="apps/consumer/resources/logo-full.svg" width="112" alt="Daily logo" />
 
-# Daylens
+# Daily
+
+_Formerly Daylens._
 
 **See your day clearly.**
 
 A private, on-device companion for Windows that shows where your screen time goes, writes you a daily and weekly report, and nudges you toward healthier habits — breaks, water, meals and more.
 
-[![Download](https://img.shields.io/badge/Download-v1.0.1-171717?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/aaron-sequeira/WorkSight/releases/latest)
+[![Download](https://img.shields.io/badge/Download-v1.0.1-171717?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/aaron-sequeira/Daylens/releases/latest)
 
-**[daylens website →](https://aaron-sequeira.github.io/Daylens/)**
+**[daily website →](https://aaron-sequeira.github.io/Daylens/)**
 
 ![Windows 10/11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?logo=windows&logoColor=white)
 ![Electron 33](https://img.shields.io/badge/Electron-33-47848F?logo=electron&logoColor=white)
@@ -18,11 +20,11 @@ A private, on-device companion for Windows that shows where your screen time goe
 ![React 19](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)
 ![Local-first](https://img.shields.io/badge/Data-stays%20on%20your%20PC-2d6b54)
 
-<a href="docs/media/daylens-showreel.mp4"><img src="docs/media/daylens-showreel-teaser.gif" alt="Daylens showreel — click to watch the full video" width="900" /></a>
+<a href="docs/media/daylens-showreel.mp4"><img src="docs/media/daylens-showreel-teaser.gif" alt="Daily showreel — click to watch the full video" width="900" /></a>
 
 **[▶ Watch the 60-second showreel (with sound)](docs/media/daylens-showreel.mp4)**
 
-<img src="docs/images/daylens-today.png" alt="Daylens — the Today screen" width="900" />
+<img src="docs/images/daylens-today.png" alt="Daily — the Today screen" width="900" />
 
 </div>
 
@@ -45,7 +47,7 @@ A private, on-device companion for Windows that shows where your screen time goe
 - **Automatic tracking** of the app and window in front, grouped into Work, Learning, Communication, Entertainment, Social and Other.
 - **Today view** with a timeline, where your time went, a daily screen-time goal and a 7-day trend.
 - **Screen health score** (0–100) from breaks taken, long stretches, late-night use and your goal.
-- **On-device understanding (optional):** Daylens can read the text of the window in front — never screenshots — and label what you were doing with **Laya**, a text classifier that runs entirely on your PC.
+- **On-device understanding (optional):** Daily can read the text of the window in front — never screenshots — and label what you were doing with **Laya**, a text classifier that runs entirely on your PC.
 
 ### Reports that write themselves
 - **Daily report** in plain language: what went well, what to try tomorrow, and the day in detail (apps, sites, videos, games, learning).
@@ -59,7 +61,7 @@ A private, on-device companion for Windows that shows where your screen time goe
 - **Animated break screens** — hand-drawn scenes (a filling water bottle, a steaming bowl, a cup of tea…) that play for the length of the break, on every monitor.
 
 ### Travel and time zones
-- Daylens **follows your time zone automatically** when Windows changes it; reminder times always mean local time, and past days keep their real hours.
+- Daily **follows your time zone automatically** when Windows changes it; reminder times always mean local time, and past days keep their real hours.
 - **Travel mode** after a jump of 3+ hours: a short jet-lag plan (daylight, caffeine cut-off, naps, water) and a few well-timed reminders for the first days.
 
 ## Privacy
@@ -71,9 +73,9 @@ A private, on-device companion for Windows that shows where your screen time goe
 
 ## Install
 
-1. Download **`Daylens-Setup-1.0.1.exe`** from the [latest release](https://github.com/aaron-sequeira/WorkSight/releases/latest).
+1. Download **`Daily-Setup-1.1.0.exe`** from the [latest release](https://github.com/aaron-sequeira/Daylens/releases/latest).
 2. Run it. The installer is not code-signed yet, so Windows may show *“Windows protected your PC”* — choose **More info → Run anyway**.
-3. Daylens installs just for you (no admin rights needed), opens itself, and starts with Windows from then on.
+3. Daily installs just for you (no admin rights needed), opens itself, and starts with Windows from then on.
 
 **Requirements:** Windows 10 (1903 or later) or Windows 11, 64-bit. The optional on-device models download on first use (Laya ≈ 1.7 GB, writer ≈ 1.1–2.5 GB); 8 GB of RAM or more is recommended for writing reports on your PC.
 
@@ -97,7 +99,7 @@ Prerequisites: **Node.js 20+**, **pnpm 9**, Windows 10/11.
 
 ```bash
 pnpm install                                   # install the whole workspace
-pnpm --filter @worksight/consumer dev          # run Daylens in development
+pnpm --filter @worksight/consumer dev          # run Daily in development
 pnpm --filter @worksight/consumer test         # unit tests (Vitest)
 pnpm -r typecheck                              # type-check every package
 pnpm --filter @worksight/consumer dist         # build the Windows installer → apps/consumer/release/
@@ -113,7 +115,7 @@ Design specs and implementation plans for every phase live in [`docs/superpowers
 
 | Path | What it is |
 |---|---|
-| [`apps/consumer`](apps/consumer) | **Daylens** — the consumer desktop app (Electron + React) |
+| [`apps/consumer`](apps/consumer) | **Daily** — the consumer desktop app (Electron + React) |
 | [`apps/agent`](apps/agent) | WorkSight Agent — the original local-only desktop activity tracker |
 | [`apps/web`](apps/web) | WorkSight web app |
 | [`packages/core`](packages/core) | Shared tracking, SQLite storage and roll-ups used by both desktop apps |
