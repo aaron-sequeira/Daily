@@ -1,17 +1,18 @@
 appId: ai.worksight.daylens
-productName: Daylens
+productName: Daily
 # The pnpm package name is @worksight/consumer; electron-builder sanitizes that to "@worksightconsumer" for the
-# one-click per-user install folder unless overridden here. app.setName('Daylens') (index.ts) already sets the
-# runtime name, so this only affects the install path — userData stays %APPDATA%\Daylens either way.
+# one-click per-user install folder unless overridden here. app.setName('Daily') (index.ts) already sets the
+# runtime name, so this only affects the install path (userData is %APPDATA%\Daily). The appId above stays from
+# Daylens on purpose: this installer then upgrades a Daylens install in place instead of installing a second app.
 extraMetadata:
-  name: daylens
+  name: daily
 # pnpm hoists `electron` to the root node_modules, so electron-builder can't auto-detect the version from
 # apps/consumer. Pin it to the installed version (keep in sync with the lockfile when upgrading).
 electronVersion: 33.4.11
 directories:
   output: release
   buildResources: resources
-artifactName: Daylens-Setup-${version}.${ext}
+artifactName: Daily-Setup-${version}.${ext}
 # Native deps live in the hoisted root node_modules; `dist` runs rebuild-native first and passes
 # --config.npmRebuild=false, so the prebuilt Electron-ABI binaries are bundled as-is.
 files:
@@ -49,5 +50,5 @@ nsis:
   runAfterFinish: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: Daylens
+  shortcutName: Daily
   include: resources/installer.nsh

@@ -8,16 +8,19 @@ const nsh = readFileSync(join(app, 'resources', 'installer.nsh'), 'utf8');
 
 describe('electron-builder.yml', () => {
   it('identity and one-click per-user install', () => {
+    // The appId stays from Daylens on purpose: the Daily installer upgrades the old install in place.
     expect(yml).toMatch(/^appId: ai\.worksight\.daylens$/m);
-    expect(yml).toMatch(/^productName: Daylens$/m);
+    expect(yml).toMatch(/^productName: Daily$/m);
+    expect(yml).toMatch(/^artifactName: Daily-Setup-\$\{version\}\.\$\{ext\}$/m);
+    expect(yml).toMatch(/shortcutName: Daily$/m);
     expect(yml).toMatch(/oneClick: true/);
     expect(yml).toMatch(/perMachine: false/);
     expect(yml).toMatch(/include: resources\/installer\.nsh/);
     expect(yml).toMatch(/icon: resources\/icon\.ico/);
   });
-  it('overrides the sanitized package name so the install folder is "daylens", not "@worksightconsumer"', () => {
+  it('overrides the sanitized package name so the install folder is "daily", not "@worksightconsumer"', () => {
     expect(yml).toMatch(/extraMetadata:/);
-    expect(yml).toMatch(/^\s*name: daylens$/m);
+    expect(yml).toMatch(/^\s*name: daily$/m);
   });
   it('excludes CUDA, ARM, Mac and Linux binaries', () => {
     for (const p of ['@node-llama-cpp/win-x64-cuda', '@node-llama-cpp/win-x64-cuda-ext', '@node-llama-cpp/win-arm64',
@@ -34,7 +37,9 @@ describe('installer.nsh', () => {
     expect(nsh).toContain('!macro customUnInstall');
     expect(nsh).toContain('${ifNot} ${isUpdated}');
     expect(nsh).toContain('MB_DEFBUTTON2');
-    expect(nsh).toContain('RMDir /r "$APPDATA\\Daylens"');
+    expect(nsh).toContain('Also delete your Daily history');
+    expect(nsh).toContain('RMDir /r "$APPDATA\\Daily"');
+    expect(nsh).toContain('RMDir /r "$APPDATA\\Daylens"'); // a copy left behind when the folder could not be moved
   });
   it('silences the prompt under a silent uninstall (/S) by defaulting to No', () => {
     expect(nsh).toMatch(/" \/SD IDNO IDNO daylens_keep/); // NSIS: MessageBox flags text [/SD IDx] [IDx label]
