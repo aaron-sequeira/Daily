@@ -45,6 +45,33 @@ describe('ocr client', () => {
     await expect(p).resolves.toEqual({ text: 'hello', ms: 50, pid: 42, title: 'T', w: 800, h: 600 });
   });
 
+  it('sends CAPTURE+SHOT and returns the jpg when both are asked', async () => {
+    const c = make();
+    c.start(); children[0].say({ ready: true }); await flush();
+    const p = c.capture({ text: true, shot: true });
+    expect(children[0].written).toEqual(['1 CAPTURE+SHOT\n']);
+    children[0].say({ id: '1', text: 'hi', ms: 5, pid: 1, title: 'T', w: 10, h: 10, jpg: 'AAAA' });
+    await flush();
+    await expect(p).resolves.toMatchObject({ text: 'hi', jpg: 'AAAA' });
+  });
+
+  it("sends SHOT and returns text '' when only a shot is asked", async () => {
+    const c = make();
+    c.start(); children[0].say({ ready: true }); await flush();
+    const p = c.capture({ text: false, shot: true });
+    expect(children[0].written).toEqual(['1 SHOT\n']);
+    children[0].say({ id: '1', ms: 5, pid: 1, title: 'T', w: 10, h: 10, jpg: 'BBBB' });
+    await flush();
+    await expect(p).resolves.toMatchObject({ text: '', jpg: 'BBBB', title: 'T' });
+  });
+
+  it('default capture() still sends CAPTURE', async () => {
+    const c = make();
+    c.start(); children[0].say({ ready: true }); await flush();
+    void c.capture();
+    expect(children[0].written).toEqual(['1 CAPTURE\n']);
+  });
+
   it('returns null when not ready, for no_window, and while a request is in flight', async () => {
     const c = make();
     await expect(c.capture()).resolves.toBeNull();

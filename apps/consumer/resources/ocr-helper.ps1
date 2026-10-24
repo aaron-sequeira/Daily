@@ -1,8 +1,11 @@
 # Daylens OCR helper: long-lived Windows PowerShell 5.1 process wrapping Windows.Media.Ocr (built into Windows 10/11).
 # Protocol (stdin lines → stdout JSON lines):
 #   "<id> CAPTURE"       capture the foreground window in memory and OCR it → {id,text,ms,pid,title,w,h} | {id,error}
+#   "<id> SHOT"          capture only, as a small JPEG                      → {id,jpg,ms,pid,title,w,h} | {id,error}
+#   "<id> CAPTURE+SHOT"  both                                               → {id,text,jpg,ms,pid,title,w,h} | {id,error}
 #   "<id> <base64 png>"  OCR a PNG (dev bench)                              → {id,text,ms} | {id,error}
-# Images live only in this process's memory; nothing is written to disk.
+# Images live only in this process's memory; nothing is written to disk here (Daily saves a JPEG only when
+# the user turned screenshots on).
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 [Console]::InputEncoding = [System.Text.Encoding]::UTF8
@@ -67,13 +70,33 @@ function Ocr-Bytes([byte[]]$bytes) {
 }
 
 $PW_RENDERFULLCONTENT = 2
+$SHOT_MAX = 960
+
+$jpegCodec = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -eq 'image/jpeg' } | Select-Object -First 1
+# A screenshot for Replay: at most $SHOT_MAX px on the long side, JPEG quality 70, as base64.
+function Jpeg-Base64([System.Drawing.Bitmap]$bmp, [int]$w, [int]$hh) {
+  $small = $null; $out = $null; $params = $null
+  try {
+    $k = [Math]::Min(1.0, [Math]::Min($SHOT_MAX / $w, $SHOT_MAX / $hh))
+    $small = New-Object System.Drawing.Bitmap $bmp, ([Math]::Max(1, [int]($w * $k))), ([Math]::Max(1, [int]($hh * $k)))
+    $params = New-Object System.Drawing.Imaging.EncoderParameters 1
+    $params.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter ([System.Drawing.Imaging.Encoder]::Quality, [long]70)
+    $out = New-Object System.IO.MemoryStream
+    $small.Save($out, $jpegCodec, $params)
+    return [Convert]::ToBase64String($out.ToArray())
+  } finally {
+    if ($null -ne $params) { $params.Dispose() }
+    if ($null -ne $out) { $out.Dispose() }
+    if ($null -ne $small) { $small.Dispose() }
+  }
+}
 
 # Captures the foreground window's own pixels via PrintWindow (never CopyFromScreen: a screen-rectangle
 # grab picks up whatever is topmost on screen — toasts, always-on-top or PiP windows — and would attribute
 # that text to the foreground app, bypassing its exclusions). Returns $null when there is no capturable
 # foreground window, a hashtable with an `error` key on a capture failure or a mid-capture window switch,
 # or a hashtable with the PNG bytes and metadata on success.
-function Capture-Foreground {
+function Capture-Foreground([bool]$wantText = $true, [bool]$wantShot = $false) {
   $h = [DaylensFg]::GetForegroundWindow()
   if ($h -eq [IntPtr]::Zero -or [DaylensFg]::IsIconic($h)) { return $null }
   # A hung (not responding) window would block PrintWindow until our timeout and flip OCR status to failed: skip it.
@@ -102,15 +125,20 @@ function Capture-Foreground {
     [void][DaylensFg]::GetWindowText($h, $sbPost, 512)
     $postTitle = $sbPost.ToString()
     if ($postTitle -ne $preTitle) { return @{ error = 'window_changed' } }
-    $src = $bmp
-    if ($w -gt $maxDim -or $hh -gt $maxDim) {
-      $k = [Math]::Min($maxDim / $w, $maxDim / $hh)
-      $scaled = New-Object System.Drawing.Bitmap $bmp, ([int]($w * $k)), ([int]($hh * $k))
-      $src = $scaled
+    $res = @{ pid = [int]$procId; title = $postTitle; w = $w; h = $hh }
+    if ($wantShot) { $res.jpg = Jpeg-Base64 $bmp $w $hh }
+    if ($wantText) {
+      $src = $bmp
+      if ($w -gt $maxDim -or $hh -gt $maxDim) {
+        $k = [Math]::Min($maxDim / $w, $maxDim / $hh)
+        $scaled = New-Object System.Drawing.Bitmap $bmp, ([int]($w * $k)), ([int]($hh * $k))
+        $src = $scaled
+      }
+      $ms = New-Object System.IO.MemoryStream
+      $src.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+      $res.bytes = $ms.ToArray()
     }
-    $ms = New-Object System.IO.MemoryStream
-    $src.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
-    return @{ bytes = $ms.ToArray(); pid = [int]$procId; title = $postTitle; w = $w; h = $hh }
+    return $res
   } finally {
     if ($null -ne $ms) { $ms.Dispose() }
     if ($null -ne $scaled) { $scaled.Dispose() }
@@ -128,12 +156,16 @@ while ($null -ne ($line = [Console]::In.ReadLine())) {
     if ($sp -le 0) { throw 'malformed request' }
     $arg = $line.Substring($sp + 1)
     $sw = [Diagnostics.Stopwatch]::StartNew()
-    if ($arg -eq 'CAPTURE') {
-      $cap = Capture-Foreground
+    if ($arg -eq 'CAPTURE' -or $arg -eq 'SHOT' -or $arg -eq 'CAPTURE+SHOT') {
+      $wantText = $arg -ne 'SHOT'
+      $cap = Capture-Foreground $wantText ($arg -ne 'CAPTURE')
       if ($null -eq $cap) { Emit @{ id = $id; error = 'no_window' }; continue }
       if ($cap.ContainsKey('error')) { Emit @{ id = $id; error = $cap.error }; continue }
-      $text = Ocr-Bytes $cap.bytes
-      Emit @{ id = $id; text = $text; ms = $sw.ElapsedMilliseconds; pid = $cap.pid; title = $cap.title; w = $cap.w; h = $cap.h }
+      $out = @{ id = $id; pid = $cap.pid; title = $cap.title; w = $cap.w; h = $cap.h }
+      if ($wantText) { $out.text = Ocr-Bytes $cap.bytes }
+      if ($cap.ContainsKey('jpg')) { $out.jpg = $cap.jpg }
+      $out.ms = $sw.ElapsedMilliseconds
+      Emit $out
     } else {
       $text = Ocr-Bytes ([Convert]::FromBase64String($arg))
       Emit @{ id = $id; text = $text; ms = $sw.ElapsedMilliseconds }

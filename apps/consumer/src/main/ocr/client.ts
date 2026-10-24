@@ -1,7 +1,9 @@
 import { createInterface } from 'node:readline';
 
 export type OcrStatus = 'off' | 'starting' | 'ready' | 'no-language' | 'restarting' | 'failed';
-export interface CaptureResult { text: string; ms: number; pid: number; title: string; w: number; h: number; }
+/** `jpg` (base64) is present only when a screenshot was asked for; `text` is '' when text was not. */
+export interface CaptureResult { text: string; ms: number; pid: number; title: string; w: number; h: number; jpg?: string; }
+export interface CaptureOpts { text?: boolean; shot?: boolean }
 export interface ChildLike {
   stdin: {
     write(s: string): unknown;
@@ -13,21 +15,21 @@ export interface ChildLike {
   on(ev: 'error', cb: (err: Error) => void): unknown;
   kill(): unknown;
 }
-export interface OcrClient { start(): void; stop(): void; capture(): Promise<CaptureResult | null>; status(): OcrStatus; }
+export interface OcrClient { start(): void; stop(): void; capture(opts?: CaptureOpts): Promise<CaptureResult | null>; status(): OcrStatus; }
 
 export const RESTART_DELAYS_MS = [1000, 5000, 30000] as const;
 const CRASH_WINDOW_MS = 10 * 60_000;
 const MAX_CRASHES = 3; // more than this within the window → failed
 const NO_LANGUAGE_EXIT_CODE = 2;
 
-type Reply = { id?: string; ready?: boolean; error?: string; text?: string; ms?: number; pid?: number; title?: string; w?: number; h?: number };
+type Reply = { id?: string; ready?: boolean; error?: string; text?: string; ms?: number; pid?: number; title?: string; w?: number; h?: number; jpg?: string };
 
 export function createOcrClient(deps: { spawn: () => ChildLike; onStatus?: (s: OcrStatus) => void; timeoutMs?: number }): OcrClient {
   const timeoutMs = deps.timeoutMs ?? 8000;
   let status: OcrStatus = 'off';
   let child: ChildLike | null = null;
   let seq = 0;
-  let pending: { id: string; resolve: (r: CaptureResult | null) => void; timer: ReturnType<typeof setTimeout> } | null = null;
+  let pending: { id: string; text: boolean; resolve: (r: CaptureResult | null) => void; timer: ReturnType<typeof setTimeout> } | null = null;
   let restartTimer: ReturnType<typeof setTimeout> | null = null;
   let crashes: number[] = [];
 
@@ -47,8 +49,10 @@ export function createOcrClient(deps: { spawn: () => ChildLike; onStatus?: (s: O
     if (msg.ready === true) { setStatus('ready'); return; }
     if (msg.ready === false) { setStatus('no-language'); return; }
     if (!pending || msg.id !== pending.id) return;
-    if (msg.error || typeof msg.text !== 'string') { settle(null); return; }
-    settle({ text: msg.text, ms: msg.ms ?? 0, pid: msg.pid ?? -1, title: msg.title ?? '', w: msg.w ?? 0, h: msg.h ?? 0 });
+    if (msg.error || (pending.text ? typeof msg.text !== 'string' : typeof msg.jpg !== 'string')) { settle(null); return; }
+    const r: CaptureResult = { text: msg.text ?? '', ms: msg.ms ?? 0, pid: msg.pid ?? -1, title: msg.title ?? '', w: msg.w ?? 0, h: msg.h ?? 0 };
+    if (typeof msg.jpg === 'string') r.jpg = msg.jpg;
+    settle(r);
   }
 
   function scheduleRestart(): void {
@@ -103,14 +107,15 @@ export function createOcrClient(deps: { spawn: () => ChildLike; onStatus?: (s: O
       child = null;
       if (c) { c.stdin.end(); c.kill(); }
     },
-    capture() {
-      if (status !== 'ready' || !child || pending) return Promise.resolve(null);
+    capture({ text = true, shot = false } = {}) {
+      if (status !== 'ready' || !child || pending || (!text && !shot)) return Promise.resolve(null);
+      const cmd = text && shot ? 'CAPTURE+SHOT' : shot ? 'SHOT' : 'CAPTURE';
       const id = String(++seq);
       const c = child;
       return new Promise((resolve) => {
         const timer = setTimeout(() => { settle(null); c.kill(); }, timeoutMs);
-        pending = { id, resolve, timer };
-        c.stdin.write(`${id} CAPTURE\n`);
+        pending = { id, text, resolve, timer };
+        c.stdin.write(`${id} ${cmd}\n`);
       });
     },
     status: () => status
