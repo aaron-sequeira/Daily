@@ -21,6 +21,7 @@ import type { InsightsNumbers, WeeklyRow } from './report/week';
 import type { TravelView } from './time/travel';
 import { ANIMATIONS, type Reminder } from '../shared/reminders';
 import type { ReminderStore } from './reminders/store';
+import type { Chapter } from './replay/chapters';
 
 const dateArg = z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) });
 const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -88,6 +89,8 @@ export interface InsightsView {
   /** Local writer and free memory (bytes, not rounded GB) below what it needs. */
   memoryShort: boolean;
 }
+export interface ReplayShot { at: number; app: string; title: string | null; url: string }
+export interface ReplayView { chapters: Chapter[]; shots: ReplayShot[]; screenshots: boolean; asked: boolean }
 export interface InsightsDeps {
   view(weekStart: string | null): InsightsView;
   generate(weekStart: string): InsightsView;
@@ -131,6 +134,7 @@ export interface IpcDeps {
   coach: CoachIpcDeps;
   reports: ReportsDeps;
   insights: InsightsDeps;
+  replay: { day(date: string): ReplayView };
   writer: WriterDeps;
   plan: PlanDeps;
   about(): AboutView;
@@ -226,6 +230,7 @@ export function registerIpc(d: IpcDeps): void {
   ipcMain.handle(CH.reportsClearPdfFolder, () => d.reports.clearPdfFolder());
   ipcMain.handle(CH.reportsShareGet, () => d.reports.shareGet());
   ipcMain.handle(CH.reportsEmail, (_e, raw) => d.reports.email(dateStr.parse(raw)));
+  ipcMain.handle(CH.replayDay, (_e, raw) => d.replay.day(dateStr.parse(raw)));
   ipcMain.handle(CH.insightsGet, (_e, raw) => d.insights.view(raw === null || raw === undefined ? null : dateStr.parse(raw)));
   ipcMain.handle(CH.insightsGenerate, (_e, raw) => d.insights.generate(dateStr.parse(raw)));
   ipcMain.handle(CH.insightsCancel, (_e, raw) => d.insights.cancel(dateStr.parse(raw)));

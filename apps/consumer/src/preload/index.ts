@@ -5,7 +5,7 @@ import { CH } from '../main/channels';
 import type { DaylensSettings, SettingsPatch } from '../main/settings';
 import type { TodayView } from '../main/day/today';
 import type { Profile } from '../shared/profileOptions';
-import type { PrivacyView, ModelsView, CoachView, PlanTodayItem, ExportPdfResult, ShareGetView, EmailResult, InsightsView, AboutView, RemindersView } from '../main/ipc';
+import type { PrivacyView, ModelsView, CoachView, PlanTodayItem, ExportPdfResult, ShareGetView, EmailResult, InsightsView, AboutView, RemindersView, ReplayView } from '../main/ipc';
 import type { Kind } from '../main/coach/types';
 import type { SearchHit } from '../main/report/search';
 import type { ReportView, WriterView } from '../main/report/view';
@@ -61,6 +61,9 @@ const api = {
     clearPdfFolder: (): Promise<{ folder: string }> => ipcRenderer.invoke(CH.reportsClearPdfFolder),
     shareGet: (): Promise<ShareGetView> => ipcRenderer.invoke(CH.reportsShareGet),
     email: (date: string): Promise<EmailResult> => ipcRenderer.invoke(CH.reportsEmail, date)
+  },
+  replay: {
+    day: (date: string): Promise<ReplayView> => ipcRenderer.invoke(CH.replayDay, date)
   },
   insights: {
     /** `weekStart` null (or omitted) = the current week. */

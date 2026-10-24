@@ -35,6 +35,7 @@ export const CH = {
   reportsShareGet: 'reports:shareGet',
   reportsEmail: 'reports:email',
   insightsGet: 'insights:get',
+  replayDay: 'replay:day',
   insightsGenerate: 'insights:generate',
   insightsCancel: 'insights:cancel',
   planToday: 'plan:today',

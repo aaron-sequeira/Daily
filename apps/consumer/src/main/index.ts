@@ -1,4 +1,5 @@
-import { app, BrowserWindow, Menu, Tray, powerMonitor, dialog, shell, utilityProcess, globalShortcut, screen, safeStorage } from 'electron';
+import { app, BrowserWindow, Menu, Tray, powerMonitor, dialog, shell, utilityProcess, globalShortcut, screen, safeStorage, protocol, net } from 'electron';
+import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
@@ -16,6 +17,8 @@ import { createOcrClient } from './ocr/client';
 import { SCREEN_SCHEMA, createScreenStore, checkpoint, deleteActivity, exportAll } from './screen/store';
 import { createScreenReader, runRetention } from './screen/reader';
 import { SHOTS_SQL, createShotStore } from './screen/shots';
+import { buildChapters, sessionsToEpisodes } from './replay/chapters';
+import { shotPath } from './replay/shotProtocol';
 import { readProfile } from './profile';
 import { createLabelStore } from './screen/labels';
 import { createLabelScheduler, type BrainChild } from './brain/scheduler';
@@ -127,6 +130,9 @@ function showWindow(): void {
   win?.focus();
 }
 
+// Replay's screenshots reach the renderer only through daily-shot:, which serves nothing outside the shots folder.
+protocol.registerSchemesAsPrivileged([{ scheme: 'daily-shot', privileges: { standard: true, secure: true } }]);
+
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
@@ -141,7 +147,12 @@ if (!app.requestSingleInstanceLock()) {
     db.exec(SCREEN_SCHEMA);
     const screenStore = createScreenStore(db);
     db.exec(SHOTS_SQL);
-    const shotStore = createShotStore(db, join(app.getPath('userData'), 'shots'));
+    const shotsDir = join(app.getPath('userData'), 'shots');
+    const shotStore = createShotStore(db, shotsDir);
+    protocol.handle('daily-shot', (req) => {
+      const p = shotPath(shotsDir, req.url);
+      return p ? net.fetch(pathToFileURL(p).toString()) : new Response('Not found', { status: 404 });
+    });
     // Existing users who already enabled reading in Phase 3 have answered the opt-in question.
     if (settings.get().screenReading && !settings.get().screenReadingAsked) settings.set({ screenReadingAsked: true });
     const labelStore = createLabelStore(db);
@@ -943,6 +954,16 @@ if (!app.requestSingleInstanceLock()) {
             console.error('[report] email open failed:', e instanceof Error ? e.name : typeof e);
             return { ok: false, reason: "Couldn't open your mail app." };
           }
+        }
+      },
+      replay: {
+        day: (date) => {
+          const s = settings.get();
+          return {
+            chapters: buildChapters(sessionsToEpisodes(repo.getFocusSessions(date), Date.now())),
+            shots: shotStore.forDay(date).map((x) => ({ at: x.at, app: x.app, title: x.title, url: `daily-shot://${date}/${x.at}.jpg` })),
+            screenshots: s.screenshots, asked: s.screenshotsAsked
+          };
         }
       },
       insights: {
