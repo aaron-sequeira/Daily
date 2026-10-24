@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
 
-export type IconName = 'home' | 'settings' | 'work' | 'learning' | 'social' | 'entertainment' | 'communication' | 'other' | 'all' | 'report' | 'insights';
+export type IconName = 'home' | 'settings' | 'work' | 'learning' | 'social' | 'entertainment' | 'communication' | 'other' | 'all' | 'report' | 'insights' | 'replay';
 
 const PATHS: Record<IconName, JSX.Element> = {
   home: <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />,
@@ -13,7 +13,8 @@ const PATHS: Record<IconName, JSX.Element> = {
   other: <><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></>,
   all: <><rect x="3.5" y="3.5" width="7" height="7" rx="3.5" /><rect x="13.5" y="3.5" width="7" height="7" rx="3.5" /><rect x="3.5" y="13.5" width="7" height="7" rx="3.5" /><rect x="13.5" y="13.5" width="7" height="7" rx="3.5" /></>,
   report: <><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M9 8h6M9 12h6M9 16h4" /></>,
-  insights: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+  insights: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
+  replay: <><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /><path d="m10 9 5 3-5 3z" /></>
 };
 
 export function Icon({ name }: { name: IconName }) {

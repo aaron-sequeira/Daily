@@ -11,12 +11,13 @@ const toggle = <T,>(list: T[], v: T): T[] => (list.includes(v) ? list.filter((x)
 const cleanName = (s: string): string => s.replace(/\s+/g, ' ').trim(); // a pasted tab/newline would fail validation
 const hasText = (list: string[], v: string): boolean => list.some((x) => x.toLowerCase() === v.toLowerCase());
 
-export function Onboarding({ mode, initial, initialScreen, initialStartup, onDone, onCancel }: {
-  mode: 'first' | 'redo'; initial: Profile; initialScreen: boolean; initialStartup: boolean; onDone: (s: DaylensSettings) => void; onCancel?: () => void;
+export function Onboarding({ mode, initial, initialScreen, initialShots, initialStartup, onDone, onCancel }: {
+  mode: 'first' | 'redo'; initial: Profile; initialScreen: boolean; initialShots: boolean; initialStartup: boolean; onDone: (s: DaylensSettings) => void; onCancel?: () => void;
 }) {
   const [step, setStep] = useState(0);
   const [a, setA] = useState<Profile>(initial);
   const [screen, setScreen] = useState(initialScreen);
+  const [shots, setShots] = useState(initialShots);
   const [startup, setStartup] = useState(initialStartup);
   const [other, setOther] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -85,7 +86,7 @@ export function Onboarding({ mode, initial, initialScreen, initialStartup, onDon
       if (cancelled.current) return;
       if (mode === 'first') s = await api.consent.grant(); // consent only when onboarding is finished
       if (cancelled.current) return;
-      s = await api.settings.set({ screenReading: screen, screenReadingAsked: true, openAtLogin: startup });
+      s = await api.settings.set({ screenReading: screen, screenReadingAsked: true, screenshots: shots, screenshotsAsked: true, openAtLogin: startup });
       if (cancelled.current) return;
       setCelebrate(true);
       doneTimer.current = setTimeout(() => onDone(s), 1600);
@@ -209,13 +210,30 @@ export function Onboarding({ mode, initial, initialScreen, initialStartup, onDon
           <h1 tabIndex={-1}>Let me understand<br /><b>your screen?</b></h1>
           <p className="lead" style={{ marginBottom: 14 }}>With this on, Daily reads the text of the window in front every 30 seconds, so it can tell coding from scrolling and give you better tips.</p>
           <div className="promise">
-            <div><i style={{ background: 'var(--mint)' }}>🔒</i><span><b>Text only, on this PC.</b> The screenshot is never saved or sent anywhere.</span></div>
+            <div><i style={{ background: 'var(--mint)' }}>🔒</i><span><b>Text only, on this PC.</b> The text is never sent anywhere, and the picture isn't kept.</span></div>
             <div><i style={{ background: 'var(--lav)' }}>🙈</i><span>Skips <b>password managers, banking and private windows</b>. You can add more in Settings.</span></div>
             <div><i style={{ background: 'var(--peach)' }}>⬇️</i><span>Needs a one-time <b>1.7 GB</b> download, which runs in the background.</span></div>
           </div>
           <div className="ob-screen">
             <span>Read on-screen text</span>
             <button className={`sw${screen ? ' on' : ''}`} aria-label="Read on-screen text" aria-pressed={screen} onClick={() => setScreen((v) => !v)} />
+          </div>
+          <p className="ob-why">💡 <span><b>Good to know:</b> it's off unless you turn it on, and you can change it any time in Settings → Privacy.</span></p>
+          {nav('Continue →')}
+        </>);
+      case 6:
+        return (<>
+          <p className="ob-kicker"><i style={{ background: 'var(--lav)' }}>🎞️</i>Replay</p>
+          <h1 tabIndex={-1}>Want to see<br /><b>what you saw?</b></h1>
+          <p className="lead" style={{ marginBottom: 14 }}>Replay shows your day chapter by chapter. With this on, Daily also keeps a small picture of the window you're using, so you can find your way back to it.</p>
+          <div className="promise">
+            <div><i style={{ background: 'var(--mint)' }}>🔒</i><span><b>Only on this PC.</b> Pictures are never sent anywhere.</span></div>
+            <div><i style={{ background: 'var(--lav)' }}>🙈</i><span>Skips the same <b>password managers, banking and private windows</b> as screen text.</span></div>
+            <div><i style={{ background: 'var(--sky)' }}>🗑️</i><span>Deleted after <b>7 days</b> unless you choose 1 or 30 in Settings.</span></div>
+          </div>
+          <div className="ob-screen">
+            <span>Screenshots for Replay</span>
+            <button className={`sw${shots ? ' on' : ''}`} aria-label="Screenshots for Replay" aria-pressed={shots} onClick={() => setShots((v) => !v)} />
           </div>
           <p className="ob-why">💡 <span><b>Good to know:</b> it's off unless you turn it on, and you can change it any time in Settings → Privacy.</span></p>
           {nav('Continue →')}
@@ -251,7 +269,7 @@ export function Onboarding({ mode, initial, initialScreen, initialStartup, onDon
         </div>
         <section className="ob-step" key={step} ref={stepRef}>{body()}</section>
       </div>
-      <OnboardingArt step={step} cards={cardsFor(step, art)} bubble={bubbleFor(step, art, screen)} celebrate={celebrate} />
+      <OnboardingArt step={step} cards={cardsFor(step, art)} bubble={bubbleFor(step, art, screen, shots)} celebrate={celebrate} />
     </div>
   );
 }

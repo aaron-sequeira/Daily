@@ -39,7 +39,7 @@ describe('cardsFor', () => {
     expect(titles(4, p())).toEqual(['Nothing? Lucky you']);
   });
   it('summary step leads with the name and ends with privacy', () => {
-    const t = titles(6, p({ name: 'Aaron', goals: ['focus'] }));
+    const t = titles(7, p({ name: 'Aaron', goals: ['focus'] }));
     expect(t[0]).toBe('Aaron');
     expect(t[t.length - 1]).toBe('All on this PC');
   });
@@ -70,7 +70,13 @@ describe('screen step bubble', () => {
   it('reacts to the switch', () => {
     expect(bubbleFor(5, p(), false)).toMatch(/optional/i);
     expect(bubbleFor(5, p(), true)).toMatch(/privately/i);
-    expect(STEP_COUNT).toBe(7);
+    expect(STEP_COUNT).toBe(8);
+  });
+  it('the screenshot step explains Replay and keeps it local', () => {
+    expect(titles(6, p())).toContain('Only on this PC');
+    expect(bubbleFor(6, p(), false, false)).toMatch(/optional/i);
+    expect(bubbleFor(6, p(), false, true)).toMatch(/replay/i);
+    expect(titles(5, p()).join(' ')).not.toMatch(/never saved/i); // screenshots can be saved now, if the user says so
   });
 });
 

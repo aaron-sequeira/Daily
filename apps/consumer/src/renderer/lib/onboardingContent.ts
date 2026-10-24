@@ -2,7 +2,7 @@ import { MAX_DISTRACTIONS, type Goal, type Profile, type Role } from '../../shar
 
 export interface OrbitCard { icon: string; title: string; sub: string; color: string }
 export interface SummaryRow { icon: string; color: string; text: string; strong: string }
-export const STEP_COUNT = 7;
+export const STEP_COUNT = 8;
 export const MAX_ORBIT_CARDS = 10;
 
 function c(icon: string, title: string, sub: string, color: string): OrbitCard {
@@ -96,7 +96,14 @@ export function cardsFor(step: number, p: Profile): OrbitCard[] {
         c('📺', 'Watching YouTube', 'entertainment', 'var(--peach)'),
         c('📚', 'Reading docs', 'learning', 'var(--mint)'),
         c('💬', 'Team chat', 'communication', 'var(--sky)'),
-        c('🔒', 'Text only, on this PC', 'screenshot never saved', 'var(--mint)')
+        c('🔒', 'Text only, on this PC', 'never sent anywhere', 'var(--mint)')
+      ];
+    case 6:
+      return [
+        c('🎞️', 'Replay your day', 'chapter by chapter', 'var(--lav)'),
+        c('🖼️', 'What you saw', 'small pictures', 'var(--peach)'),
+        c('🔒', 'Only on this PC', 'never sent anywhere', 'var(--mint)'),
+        c('🗑️', 'Deleted on schedule', 'after 1, 7 or 30 days', 'var(--sky)')
       ];
     default:
       return cap([
@@ -109,7 +116,7 @@ export function cardsFor(step: number, p: Profile): OrbitCard[] {
   }
 }
 
-export function bubbleFor(step: number, p: Profile, screen = false): string {
+export function bubbleFor(step: number, p: Profile, screen = false, shots = false): string {
   const name = p.name.trim();
   switch (step) {
     case 0: return "Hi! I'm Daily. Let's get to know each other.";
@@ -121,6 +128,7 @@ export function bubbleFor(step: number, p: Profile, screen = false): string {
         ? `Noted. I'll keep a gentle eye on ${p.distractions.slice(0, 2).join(' & ')}${p.distractions.length > 2 ? ' and more' : ''}.`
         : 'Anything that steals your time? Totally optional.';
     case 5: return screen ? "Thanks! I'll learn what you're working on, privately." : 'Totally optional. Everything else works without it.';
+    case 6: return shots ? "Lovely. Replay will show you what you saw, and it stays on this PC." : 'Optional too. Replay still shows your chapters without pictures.';
     default: return `Ready when you are${name ? `, ${name}` : ''}! Your dashboard fills in as you use your PC.`;
   }
 }

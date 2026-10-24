@@ -21,6 +21,12 @@ describe('buildChapters', () => {
     expect(ch[1]).toMatchObject({ start: T0 + 45 * M, category: 'other' });
   });
 
+  it('joins same-category neighbours left side by side after a fold', () => {
+    const ch = buildChapters([ep(0, 15, 'Code', 'work'), ep(15, 20, 'Chrome', 'other'), ep(20, 40, 'Code', 'work')]);
+    expect(ch).toHaveLength(1);
+    expect(ch[0]).toMatchObject({ start: T0, end: T0 + 40 * M, category: 'work', switches: 2 });
+  });
+
   it('keeps a lone short chapter rather than dropping the day', () => {
     expect(buildChapters([ep(0, 4, 'Code', 'work')])).toHaveLength(1);
   });
@@ -33,6 +39,12 @@ describe('buildChapters', () => {
     const long = buildChapters([ep(0, 30, 'Chrome', 'other', ['x'.repeat(100)])]);
     expect(long[0].title.length).toBe(60);
     expect(buildChapters([ep(0, 30, 'Chrome', 'other')])[0].title).toBe('Chrome');
+  });
+
+  it("drops the app's own name from the end of the title", () => {
+    expect(buildChapters([ep(0, 30, 'Discord', 'social', ['#general - Discord'])])[0].title).toBe('Discord · #general');
+    expect(buildChapters([ep(0, 30, 'Google Chrome', 'other', ['Docs — Google Chrome'])])[0].title).toBe('Google Chrome · Docs');
+    expect(buildChapters([ep(0, 30, 'Discord', 'social', ['Discord'])])[0].title).toBe('Discord');
   });
 
   it('keeps at most 8 things seen', () => {

@@ -32,7 +32,10 @@ function toChapter(g: ChapterEpisode[], category: string): Chapter {
   const top = apps[0].app;
   const counts = new Map<string, number>();
   for (const e of g) if (e.app === top) for (const t of e.titles) counts.set(t, (counts.get(t) ?? 0) + 1);
-  const topTitle = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  // Windows titles often end with " - <App>": the chapter title already leads with the app.
+  const esc = top.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const topTitle = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]
+    ?.replace(new RegExp(`(^|\\s[-–—|]\\s)${esc}$`, 'i'), '').trim() || undefined;
   let switches = 0;
   for (let i = 1; i < g.length; i++) if (g[i].app !== g[i - 1].app) switches++;
   return {
@@ -61,6 +64,11 @@ export function buildChapters(episodes: ChapterEpisode[]): Chapter[] {
     const merged = into < i ? [...groups[into].eps, ...groups[i].eps] : [...groups[i].eps, ...groups[into].eps];
     groups[into] = { cat: groups[into].cat, eps: merged };
     groups.splice(i, 1);
+    // The fold can leave two same-category chapters side by side: join them.
+    for (let k = groups.length - 1; k > 0; k--) {
+      const a = groups[k - 1], b = groups[k];
+      if (a.cat === b.cat && b.eps[0].start - a.eps[a.eps.length - 1].end < GAP_MS) groups.splice(k - 1, 2, { cat: a.cat, eps: [...a.eps, ...b.eps] });
+    }
   }
   return groups.map((g) => toChapter(g.eps, g.cat));
 }

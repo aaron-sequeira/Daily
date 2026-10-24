@@ -7,6 +7,7 @@ import { Rail, type Route } from './components/Rail';
 import { Onboarding } from './components/Onboarding';
 import { TodayScreen } from './components/TodayScreen';
 import { ReportsScreen } from './components/ReportsScreen';
+import { ReplayScreen } from './components/ReplayScreen';
 import { InsightsScreen } from './components/InsightsScreen';
 import { SettingsScreen } from './components/SettingsScreen';
 
@@ -53,7 +54,7 @@ export default function App() {
     return (
       <>
         <TitleBar tracking={settings.consentGranted ? !settings.trackingPaused : null} />
-        <Onboarding mode={mode} initial={initial} initialScreen={settings.screenReading} initialStartup={settings.openAtLogin}
+        <Onboarding mode={mode} initial={initial} initialScreen={settings.screenReading} initialShots={settings.screenshots} initialStartup={settings.openAtLogin}
           onDone={(s) => { setSettings(s); setRoute(mode === 'redo' ? 'settings' : 'today'); setOnboarding(null); }}
           onCancel={mode === 'redo' ? () => setOnboarding(null) : undefined} />
       </>
@@ -66,6 +67,7 @@ export default function App() {
       <div className={`shell${route === 'settings' ? ' wide' : ''}`}>
         <Rail route={route} onNavigate={setRoute} />
         {route === 'today' && <TodayScreen settings={settings} onChange={setSettings} />}
+        {route === 'replay' && <ReplayScreen settings={settings} onChange={setSettings} onOpenSettings={() => setRoute('settings')} />}
         {route === 'reports' && <ReportsScreen />}
         {route === 'insights' && <InsightsScreen />}
         {route === 'settings' && <SettingsScreen settings={settings} onChange={setSettings} onRedo={redo} />}

@@ -77,8 +77,13 @@ import { writerState, navDates, needGb, freeGb, settledDay, type ReportView, typ
 
 app.setName('Daily');
 app.setAppUserModelId('ai.worksight.daylens'); // unchanged since Daylens: matches the installer's shortcut and login item
+// Development only: DAILY_USER_DATA points a dev run at a scratch copy of a profile, so trying a change never touches
+// the real data (and the old-Daylens move is skipped).
+const devUserData = app.isPackaged ? undefined : process.env.DAILY_USER_DATA;
+if (devUserData) app.setPath('userData', devUserData);
 // Before anything touches userData (now %APPDATA%\Daily): bring a Daylens user's data over.
 const migration = ((): ReturnType<typeof migrateUserData> => {
+  if (devUserData) return 'none';
   try { return migrateUserData(app.getPath('appData')); } catch (e) { console.warn('[migrate] could not bring the old Daylens data over', e); return 'failed'; }
 })();
 if (migration === 'failed') {

@@ -32,9 +32,9 @@ export function PrivacySection({ settings, onChange }: { settings: DaylensSettin
     const off = api.onUpdate(load);
     const t = setInterval(load, 30_000);
     return () => { off(); clearInterval(t); };
-  }, [settings.screenReading, settings.rawTextRetentionDays, settings.trackingPaused]);
+  }, [settings.screenReading, settings.screenshots, settings.rawTextRetentionDays, settings.trackingPaused]);
 
-  const set = async (patch: { screenReading?: boolean; rawTextRetentionDays?: 1 | 7 | 30 }): Promise<void> => {
+  const set = async (patch: { screenReading?: boolean; screenshots?: boolean; rawTextRetentionDays?: 1 | 7 | 30 }): Promise<void> => {
     try { onChange(await api.settings.set(patch)); } catch (e) { console.error(e); load(); }
   };
   const saveExclusions = async (list: string[]): Promise<void> => {
@@ -56,7 +56,7 @@ export function PrivacySection({ settings, onChange }: { settings: DaylensSettin
         <h4>Screen reading</h4>
         <div className="srow">
           <p>Read on-screen text
-            <small>Reads the text of the window in front every 30 seconds so Daily can understand what you're doing. The screenshot is never saved; only the text is kept, on this PC.</small>
+            <small>Reads the text of the window in front every 30 seconds so Daily can understand what you're doing. Only the text is kept, on this PC; the picture itself is only saved if you turn on screenshots below.</small>
           </p>
           <button className={`sw${view.screenReading ? ' on' : ''}`} aria-label="Read on-screen text" aria-pressed={view.screenReading}
             onClick={() => { void set({ screenReading: !view.screenReading }); }} />
@@ -68,7 +68,7 @@ export function PrivacySection({ settings, onChange }: { settings: DaylensSettin
           )}
         </div>
         <div className="srow">
-          <p>Keep screen text for<small>Older text is erased automatically. Time and app history are kept.</small></p>
+          <p>Keep screen text and screenshots for<small>Older ones are erased automatically. Time and app history are kept.</small></p>
           <div className="segc" role="group" aria-label="Keep screen text for">
             {([1, 7, 30] as const).map((d) => (
               <button key={d} aria-pressed={view.retentionDays === d} onClick={() => { void set({ rawTextRetentionDays: d }); }}>
@@ -76,6 +76,17 @@ export function PrivacySection({ settings, onChange }: { settings: DaylensSettin
               </button>
             ))}
           </div>
+        </div>
+      </div>
+
+      <div className="grp">
+        <h4>Replay</h4>
+        <div className="srow">
+          <p>Screenshots for Replay
+            <small>Keeps a small picture of the window you're using, so Replay can show what you saw. Only on this PC, never sent anywhere, and deleted after {view.retentionDays === 1 ? '1 day' : `${view.retentionDays} days`}. Apps and words under "Never look at" are skipped.</small>
+          </p>
+          <button className={`sw${settings.screenshots ? ' on' : ''}`} aria-label="Screenshots for Replay" aria-pressed={settings.screenshots}
+            onClick={() => { void set({ screenshots: !settings.screenshots }); }} />
         </div>
       </div>
 
@@ -120,13 +131,13 @@ export function PrivacySection({ settings, onChange }: { settings: DaylensSettin
       <div className="grp">
         <h4>Your data</h4>
         <div className="srow">
-          <p>Export everything<small>A JSON file with your activity, screen reads, settings and answers.</small></p>
+          <p>Export everything<small>A JSON file with your activity, screen reads, settings and answers (screenshots stay in their folder).</small></p>
           <button className="btn s" onClick={() => {
             api.privacy.export().then((r) => setNote(r.saved ? `Saved to ${r.path}` : null)).catch((e) => { console.error(e); setNote("Couldn't save the export."); });
           }}>Export</button>
         </div>
         <div className="srow">
-          <p>Delete my activity<small>Erases screen time, app history and screen reads from this PC. Settings and answers are kept.</small></p>
+          <p>Delete my activity<small>Erases screen time, app history, screen reads and screenshots from this PC. Settings and answers are kept.</small></p>
           <button className="btn s danger" onClick={() => {
             api.privacy.deleteActivity().then((r) => { if (r.deleted) { setNote('Your activity was deleted.'); load(); } }).catch((e) => { console.error(e); setNote("Couldn't delete your activity."); });
           }}>Delete…</button>

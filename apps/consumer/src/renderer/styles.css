@@ -461,3 +461,46 @@ body:has(.print-root), #root:has(.print-root) { height: auto; overflow: visible;
 .travel { background: var(--sky); border-radius: 18px; padding: 16px 18px; display: grid; gap: 8px; margin-bottom: 14px; }
 .travel ul { margin: 0; padding-left: 18px; font-size: 13px; color: #3c3834; }
 .travel .btn { justify-self: start; }
+
+/* replay */
+.replay .rp-eyebrow { font-size: 13px; letter-spacing: .1em; text-transform: uppercase; font-weight: 600; color: #8A5A12; margin-left: 6px; }
+.rp-title { font-weight: 400; font-size: 44px; line-height: 1.08; letter-spacing: -.025em; margin: 10px 0 22px; animation: rise .6s var(--ease) both; }
+.rp-title b { font-weight: 600; }
+.rp-ribbon { position: relative; height: 64px; border-radius: 18px; background: var(--panel); }
+.rp-ch { position: absolute; top: 6px; bottom: 6px; min-width: 6px; border-radius: 12px; border: 2px solid transparent; padding: 0 10px; font-size: 12px; font-weight: 600; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; transition: transform .25s var(--spring); animation: grow .7s var(--ease) both; transform-origin: left; }
+.rp-ch:hover { transform: translateY(-2px); }
+.rp-ch.on { border-color: var(--ink); }
+.rp-ticks { position: relative; height: 22px; margin: 6px 4px 18px; font-size: 12px; color: var(--muted); }
+.rp-ticks span { position: absolute; top: 0; }
+.rp-card { background: var(--white); border-radius: 26px; padding: 26px; display: flex; flex-direction: column; gap: 14px; animation: rise .5s var(--ease) both; }
+.rp-meta { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
+.rp-meta i { width: 14px; height: 14px; border-radius: 5px; }
+.rp-card h2 { font-size: 28px; font-weight: 600; letter-spacing: -.015em; line-height: 1.15; overflow-wrap: anywhere; }
+.rp-card h3 { font-size: 13px; font-weight: 600; color: var(--muted); margin-top: 6px; }
+.rp-apps { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; }
+.rp-apps li { display: flex; gap: 8px; background: var(--win); border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; font-size: 13px; }
+.rp-shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
+.rp-shot { border: 0; background: none; padding: 0; display: flex; flex-direction: column; gap: 8px; text-align: left; cursor: zoom-in; }
+.rp-shot img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; object-position: top; border-radius: 16px; background: var(--stone); border: 1px solid var(--line); transition: transform .25s var(--spring); }
+.rp-shot:hover img { transform: scale(1.03); }
+.rp-shot span { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rp-seen { list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.rp-seen li { padding: 8px 12px; border-radius: 12px; background: var(--win); overflow-wrap: anywhere; }
+.rp-none { font-size: 14px; color: var(--muted); }
+.rp-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.rp-stats div { background: var(--white); border-radius: 18px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+.rp-stats small { font-size: 12px; color: var(--muted); }
+.rp-stats b { font-size: 22px; font-weight: 600; }
+.rp-ask { background: var(--lav); border-radius: 22px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+.rp-ask h3 { font-size: 16px; font-weight: 600; }
+.rp-ask p { font-size: 13px; line-height: 1.45; }
+.rp-ask-btns { display: flex; gap: 8px; }
+.rp-ask-btns .btn { padding: 10px 18px; }
+.rp-quiet { margin: 0; text-align: left; }
+.rp-lightbox { position: fixed; inset: 0; z-index: 50; background: rgba(23, 23, 23, .82); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 40px; animation: rise .25s var(--ease) both; }
+.rp-lightbox img { max-width: 100%; max-height: calc(100% - 100px); border-radius: 14px; box-shadow: 0 30px 80px rgba(0, 0, 0, .5); }
+.rp-lightbox p { color: #FBF8F4; font-size: 14px; max-width: 80ch; text-align: center; overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) {
+  .rp-title, .rp-ch, .rp-card, .rp-lightbox { animation: none; }
+  .rp-ch:hover, .rp-shot:hover img { transform: none; }
+}
