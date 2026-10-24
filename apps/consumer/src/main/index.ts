@@ -15,6 +15,7 @@ import { DEFAULT_SETTINGS } from './settings';
 import { createOcrClient } from './ocr/client';
 import { SCREEN_SCHEMA, createScreenStore, checkpoint, deleteActivity, exportAll } from './screen/store';
 import { createScreenReader, runRetention } from './screen/reader';
+import { SHOTS_SQL, createShotStore } from './screen/shots';
 import { readProfile } from './profile';
 import { createLabelStore } from './screen/labels';
 import { createLabelScheduler, type BrainChild } from './brain/scheduler';
@@ -139,6 +140,8 @@ if (!app.requestSingleInstanceLock()) {
     const settings = createKvStore(db, DEFAULT_SETTINGS);
     db.exec(SCREEN_SCHEMA);
     const screenStore = createScreenStore(db);
+    db.exec(SHOTS_SQL);
+    const shotStore = createShotStore(db, join(app.getPath('userData'), 'shots'));
     // Existing users who already enabled reading in Phase 3 have answered the opt-in question.
     if (settings.get().screenReading && !settings.get().screenReadingAsked) settings.set({ screenReadingAsked: true });
     const labelStore = createLabelStore(db);
@@ -805,18 +808,19 @@ if (!app.requestSingleInstanceLock()) {
       idleSec: () => powerMonitor.getSystemIdleTime(), store: screenStore, now: () => Date.now(),
       // The BrowserWindow's HWND belongs to this process: never OCR our own window.
       selfPid: process.pid,
-      backlogBlocked: () => scheduler.backlogBlocked()
+      backlogBlocked: () => scheduler.backlogBlocked(),
+      shots: shotStore
     });
-    // The helper process only exists while screen reading is allowed to run.
+    // The helper process only exists while screen reading or screenshots are allowed to run.
     const syncOcr = (): void => {
       const s = settings.get();
-      if (s.screenReading && s.consentGranted && !s.trackingPaused) ocr.start(); else ocr.stop();
+      if ((s.screenReading || s.screenshots) && s.consentGranted && !s.trackingPaused) ocr.start(); else ocr.stop();
     };
     // Runs at startup, before the tray/quit/power handlers below are registered, so a failure here must
     // not crash startup.
     const retention = (): void => {
       try {
-        const purged = runRetention(screenStore, settings.get().rawTextRetentionDays, Date.now());
+        const purged = runRetention(screenStore, settings.get().rawTextRetentionDays, Date.now(), shotStore);
         if (purged > 0) checkpoint(db);
       } catch (e) {
         console.error('[screen] retention failed:', e);
@@ -1103,7 +1107,7 @@ if (!app.requestSingleInstanceLock()) {
           const r = await dialog.showMessageBox(win!, {
             type: 'warning', buttons: ['Delete', 'Cancel'], defaultId: 1, cancelId: 1, title: 'Delete my activity',
             message: 'Delete all your activity and screen text?',
-            detail: "Screen time, app history, screen reads, daily reports, weekly summaries and plan items will be erased from this PC. Your settings and answers are kept. This can't be undone."
+            detail: "Screen time, app history, screen reads, screenshots, daily reports, weekly summaries and plan items will be erased from this PC. Your settings and answers are kept. This can't be undone."
           });
           if (r.response !== 0) return { deleted: false };
           const s = settings.get();
@@ -1117,6 +1121,7 @@ if (!app.requestSingleInstanceLock()) {
             pastActivity.clear();
             pastDays.clear();
             deleteActivity(db);
+            shotStore.deleteAll();
             pill.dismissAll(); // any on-screen nudges reference rows that just got wiped
             try { checkpoint(db); } catch (e) { console.error('[privacy] checkpoint after delete failed:', e); } // the delete itself succeeded
           } finally {

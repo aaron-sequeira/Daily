@@ -179,3 +179,98 @@ describe('runRetention', () => {
     expect(store.last()).toMatchObject({ text: 'const x = 1 // mail [email]' });
   });
 });
+
+describe('screenshots', () => {
+  let saved: { at: number; date: string; app: string; title: string | null; jpg: string }[];
+  let asked: { text?: boolean; shot?: boolean }[];
+  const shotReader = () => createScreenReader({
+    ocr: { capture: async (o) => { captures++; asked.push(o ?? {}); return cap; } },
+    foreground: { get: async () => fg },
+    settings: () => settings, idleSec: () => idle, store, now: () => now, selfPid: SELF_PID,
+    shots: { save: (x) => { saved.push(x); } }
+  });
+  beforeEach(() => { saved = []; asked = []; cap = { ...cap!, jpg: 'JPG' }; });
+
+  it('takes no screenshot while the switch is off, even with screen reading on', async () => {
+    await expect(shotReader().tick()).resolves.toBe('stored');
+    expect(asked).toEqual([{ text: true, shot: false }]);
+    expect(saved).toEqual([]);
+  });
+
+  it('takes a screenshot without OCR when only screenshots are on', async () => {
+    settings = { ...settings, screenReading: false, screenshots: true };
+    await expect(shotReader().tick()).resolves.toBe('stored');
+    expect(asked).toEqual([{ text: false, shot: true }]);
+    expect(saved).toEqual([{ at: now, date: '2026-09-24', app: 'Visual Studio Code', title: 'app.ts - proj', jpg: 'JPG' }]);
+    expect(store.last()).toBeNull(); // no screen text stored
+  });
+
+  it('takes both when both are on', async () => {
+    settings = { ...settings, screenshots: true };
+    await expect(shotReader().tick()).resolves.toBe('stored');
+    expect(asked).toEqual([{ text: true, shot: true }]);
+    expect(saved).toHaveLength(1);
+    expect(store.last()).not.toBeNull();
+  });
+
+  it('does nothing when both are off', async () => {
+    settings = { ...settings, screenReading: false, screenshots: false };
+    await expect(shotReader().tick()).resolves.toBe('skipped-off');
+    expect(captures).toBe(0);
+  });
+
+  it('discards a shot of a window that changed or is excluded', async () => {
+    settings = { ...settings, screenReading: false, screenshots: true };
+    for (const c of [{ pid: 99 }, { title: 'Sign in - Bank of Baroda' }]) {
+      cap = { ...cap!, ...c };
+      await expect(shotReader().tick()).resolves.toBe('discarded');
+    }
+    fg = { appName: '1Password', appPath: null, title: 'Vault', pid: 7 };
+    await expect(shotReader().tick()).resolves.toBe('skipped-excluded');
+    fg = { appName: 'Daily', appPath: null, title: 'Daily', pid: SELF_PID };
+    await expect(shotReader().tick()).resolves.toBe('skipped-self');
+    expect(saved).toEqual([]);
+  });
+
+  it('drops the shot if the switch was turned off during the capture', async () => {
+    settings = { ...settings, screenReading: false, screenshots: true };
+    const r = createScreenReader({
+      ocr: { capture: async () => { settings = { ...settings, screenshots: false }; return cap; } },
+      foreground: { get: async () => fg },
+      settings: () => settings, idleSec: () => idle, store, now: () => now, selfPid: SELF_PID,
+      shots: { save: (x) => { saved.push(x); } }
+    });
+    await expect(r.tick()).resolves.toBe('skipped-off');
+    expect(saved).toEqual([]);
+  });
+
+  it('skips the same window within 2 minutes with screenshots only', async () => {
+    settings = { ...settings, screenReading: false, screenshots: true };
+    const r = shotReader();
+    await r.tick();
+    now += SAME_WINDOW_MS - 1;
+    await expect(r.tick()).resolves.toBe('skipped-same');
+    now += 1;
+    await expect(r.tick()).resolves.toBe('stored');
+    expect(saved).toHaveLength(2);
+  });
+
+  it('a blocked label backlog stops screen text, not screenshots', async () => {
+    settings = { ...settings, screenshots: true };
+    const r = createScreenReader({
+      ocr: { capture: async (o) => { asked.push(o ?? {}); return cap; } }, foreground: { get: async () => fg },
+      settings: () => settings, idleSec: () => idle, store, now: () => now, selfPid: SELF_PID,
+      backlogBlocked: () => true, shots: { save: (x) => { saved.push(x); } }
+    });
+    await expect(r.tick()).resolves.toBe('stored');
+    expect(asked).toEqual([{ text: false, shot: true }]);
+    expect(store.last()).toBeNull();
+    expect(saved).toHaveLength(1);
+  });
+
+  it('retention purges screenshots too', () => {
+    const purged: number[] = [];
+    runRetention(store, 7, now, { purgeBefore: (ms) => { purged.push(ms); return 3; } });
+    expect(purged).toEqual([now - 7 * 86_400_000]);
+  });
+});
