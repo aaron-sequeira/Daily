@@ -22,11 +22,12 @@ const CRASH_WINDOW_MS = 10 * 60_000;
 const MAX_CRASHES = 3; // more than this within the window → failed
 const NO_LANGUAGE_EXIT_CODE = 2;
 
-type Reply = { id?: string; ready?: boolean; error?: string; text?: string; ms?: number; pid?: number; title?: string; w?: number; h?: number; jpg?: string };
+type Reply = { id?: string; ready?: boolean; ocr?: boolean; error?: string; text?: string; ms?: number; pid?: number; title?: string; w?: number; h?: number; jpg?: string };
 
 export function createOcrClient(deps: { spawn: () => ChildLike; onStatus?: (s: OcrStatus) => void; timeoutMs?: number }): OcrClient {
   const timeoutMs = deps.timeoutMs ?? 8000;
   let status: OcrStatus = 'off';
+  let ocr = true; // false when the helper is up without a Windows OCR language (screenshots only)
   let child: ChildLike | null = null;
   let seq = 0;
   let pending: { id: string; text: boolean; resolve: (r: CaptureResult | null) => void; timer: ReturnType<typeof setTimeout> } | null = null;
@@ -46,7 +47,8 @@ export function createOcrClient(deps: { spawn: () => ChildLike; onStatus?: (s: O
     let msg: Reply;
     try { msg = JSON.parse(line) as Reply; } catch { return; }
     if (!msg || typeof msg !== 'object') return;
-    if (msg.ready === true) { setStatus('ready'); return; }
+    // ready without OCR (no Windows OCR language): screen text is unavailable, screenshots still work.
+    if (msg.ready === true) { ocr = msg.ocr !== false; setStatus(ocr ? 'ready' : 'no-language'); return; }
     if (msg.ready === false) { setStatus('no-language'); return; }
     if (!pending || msg.id !== pending.id) return;
     if (msg.error || (pending.text ? typeof msg.text !== 'string' : typeof msg.jpg !== 'string')) { settle(null); return; }
@@ -108,7 +110,9 @@ export function createOcrClient(deps: { spawn: () => ChildLike; onStatus?: (s: O
       if (c) { c.stdin.end(); c.kill(); }
     },
     capture({ text = true, shot = false } = {}) {
-      if (status !== 'ready' || !child || pending || (!text && !shot)) return Promise.resolve(null);
+      if (!ocr) text = false;
+      const up = status === 'ready' || (status === 'no-language' && !ocr);
+      if (!up || !child || pending || (!text && !shot)) return Promise.resolve(null);
       const cmd = text && shot ? 'CAPTURE+SHOT' : shot ? 'SHOT' : 'CAPTURE';
       const id = String(++seq);
       const c = child;

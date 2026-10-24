@@ -21,4 +21,8 @@ describe('ocr-helper.ps1', () => {
     const fn = ps1.slice(ps1.indexOf('function Capture-Foreground'));
     expect(fn.indexOf("error = 'window_changed'")).toBeLessThan(fn.indexOf('Jpeg-Base64'));
   });
+  it('keeps running without an OCR language, so screenshots still work', () => {
+    expect(ps1).toContain('Emit @{ ready = $true; ocr = $false }');
+    expect(ps1).not.toMatch(/no_ocr_language'\s*\};\s*exit 2/);
+  });
 });

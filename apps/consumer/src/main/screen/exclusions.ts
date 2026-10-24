@@ -6,6 +6,9 @@ const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 // Whole-word match that also works for patterns starting/ending with symbols ("C++", "1Password").
 const matcher = (p: string): RegExp => new RegExp(`(?<![\\p{L}\\p{N}])${escapeRe(p)}(?![\\p{L}\\p{N}])`, 'iu');
 
+/** Private / incognito browser windows: their titles are never shown or sent anywhere. */
+export const PRIVATE_TITLE = /InPrivate|Incognito|Private Browsing|\(Private\)/i;
+
 export function isExcluded(patterns: string[], appName: string, title: string | null): boolean {
   return patterns.some((p) => {
     const re = matcher(p);

@@ -126,6 +126,12 @@ export function createPillManager(deps: {
       win.send('pill:rest', null);
       if (!visible && outstanding.size === 0 && queue.length === 0) close();
     },
+    /** Displays changed (dock, undock, resolution, scaling): move the live window to the new top centre. */
+    reposition(): void {
+      if (!win || win.isDestroyed()) return;
+      const p = deps.placement();
+      win.setPosition(p.x, p.y);
+    },
     answer(id: number, text: string): void {
       if (win && !win.isDestroyed()) win.send('pill:answer', { id, text });
     },
@@ -158,6 +164,10 @@ export function createPillManager(deps: {
 }
 
 export interface IslandRest { total: string; focus: string }
+/** The resting pill shows only when it's on, tracking runs, and nothing full screen (video, game, slides) or a call is
+ * in front (`hold` is the coach's holdReason). Cards still drop down as before; the coach holds them itself. */
+export const islandShows = (s: { islandResting: boolean; consentGranted: boolean; trackingPaused: boolean }, hold: string | null): boolean =>
+  s.islandResting && s.consentGranted && !s.trackingPaused && hold === null;
 export const ISLAND_W = 640, ISLAND_H = 420, ISLAND_TOP = 8;
 /** Top centre of a display's work area. */
 export const islandPlacement = (wa: { x: number; y: number; width: number; height: number }): { x: number; y: number } =>

@@ -17,7 +17,7 @@ import { createOcrClient } from './ocr/client';
 import { SCREEN_SCHEMA, createScreenStore, checkpoint, deleteActivity, exportAll } from './screen/store';
 import { createScreenReader, runRetention } from './screen/reader';
 import { SHOTS_SQL, createShotStore } from './screen/shots';
-import { buildChapters, sessionsToEpisodes } from './replay/chapters';
+import { buildChapters, piecesToEpisodes } from './replay/chapters';
 import { shotPath } from './replay/shotProtocol';
 import { readProfile } from './profile';
 import { createLabelStore } from './screen/labels';
@@ -42,15 +42,15 @@ import { parseFewer, parseKinds, parseLimits } from './coach/settings';
 import { repeatedSearches, searchTitlesFrom, switchesBetween } from './coach/activity';
 import { limitUsage } from './coach/rules/behaviour';
 import { longestStretch } from './coach/rules/moments';
-import { ASK_JSON_SCHEMA, askPrompt, offerQuestions, parseAnswer, questionsFor } from './island/ask';
+import { ASK_JSON_SCHEMA, createAsker, offerQuestions, parseAnswer } from './island/ask';
 import { parseTip, tipAllowedMinutes, tipInput, tipPrompt, tipRewriteAllowed, TIP_JSON_SCHEMA } from './coach/tip';
 import { parseExclusions } from './screen/exclusions';
-import { createPillManager, pillMessage, islandPlacement } from './windows/pill';
+import { createPillManager, pillMessage, islandPlacement, islandShows } from './windows/pill';
 import { displayAppName } from '../shared/categories';
 import { electronPillWindow } from './windows/pillElectron';
 import { breakOutcome, createBreakOverlay, breakMessage, PRESETS } from './windows/breakOverlay';
 import { electronBreakWindow } from './windows/breakOverlayElectron';
-import { loadTodayView, type TimelineSegment } from './day/today';
+import { loadTodayView, screenPieces, type TimelineSegment } from './day/today';
 import { dayBounds, setDayShift, shiftDate } from './day/time';
 import { createSecretStore } from './writer/secrets';
 import { resolveTier, tierFor, writerManifest, writerNeedBytes, WRITER_ATTRIBUTION, WRITER_MODELS, type WriterTier } from './writer/config';
@@ -337,12 +337,18 @@ if (!app.requestSingleInstanceLock()) {
         win?.webContents.send(CH.eventsUpdate);
       }
     });
+    // A day's on-screen pieces by Today's rules (away time, lock screen, crash leftovers dropped): Replay, the Island's
+    // questions and the stretch moments all use these, so they agree with Today's total.
+    const piecesFor = (date: string, now: number) => screenPieces({
+      date, sessions: [...repo.getFocusSessions(shiftDate(date, -1)), ...repo.getFocusSessions(date)], samples: repo.getActivitySamples(date)
+    }, Math.min(now, dayBounds(date).end), date === localDate(now));
+    const chaptersFor = (date: string, now: number) => buildChapters(piecesToEpisodes(piecesFor(date, now), parseExclusions(settings.get().exclusions)));
     // The 30 days before today can't change during the day: computed once per date.
     let best30: { date: string; ms: number } = { date: '', ms: 0 };
     const bestFocus30d = (date: string): number => {
       if (best30.date !== date) {
         let ms = 0;
-        for (let i = 1; i <= 30; i++) { const d = shiftDate(date, -i); ms = Math.max(ms, longestStretch(repo.getFocusSessions(d), dayBounds(d).end).ms); }
+        for (let i = 1; i <= 30; i++) { const d = shiftDate(date, -i); ms = Math.max(ms, longestStretch(piecesFor(d, dayBounds(d).end)).ms); }
         best30 = { date, ms };
       }
       return best30.ms;
@@ -507,7 +513,6 @@ if (!app.requestSingleInstanceLock()) {
     const writer = createWriter(writerDeps);
     // The Island's follow-ups use only the model on this PC: window titles never leave it, even in cloud mode.
     const localWriter = createWriter({ ...writerDeps, mode: () => 'local' });
-    let asking = false;
     const askLocal = async (system: string, user: string): Promise<string | null> => {
       if (writerDl.status().state !== 'ready' || tipWriting || reportScheduler.running() !== null
         || scheduler.status().state === 'running' || freemem() < writerNeedBytes(writerTier())) return null;
@@ -521,20 +526,13 @@ if (!app.requestSingleInstanceLock()) {
         tipWriting = false;
       }
     };
-    askIsland = async (id, q) => {
-      const meta = primaryActions.get(id);
-      // Only a question this card offered; one at a time (the pill also ignores a second tap while thinking).
-      if (asking || !meta?.ruleId || !questionsFor(meta.ruleId).includes(q)) return;
-      asking = true;
-      try {
-        const now = Date.now();
-        const chapters = buildChapters(sessionsToEpisodes(repo.getFocusSessions(localDate(now)), now));
-        const { system, user } = askPrompt(q, { nowLabel: new Date(now).toTimeString().slice(0, 5), chapters, nudgeTitle: meta.title ?? '' });
-        pill.answer(id, (await askLocal(system, user)) ?? "I couldn't work that out just now.");
-      } finally {
-        asking = false;
-      }
-    };
+    askIsland = createAsker({
+      ruleOf: (id) => primaryActions.get(id)?.ruleId,
+      titleOf: (id) => primaryActions.get(id)?.title ?? '',
+      context: () => { const now = Date.now(); return { nowLabel: new Date(now).toTimeString().slice(0, 5), chapters: chaptersFor(localDate(now), now) }; },
+      model: askLocal,
+      answer: (id, text) => pill.answer(id, text)
+    });
     // The live AI-tip rewrite (Phase 6b task 6): personalises a stuck_tip/repeat_search pop-up when the writer is
     // usable and idle, with a hard 20 s cap; any failure (unusable, busy, timeout, bad answer) keeps the template.
     // Titles pass the user's exclusion patterns (tipInput); the cloud never sees screen text. Never logs tip text.
@@ -865,20 +863,36 @@ if (!app.requestSingleInstanceLock()) {
 
     // The Island at rest: today's screen time (as Today counts it) and the app in front.
     const hm = (sec: number): string => { const m = Math.floor(sec / 60); return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`; };
+    let islandTotal = { at: 0, text: '' };
+    let islandHold: string | null = null;
     const syncIsland = (): void => {
       try {
         const s = settings.get();
-        if (!s.islandResting || !s.consentGranted || s.trackingPaused) { pill.setResting(null); return; }
+        if (!islandShows(s, islandHold)) { pill.setResting(null); return; }
         const now = Date.now();
-        const sec = loadTodayView(repo, s, localDate(now), now, (l) => labelStore.labelsForDay(l), (l) => coachStore.completedBreaksForDay(l)).screenSec;
+        // ponytail: the total is re-read at most every 30 s (a full day read); it shows minutes, so the lag is invisible.
+        if (now - islandTotal.at >= 30_000) {
+          islandTotal = { at: now, text: hm(loadTodayView(repo, s, localDate(now), now, (l) => labelStore.labelsForDay(l), (l) => coachStore.completedBreaksForDay(l)).screenSec) };
+        }
         const cur = tracker.status().currentApp;
-        pill.setResting({ total: hm(sec), focus: cur ? displayAppName(cur) : '' });
+        pill.setResting({ total: islandTotal.text, focus: cur ? displayAppName(cur) : '' });
       } catch (e) {
         console.error('[island] rest update failed:', e);
       }
     };
-    // ponytail: every 30 s, so the total can lag by up to half a minute; it shows minutes.
-    setInterval(syncIsland, 30_000);
+    // Every 5 s: something full screen or a call in front makes the Island step aside. The coach's own hold check also
+    // asks Windows' notification state through PowerShell; this one only reads the foreground window (native, cheap).
+    setInterval(() => {
+      void new ActiveWinForegroundSource().get().catch(() => null).then((fg) => {
+        const displays: Rect[] = screen.getAllDisplays().map((dsp) => dsp.bounds);
+        islandHold = holdReason(fg ? { appName: fg.appName, title: fg.title, bounds: fg.bounds ? screen.screenToDipRect(null, fg.bounds) : null } : null,
+          displays, { state: null, micInUse: false });
+        syncIsland();
+      });
+    }, 5_000);
+    screen.on('display-added', () => pill.reposition());
+    screen.on('display-removed', () => pill.reposition());
+    screen.on('display-metrics-changed', () => pill.reposition());
 
     const reader = createScreenReader({
       ocr, foreground: new ActiveWinForegroundSource(), settings: () => settings.get(),
@@ -1027,7 +1041,7 @@ if (!app.requestSingleInstanceLock()) {
         day: (date) => {
           const s = settings.get();
           return {
-            chapters: buildChapters(sessionsToEpisodes(repo.getFocusSessions(date), Date.now())),
+            chapters: chaptersFor(date, Date.now()),
             shots: shotStore.forDay(date).map((x) => ({ at: x.at, app: x.app, title: x.title, url: `daily-shot://${date}/${x.at}.jpg` })),
             screenshots: s.screenshots, asked: s.screenshotsAsked
           };

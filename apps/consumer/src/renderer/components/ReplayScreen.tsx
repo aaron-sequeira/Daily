@@ -6,7 +6,7 @@ import { api } from '../lib/api';
 import { formatClock, formatHm } from '../lib/format';
 import { addDays } from '../lib/insights';
 import { reportDateLabel } from '../lib/report';
-import { dayWindow, hourTicks, ribbon, shotsFor } from '../lib/replay';
+import { dayWindow, hourTicks, ribbon, shotsFor, spread } from '../lib/replay';
 
 export function ReplayScreen({ settings, onChange, onOpenSettings }: {
   settings: DaylensSettings; onChange: (s: DaylensSettings) => void; onOpenSettings: () => void;
@@ -42,7 +42,7 @@ export function ReplayScreen({ settings, onChange, onOpenSettings }: {
   const win = dayWindow(chapters);
   const cur = chapters.find((c) => c.id === pick) ?? chapters[chapters.length - 1] ?? null;
   const curN = cur ? chapters.indexOf(cur) + 1 : 0;
-  const total = chapters.reduce((a, c) => a + (c.end - c.start), 0) / 1000;
+  const total = chapters.reduce((a, c) => a + c.ms, 0) / 1000;
   const seenShots = cur ? shotsFor(cur, view.shots) : [];
   const days = settings.rawTextRetentionDays;
 
@@ -79,7 +79,7 @@ export function ReplayScreen({ settings, onChange, onOpenSettings }: {
               <h3>What you saw</h3>
               {seenShots.length > 0 && (
                 <div className="rp-shots">
-                  {seenShots.slice(0, 12).map((s) => (
+                  {spread(seenShots, 12).map((s) => (
                     <button key={s.at} className="rp-shot" aria-label={`Screenshot at ${formatClock(s.at)}${s.title ? `: ${s.title}` : ''}`} onClick={() => setBig(s)}>
                       <img src={s.url} alt="" loading="lazy" />
                       <span>{formatClock(s.at)}{s.title ? ` · ${s.title}` : ''}</span>

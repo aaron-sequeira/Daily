@@ -22,8 +22,8 @@ export interface ShotStore {
 export function createShotStore(db: Database.Database, dir: string): ShotStore {
   const ins = db.prepare('INSERT OR REPLACE INTO screen_shots (at, date, app, title, file) VALUES (?, ?, ?, ?, ?)');
   const day = db.prepare('SELECT at, app, title, file FROM screen_shots WHERE date = ? ORDER BY at');
-  const old = db.prepare('SELECT file FROM screen_shots WHERE at < ?');
-  const delOld = db.prepare('DELETE FROM screen_shots WHERE at < ?');
+  const old = db.prepare('SELECT at, file FROM screen_shots WHERE at < ?');
+  const delOne = db.prepare('DELETE FROM screen_shots WHERE at = ?');
   return {
     save({ at, date, app, title, jpg }) {
       const file = join(dir, date, `${at}.jpg`);
@@ -33,16 +33,21 @@ export function createShotStore(db: Database.Database, dir: string): ShotStore {
     },
     forDay: (date) => day.all(date) as ShotRow[],
     purgeBefore(ms) {
-      const files = (old.all(ms) as { file: string }[]).map((r) => r.file);
-      for (const f of files) rmSync(f, { force: true });
-      for (const d of new Set(files.map((f) => dirname(f)))) {
-        try { if (readdirSync(d).length === 0) rmdirSync(d); } catch { /* already gone */ }
+      const rows = old.all(ms) as { at: number; file: string }[];
+      let n = 0;
+      for (const r of rows) {
+        // A file we can't delete (antivirus, indexer) keeps its row, so the next run tries it again.
+        try { rmSync(r.file, { force: true }); } catch { continue; }
+        n += delOne.run(r.at).changes;
       }
-      return delOld.run(ms).changes;
+      for (const d of new Set(rows.map((r) => dirname(r.file)))) {
+        try { if (readdirSync(d).length === 0) rmdirSync(d); } catch { /* already gone, or not empty */ }
+      }
+      return n;
     },
     deleteAll() {
-      rmSync(dir, { recursive: true, force: true });
-      db.exec('DELETE FROM screen_shots');
+      db.exec('DELETE FROM screen_shots'); // rows first: a folder error must not leave Replay showing them
+      rmSync(dir, { recursive: true, force: true, maxRetries: 3 });
     }
   };
 }

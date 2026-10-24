@@ -46,7 +46,7 @@ function Await($op, [Type]$type) {
 function Emit($obj) { [Console]::Out.WriteLine(($obj | ConvertTo-Json -Compress)) }
 
 $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages()
-if ($null -eq $engine) { Emit @{ ready = $false; error = 'no_ocr_language' }; exit 2 }
+# No OCR language: stay up for screenshots (SHOT); text requests are refused below.
 $maxDim = [int][Windows.Media.Ocr.OcrEngine]::MaxImageDimension
 
 function Ocr-Bytes([byte[]]$bytes) {
@@ -147,7 +147,7 @@ function Capture-Foreground([bool]$wantText = $true, [bool]$wantShot = $false) {
   }
 }
 
-Emit @{ ready = $true }
+if ($null -eq $engine) { Emit @{ ready = $true; ocr = $false } } else { Emit @{ ready = $true } }
 
 while ($null -ne ($line = [Console]::In.ReadLine())) {
   $sp = $line.IndexOf(' ')
@@ -158,6 +158,7 @@ while ($null -ne ($line = [Console]::In.ReadLine())) {
     $sw = [Diagnostics.Stopwatch]::StartNew()
     if ($arg -eq 'CAPTURE' -or $arg -eq 'SHOT' -or $arg -eq 'CAPTURE+SHOT') {
       $wantText = $arg -ne 'SHOT'
+      if ($wantText -and $null -eq $engine) { Emit @{ id = $id; error = 'no_ocr_language' }; continue }
       $cap = Capture-Foreground $wantText ($arg -ne 'CAPTURE')
       if ($null -eq $cap) { Emit @{ id = $id; error = 'no_window' }; continue }
       if ($cap.ContainsKey('error')) { Emit @{ id = $id; error = $cap.error }; continue }
@@ -167,6 +168,7 @@ while ($null -ne ($line = [Console]::In.ReadLine())) {
       $out.ms = $sw.ElapsedMilliseconds
       Emit $out
     } else {
+      if ($null -eq $engine) { Emit @{ id = $id; error = 'no_ocr_language' }; continue }
       $text = Ocr-Bytes ([Convert]::FromBase64String($arg))
       Emit @{ id = $id; text = $text; ms = $sw.ElapsedMilliseconds }
     }

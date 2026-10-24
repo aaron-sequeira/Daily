@@ -162,6 +162,13 @@ describe('runRetention', () => {
     expect(store.last()).not.toBeNull();
   });
 
+  it('still erases text when deleting old screenshots fails', async () => {
+    await reader().tick();
+    now += 2 * 86_400_000;
+    expect(runRetention(store, 1, now, { purgeBefore: () => { throw new Error('EBUSY'); } })).toBe(1);
+    expect(store.lastWithText()).toBeNull();
+  });
+
   it('does not purge if days <= 0', async () => {
     await reader().tick();
     now += 1000;

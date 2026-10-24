@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import type { Chapter } from '../../main/replay/chapters';
-import { dayWindow, hourTicks, ribbon, shotsFor } from './replay';
+import { dayWindow, hourTicks, ribbon, shotsFor, spread } from './replay';
 
 const H = 3_600_000;
 const T0 = new Date(2026, 9, 22, 0, 0).getTime();
 const ch = (id: string, startH: number, endH: number, app = 'Code', category = 'work'): Chapter =>
-  ({ id, start: T0 + startH * H, end: T0 + endH * H, category, title: `${app} · x`, apps: [{ app, minutes: (endH - startH) * 60 }], seen: [], switches: 0 });
+  ({ id, start: T0 + startH * H, end: T0 + endH * H, category, title: `${app} · x`, apps: [{ app, minutes: (endH - startH) * 60 }], seen: [], switches: 0, ms: (endH - startH) * H });
 
 describe('replay view helpers', () => {
   it('ribbon places chapters by time', () => {
@@ -30,5 +30,16 @@ describe('replay view helpers', () => {
   it('shotsFor keeps only shots inside the chapter', () => {
     const shots = [T0 + 8.9 * H, T0 + 9 * H, T0 + 9.5 * H, T0 + 10 * H, T0 + 10.1 * H].map((at) => ({ at, app: 'Code', title: null, url: `u${at}` }));
     expect(shotsFor(ch('a', 9, 10), shots).map((s) => s.at)).toEqual([T0 + 9 * H, T0 + 9.5 * H, T0 + 10 * H]);
+  });
+});
+
+describe('spread', () => {
+  it('picks evenly across the whole list, first and last included', () => {
+    const xs = Array.from({ length: 100 }, (_, i) => i);
+    const s = spread(xs, 12);
+    expect(s).toHaveLength(12);
+    expect(s[0]).toBe(0);
+    expect(s[11]).toBe(99);
+    expect(spread([1, 2, 3], 12)).toEqual([1, 2, 3]);
   });
 });

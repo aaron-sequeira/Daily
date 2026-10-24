@@ -73,6 +73,7 @@ export function createScreenReader(deps: {
  * text rows purged. */
 export function runRetention(store: ScreenStore, days: number, now: number, shots?: Pick<ShotStore, 'purgeBefore'>): number {
   if (days <= 0) return 0;
-  shots?.purgeBefore(now - days * 86_400_000);
-  return store.purgeTextBefore(now - days * 86_400_000);
+  const n = store.purgeTextBefore(now - days * 86_400_000); // text first: a stuck screenshot file must not block it
+  try { shots?.purgeBefore(now - days * 86_400_000); } catch (e) { console.error('[shots] retention failed:', e); }
+  return n;
 }

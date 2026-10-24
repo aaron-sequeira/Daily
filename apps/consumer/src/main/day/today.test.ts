@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import Database from 'better-sqlite3';
 import { SCHEMA_SQL, createRepositories } from '@worksight/core';
 import type { ActivitySampleRow, FocusSessionRow } from '@worksight/core/types';
-import { buildTodayView, loadTodayView, type DayInput } from './today';
+import { buildTodayView, loadTodayView, screenPieces, type DayInput } from './today';
 
 const MIN = 60_000;
 const DATE = '2026-09-23';
@@ -182,5 +182,20 @@ describe('loadTodayView', () => {
     const v = loadTodayView(repo, settings, DATE, T(18));
     expect(v.screenSec).toBe(3600);
     expect(v.week.map((d) => d.date)).toEqual(['2026-09-17', '2026-09-18', '2026-09-19', '2026-09-20', '2026-09-21', '2026-09-22', DATE]);
+  });
+});
+
+describe('screenPieces (Replay and the stretch moments)', () => {
+  it('drops away time, keeps titles, and counts an open session to now only when it is the latest one today', () => {
+    const work = { ...session('Code.exe', T(9), T(11)), windowTitle: 'a.ts' };
+    // active 9:00-10:00, then nothing until 10:30 (away), active again 10:30-11:00
+    const samples = [...run(T(9), 60, 1), ...run(T(10, 30), 30, 1)];
+    const p = screenPieces({ date: DATE, sessions: [work], samples }, T(18), true);
+    expect(p.map((x) => [x.start, x.end, x.title])).toEqual([[T(9), T(10), 'a.ts'], [T(10, 30), T(11), 'a.ts']]);
+    const stale = session('Chrome', T(12), null);
+    const open = session('Code.exe', T(13), null);
+    expect(screenPieces({ date: DATE, sessions: [stale, open], samples: run(T(12), 120, 1) }, T(14), true).map((x) => [x.appName, x.end]))
+      .toEqual([['Code.exe', T(14)]]); // the crash leftover counts 0
+    expect(screenPieces({ date: DATE, sessions: [open], samples: run(T(13), 30, 1) }, T(20), false)).toEqual([]); // a past day: no "now"
   });
 });

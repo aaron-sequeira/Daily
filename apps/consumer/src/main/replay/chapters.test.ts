@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildChapters, sessionsToEpisodes, type ChapterEpisode } from './chapters';
+import { buildChapters, piecesToEpisodes, type ChapterEpisode } from './chapters';
 
 const M = 60_000;
 const T0 = new Date(2026, 9, 22, 9, 0).getTime();
@@ -25,6 +25,16 @@ describe('buildChapters', () => {
     const ch = buildChapters([ep(0, 15, 'Code', 'work'), ep(15, 20, 'Chrome', 'other'), ep(20, 40, 'Code', 'work')]);
     expect(ch).toHaveLength(1);
     expect(ch[0]).toMatchObject({ start: T0, end: T0 + 40 * M, category: 'work', switches: 2 });
+  });
+
+  it('never folds across a gap of 10 minutes or more', () => {
+    const ch = buildChapters([ep(0, 60, 'Code', 'work'), ep(240, 241, 'Discord', 'social')]);
+    expect(ch.map((c) => [c.start, c.end])).toEqual([[T0, T0 + 60 * M], [T0 + 240 * M, T0 + 241 * M]]);
+  });
+
+  it('counts on-screen time, not the span across short gaps', () => {
+    const ch = buildChapters([ep(0, 20, 'Code', 'work'), ep(25, 50, 'Terminal', 'work')]);
+    expect(ch[0].ms).toBe(45 * M);
   });
 
   it('keeps a lone short chapter rather than dropping the day', () => {
@@ -62,15 +72,15 @@ describe('buildChapters', () => {
   });
 });
 
-describe('sessionsToEpisodes', () => {
-  it('maps focus sessions, closing an open one at now, with the app-based category', () => {
-    const rows = [
-      { id: 1, appName: 'Code.exe', appPath: null, windowTitle: 'a.ts', pid: 1, startedAt: T0, endedAt: T0 + 10 * M, durationSec: 600, date: '2026-10-22' },
-      { id: 2, appName: 'Discord', appPath: null, windowTitle: null, pid: 2, startedAt: T0 + 10 * M, endedAt: null, durationSec: null, date: '2026-10-22' }
-    ];
-    expect(sessionsToEpisodes(rows, T0 + 15 * M)).toEqual([
-      { start: T0, end: T0 + 10 * M, app: 'Code', category: 'work', titles: ['a.ts'] },
-      { start: T0 + 10 * M, end: T0 + 15 * M, app: 'Discord', category: 'social', titles: [] }
-    ]);
+describe('piecesToEpisodes', () => {
+  it('maps on-screen pieces, dropping titles of private and excluded windows', () => {
+    const p = (appName: string, title: string | null) => ({ start: T0, end: T0 + 10 * M, appName, category: 'other' as const, title });
+    expect(piecesToEpisodes([p('Code.exe', 'a.ts'), p('msedge.exe', 'Bank – InPrivate'), p('chrome.exe', 'Chase - Sign in'), p('Discord', null)], ['chase']))
+      .toEqual([
+        { start: T0, end: T0 + 10 * M, app: 'Code', category: 'other', titles: ['a.ts'] },
+        { start: T0, end: T0 + 10 * M, app: 'msedge', category: 'other', titles: [] },
+        { start: T0, end: T0 + 10 * M, app: 'chrome', category: 'other', titles: [] },
+        { start: T0, end: T0 + 10 * M, app: 'Discord', category: 'other', titles: [] }
+      ]);
   });
 });

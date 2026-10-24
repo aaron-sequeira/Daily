@@ -33,3 +33,9 @@ export function hourTicks(start: number, end: number): { pct: number; label: str
 
 /** Screenshots taken within the chapter (both ends included). */
 export const shotsFor = (c: Chapter, shots: ReplayShot[]): ReplayShot[] => shots.filter((s) => s.at >= c.start && s.at <= c.end);
+
+/** At most `n` items picked evenly across the list (first and last included), so a long chapter's later moments show too. */
+export function spread<T>(xs: T[], n: number): T[] {
+  if (xs.length <= n) return xs;
+  return Array.from({ length: n }, (_, i) => xs[Math.round((i * (xs.length - 1)) / (n - 1))]);
+}

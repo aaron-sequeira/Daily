@@ -1,12 +1,15 @@
-import type { FocusSessionRow } from '@worksight/core/types';
-import { categoryForApp, displayAppName } from '../../shared/categories';
+import { displayAppName } from '../../shared/categories';
 import type { Episode } from '../report/episodes';
+import type { Piece } from '../day/today';
+import { PRIVATE_TITLE, isExcluded } from '../screen/exclusions';
 
 /** Only what a chapter needs from an episode: no screen text can reach Replay or the Island's questions. */
 export type ChapterEpisode = Pick<Episode, 'start' | 'end' | 'app' | 'category' | 'titles'>;
 export interface Chapter {
   id: string; start: number; end: number; category: string; title: string;
   apps: { app: string; minutes: number }[]; seen: string[]; switches: number;
+  /** On screen inside the chapter (gaps and away time not counted). */
+  ms: number;
 }
 
 const MIN = 60_000;
@@ -15,12 +18,14 @@ const SHORT_MS = 10 * MIN;
 const TITLE_MAX = 60;
 const SEEN_MAX = 8;
 
-/** The tracker's focus sessions (recorded for everyone, screen reading or not) as chapter episodes. */
-export function sessionsToEpisodes(rows: FocusSessionRow[], now: number): ChapterEpisode[] {
-  return rows.map((r) => ({
-    start: r.startedAt, end: r.endedAt ?? Math.max(r.startedAt, now), app: displayAppName(r.appName),
-    category: categoryForApp(r.appName), titles: r.windowTitle ? [r.windowTitle] : []
-  }));
+/** The day's on-screen pieces (Today's rules: away time, lock screen and crash leftovers already dropped) as chapter
+ * episodes. Private and excluded windows keep their time but lose their title. */
+export function piecesToEpisodes(pieces: Piece[], exclusions: string[]): ChapterEpisode[] {
+  return pieces.map((p) => {
+    const t = p.title?.trim() || null;
+    const shown = t && !PRIVATE_TITLE.test(t) && !isExcluded(exclusions, p.appName, t);
+    return { start: p.start, end: p.end, app: displayAppName(p.appName), category: p.category, titles: shown ? [t] : [] };
+  });
 }
 
 const span = (g: ChapterEpisode[]): number => g[g.length - 1].end - g[0].start;
@@ -41,12 +46,13 @@ function toChapter(g: ChapterEpisode[], category: string): Chapter {
   return {
     id: `c${g[0].start}`, start: g[0].start, end: g[g.length - 1].end, category,
     title: (topTitle ? `${top} · ${topTitle}` : top).slice(0, TITLE_MAX),
-    apps, seen: [...new Set(g.flatMap((e) => e.titles))].slice(0, SEEN_MAX), switches
+    apps, seen: [...new Set(g.flatMap((e) => e.titles))].slice(0, SEEN_MAX), switches,
+    ms: g.reduce((a, e) => a + (e.end - e.start), 0)
   };
 }
 
 /** The day as chapters: same-category runs (gaps under 10 min), with anything under 10 min folded into its longer
- * neighbour so the ribbon stays readable. */
+ * neighbour (one less than 10 min away) so the ribbon stays readable. */
 export function buildChapters(episodes: ChapterEpisode[]): Chapter[] {
   const groups: { cat: string; eps: ChapterEpisode[] }[] = [];
   for (const e of [...episodes].sort((a, b) => a.start - b.start)) {
@@ -55,11 +61,18 @@ export function buildChapters(episodes: ChapterEpisode[]): Chapter[] {
     else groups.push({ cat: e.category, eps: [e] });
   }
   // ponytail: O(n²) over a day's chapters (tens at most); fine.
+  const near = (a: ChapterEpisode[] | undefined, b: ChapterEpisode[] | undefined): boolean =>
+    !!a && !!b && b[0].start - a[a.length - 1].end < GAP_MS;
   while (groups.length > 1) {
     let i = -1;
-    for (let k = 0; k < groups.length; k++) if (span(groups[k].eps) < SHORT_MS && (i < 0 || span(groups[k].eps) < span(groups[i].eps))) i = k;
+    for (let k = 0; k < groups.length; k++) {
+      const g = groups[k].eps;
+      if (span(g) >= SHORT_MS || !(near(groups[k - 1]?.eps, g) || near(g, groups[k + 1]?.eps))) continue;
+      if (i < 0 || span(g) < span(groups[i].eps)) i = k;
+    }
     if (i < 0) break;
-    const prev = groups[i - 1], next = groups[i + 1];
+    const prev = near(groups[i - 1]?.eps, groups[i].eps) ? groups[i - 1] : undefined;
+    const next = near(groups[i].eps, groups[i + 1]?.eps) ? groups[i + 1] : undefined;
     const into = !next || (prev && span(prev.eps) >= span(next.eps)) ? i - 1 : i + 1;
     const merged = into < i ? [...groups[into].eps, ...groups[i].eps] : [...groups[i].eps, ...groups[into].eps];
     groups[into] = { cat: groups[into].cat, eps: merged };

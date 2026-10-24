@@ -23,7 +23,7 @@ export interface TodayView {
   cards: CategoryCard[]; timeline: TimelineSegment[]; health: Health; week: DayBar[]; apps: AppTime[];
 }
 
-interface Piece extends Interval { appName: string; category: Category; }
+export interface Piece extends Interval { appName: string; category: Category; title: string | null; }
 
 const sec = (ms: number): number => Math.round(ms / 1000);
 const zeroByCategory = (): Record<Category, number> => Object.fromEntries(CATEGORIES.map((c) => [c, 0])) as Record<Category, number>;
@@ -66,9 +66,16 @@ function dayPieces(day: DayInput, currentId: number | null, now: number): Piece[
     const iv = clip(sessionInterval(s, s.id === currentId, now), bounds.start, bounds.end);
     if (!iv) return;
     const fallback = categoryForApp(s.appName);
-    for (const p of subtract(iv, away)) pieces.push({ ...p, appName: s.appName, category: labelCategory(day.labels, s.appName, p.start, p.end) ?? fallback });
+    for (const p of subtract(iv, away)) pieces.push({ ...p, appName: s.appName, title: s.windowTitle, category: labelCategory(day.labels, s.appName, p.start, p.end) ?? fallback });
   });
   return pieces;
+}
+
+/** A day's on-screen pieces by Today's rules (clipped to the day, minus lock screen and away time). An open session
+ * counts to `now` only when it is the day's latest and the day is today; any other is a crash leftover (0). */
+export function screenPieces(day: DayInput, now: number, isToday: boolean): Piece[] {
+  const currentId = isToday && day.sessions.length ? day.sessions.reduce((a, b) => (b.startedAt > a.startedAt ? b : a)).id : null;
+  return dayPieces(day, currentId, now);
 }
 
 const totalMs = (pieces: Interval[]): number => pieces.reduce((a, p) => a + (p.end - p.start), 0);

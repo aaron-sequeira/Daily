@@ -243,3 +243,18 @@ describe('ocr client', () => {
     expect(children).toHaveLength(1);
   });
 });
+
+describe('no OCR language on this PC', () => {
+  it('still takes screenshots: reports no-language, and drops the text part of a capture', async () => {
+    const c = make();
+    c.start();
+    children[0].say({ ready: true, ocr: false }); await flush();
+    expect(c.status()).toBe('no-language');
+    await expect(c.capture({ text: true })).resolves.toBeNull(); // text alone: nothing to do
+    expect(children[0].written).toEqual([]);
+    const p = c.capture({ text: true, shot: true });
+    expect(children[0].written).toEqual(['1 SHOT\n']);
+    children[0].say({ id: '1', jpg: 'AAA', ms: 5, pid: 7, title: 'T', w: 10, h: 10 }); await flush();
+    await expect(p).resolves.toEqual({ text: '', ms: 5, pid: 7, title: 'T', w: 10, h: 10, jpg: 'AAA' });
+  });
+});

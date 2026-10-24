@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createPillManager, islandPlacement, pillMessage, ISLAND_W, type PillWindowLike } from './pill';
+import { createPillManager, islandPlacement, islandShows, pillMessage, ISLAND_W, type PillWindowLike } from './pill';
 import type { PillNudge } from '../coach/types';
 
 class FakeWin implements PillWindowLike {
@@ -221,5 +221,27 @@ describe('follow-up questions', () => {
     expect(asks).toEqual([[1, 'What was I working on?']]);
     m.answer(1, 'You were in Code.');
     expect(w.sent.at(-1)).toEqual(['pill:answer', { id: 1, text: 'You were in Code.' }]);
+  });
+});
+
+describe('the Island stays out of the way', () => {
+  it('re-places the live window when the displays change', () => {
+    let at = { x: 640, y: 8 };
+    const w = new FakeWin();
+    const m = createPillManager({ makeWindow: () => w, placement: () => at, onAction: () => {} });
+    m.setResting({ total: '1h', focus: '' }); w.fireReady();
+    at = { x: 100, y: 48 };
+    m.reposition();
+    expect(w.pos).toEqual([100, 48]);
+  });
+
+  it('rests only when on, tracking, and nothing full screen or a call is in front', () => {
+    const on = { islandResting: true, consentGranted: true, trackingPaused: false };
+    expect(islandShows(on, null)).toBe(true);
+    expect(islandShows(on, 'fullscreen')).toBe(false);
+    expect(islandShows(on, 'call')).toBe(false);
+    expect(islandShows({ ...on, islandResting: false }, null)).toBe(false);
+    expect(islandShows({ ...on, trackingPaused: true }, null)).toBe(false);
+    expect(islandShows({ ...on, consentGranted: false }, null)).toBe(false);
   });
 });

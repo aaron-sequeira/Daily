@@ -2,8 +2,9 @@ import type { Chapter } from '../replay/chapters';
 
 const BEHAVIOUR = ['Was any of it for work?', 'What else did I do?'];
 const QUESTIONS: Record<string, string[]> = {
-  frequent_returns: ['Why do I keep opening it?', 'When did this start today?'],
-  personal_best: ['What was I working on?', 'How does this compare to last week?'],
+  // Only what today's timeline can answer (the model sees nothing older).
+  frequent_returns: ['Why do I keep opening it?', 'What was I doing in between?'],
+  personal_best: ['What was I working on?', 'What did I do before it?'],
   doomscroll: BEHAVIOUR, scattered: BEHAVIOUR, stuck_escape: BEHAVIOUR, app_cap: BEHAVIOUR
 };
 
@@ -27,4 +28,28 @@ export function askPrompt(q: string, ctx: { nowLabel: string; chapters: Chapter[
   const lines = ctx.chapters.map((c) => `${clock(c.start)}–${clock(c.end)} ${c.category}: ${c.title} (${c.apps.map((a) => `${a.app} ${a.minutes} min`).join(', ')})`);
   const user = `It is ${ctx.nowLabel}. Daily just told the user: "${ctx.nudgeTitle}".\nToday so far:\n${lines.join('\n') || '(nothing yet)'}\n\nQuestion: ${q}`;
   return { system, user };
+}
+
+export const SORRY = "I couldn't work that out just now.";
+
+/** Answers a tapped question for card `id`. Every call gets an answer (the card would otherwise sit on "Thinking…"):
+ * a question the card didn't offer, a second one while the model is busy, or a model failure all get SORRY. */
+export function createAsker(d: {
+  ruleOf(id: number): string | undefined; titleOf(id: number): string;
+  context(): { nowLabel: string; chapters: Chapter[] };
+  model(system: string, user: string): Promise<string | null>;
+  answer(id: number, text: string): void;
+}): (id: number, q: string) => Promise<void> {
+  let busy = false;
+  return async (id, q) => {
+    const rule = d.ruleOf(id);
+    if (busy || !rule || !questionsFor(rule).includes(q)) { d.answer(id, SORRY); return; }
+    busy = true;
+    try {
+      const { system, user } = askPrompt(q, { ...d.context(), nudgeTitle: d.titleOf(id) });
+      d.answer(id, (await d.model(system, user).catch(() => null)) ?? SORRY);
+    } finally {
+      busy = false;
+    }
+  };
 }
