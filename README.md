@@ -8,9 +8,9 @@ _Formerly Daylens._
 
 **See your day clearly.**
 
-A private, on-device companion for Windows that shows where your screen time goes, writes you a daily and weekly report, and nudges you toward healthier habits — breaks, water, meals and more.
+A private, on-device companion for Windows that shows where your screen time goes, lets you replay your day to see what you did, writes you a daily and weekly report, and nudges you toward healthier habits — breaks, water, meals and more.
 
-[![Download](https://img.shields.io/badge/Download-v1.1.0-171717?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/aaron-sequeira/Daylens/releases/latest)
+[![Download](https://img.shields.io/badge/Download-v1.2.0-171717?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/aaron-sequeira/Daylens/releases/latest)
 
 **[daily website →](https://aaron-sequeira.github.io/Daylens/)**
 
@@ -24,7 +24,7 @@ A private, on-device companion for Windows that shows where your screen time goe
 
 **[▶ Watch the 60-second showreel (with sound)](docs/media/daily-showreel.mp4)**
 
-<img src="docs/images/daylens-today.png" alt="Daily — the Today screen" width="900" />
+<img src="docs/images/daily-today.png" alt="Daily — the Today screen" width="900" />
 
 </div>
 
@@ -47,7 +47,12 @@ A private, on-device companion for Windows that shows where your screen time goe
 - **Automatic tracking** of the app and window in front, grouped into Work, Learning, Communication, Entertainment, Social and Other.
 - **Today view** with a timeline, where your time went, a daily screen-time goal and a 7-day trend.
 - **Screen health score** (0–100) from breaks taken, long stretches, late-night use and your goal.
-- **On-device understanding (optional):** Daily can read the text of the window in front — never screenshots — and label what you were doing with **Laya**, a text classifier that runs entirely on your PC.
+- **On-device understanding (optional):** Daily can read the text of the window in front and label what you were doing with **Laya**, a text classifier that runs entirely on your PC.
+
+### Look back on your day
+- **Replay** turns your day into chapters — what you worked on, which apps, and the window titles you saw — so you can backtrack to anything you did.
+- **Screenshots for Replay (optional, off by default):** turn them on and Daily saves a small picture of the window in front alongside each chapter, on your PC only.
+- **The Island** — a small pill at the top of the screen with your total for today. It speaks up for moments worth knowing (you keep going back to the same app, a new personal best, your day's report is ready), and you can tap a follow-up question that the on-device model answers. It steps aside for full-screen apps and calls.
 
 ### Reports that write themselves
 - **Daily report** in plain language: what went well, what to try tomorrow, and the day in detail (apps, sites, videos, games, learning).
@@ -66,14 +71,16 @@ A private, on-device companion for Windows that shows where your screen time goe
 
 ## Privacy
 
-- **Everything stays on your PC** — no account, no sign-up, no analytics.
-- Screen reading is **opt-in**, text only (never screenshots), respects an exclusion list (password managers, banking, private windows…) and keeps raw text for as little as a day.
+- **Everything stays on your PC** — the free app needs no account, no sign-up, and has no analytics. An account is only needed for **Daily Plus**, the optional subscription (coming later).
+- Screen reading is **opt-in**, respects an exclusion list (password managers, banking, private windows…) and keeps raw text for 1, 7 or 30 days — your choice.
+- **Screenshots are a separate switch, off by default.** When on, they are saved only on your PC, skip the same excluded windows, and are erased on the same 1, 7 or 30 day schedule.
+- The Island's follow-up answers are written **on your PC** by the local model.
 - The cloud writer is **off unless you add your own API key**, and then only receives app names and window titles — never screen text.
 - **Export** or **delete** all of your activity from *Settings → Privacy* at any time.
 
 ## Install
 
-1. Download **`Daily-Setup-1.1.0.exe`** from the [latest release](https://github.com/aaron-sequeira/Daylens/releases/latest).
+1. Download **`Daily-Setup.exe`** from the [latest release](https://github.com/aaron-sequeira/Daylens/releases/latest).
 2. Run it. The installer is not code-signed yet, so Windows may show *“Windows protected your PC”* — choose **More info → Run anyway**.
 3. Daily installs just for you (no admin rights needed), opens itself, and starts with Windows from then on.
 
@@ -85,11 +92,14 @@ To uninstall, use *Settings → Apps*. You'll be asked whether to also delete yo
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/images/daylens-insights.png" alt="Weekly Insights" /><p align="center"><b>Weekly Insights</b> — an AI-written summary of your week</p></td>
-    <td width="50%"><img src="docs/images/daylens-break.png" alt="Animated break screen" /><p align="center"><b>Break screens</b> — a hand-drawn animation for every reminder</p></td>
+    <td colspan="2"><img src="docs/images/daily-replay.png" alt="Replay — the day as chapters" /><p align="center"><b>Replay</b> — your day as chapters, so you can backtrack to what you did</p></td>
   </tr>
   <tr>
-    <td colspan="2"><img src="docs/images/daylens-reminders.png" alt="Reminders settings" /><p align="center"><b>Reminders</b> — built-ins you can edit, plus your own</p></td>
+    <td width="50%"><img src="docs/images/daily-insights.png" alt="Weekly Insights" /><p align="center"><b>Weekly Insights</b> — an AI-written summary of your week</p></td>
+    <td width="50%"><img src="docs/images/daily-break.png" alt="Animated break screen" /><p align="center"><b>Break screens</b> — a hand-drawn animation for every reminder</p></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/images/daily-reminders.png" alt="Reminders settings" /><p align="center"><b>Reminders</b> — built-ins you can edit, plus your own</p></td>
   </tr>
 </table>
 
