@@ -97,7 +97,7 @@ export function ReplayScreen({ settings, onChange, onOpenSettings }: {
       <aside className="panel rp-side">
         {cur && (
           <div className="rp-stats">
-            <div><small>Time</small><b>{formatHm((cur.end - cur.start) / 1000)}</b></div>
+            <div><small>Time</small><b>{formatHm(cur.ms / 1000)}</b></div>
             <div><small>Apps</small><b>{cur.apps.length}</b></div>
             <div><small>Switches</small><b>{cur.switches}</b></div>
             <div><small>Pictures</small><b>{seenShots.length}</b></div>
