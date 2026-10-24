@@ -41,6 +41,7 @@ import { queryNotificationState } from './coach/notifState';
 import { parseFewer, parseKinds, parseLimits } from './coach/settings';
 import { repeatedSearches, searchTitlesFrom, switchesBetween } from './coach/activity';
 import { limitUsage } from './coach/rules/behaviour';
+import { longestStretch } from './coach/rules/moments';
 import { parseTip, tipAllowedMinutes, tipInput, tipPrompt, tipRewriteAllowed, TIP_JSON_SCHEMA } from './coach/tip';
 import { parseExclusions } from './screen/exclusions';
 import { createPillManager, pillMessage, islandPlacement } from './windows/pill';
@@ -333,6 +334,16 @@ if (!app.requestSingleInstanceLock()) {
         win?.webContents.send(CH.eventsUpdate);
       }
     });
+    // The 30 days before today can't change during the day: computed once per date.
+    let best30: { date: string; ms: number } = { date: '', ms: 0 };
+    const bestFocus30d = (date: string): number => {
+      if (best30.date !== date) {
+        let ms = 0;
+        for (let i = 1; i <= 30; i++) { const d = shiftDate(date, -i); ms = Math.max(ms, longestStretch(repo.getFocusSessions(d), dayBounds(d).end).ms); }
+        best30 = { date, ms };
+      }
+      return best30.ms;
+    };
     const buildSnapshot = (now: number) => {
       const s = settings.get();
       const date = localDate(now);
@@ -357,7 +368,7 @@ if (!app.requestSingleInstanceLock()) {
         profile: readProfile(s), samples, sessions: repo.getFocusSessions(date),
         readsToday: labelStore.readsSince(dayStart.getTime()), // rules apply their own freshness windows
         view, searchTitles, limits: [...parseLimits(s.appLimits), ...o.limits], lastBreakAt: coachStore.lastCompletedBreakAt(), focusBlocks: o.focus,
-        reminderDue: planned.due
+        reminderDue: planned.due, bestFocusMs30d: bestFocus30d(date), reportReady: reportStore.get(date)?.status === 'ready'
       };
     };
     // `rewrite` (the AI-written tip dep) is filled in below, once the writer/report-scheduler/label-scheduler
