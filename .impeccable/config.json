@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "cream-palette",
+        "value": "*",
+        "files": [
+          "website/index.html"
+        ],
+        "createdAt": "2026-10-24T16:07:52.996Z",
+        "reason": "user confirmed: 'the website theme should remain the same' (2026-10-24)"
+      }
+    ]
+  }
+}
