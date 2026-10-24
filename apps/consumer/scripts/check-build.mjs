@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const NM = 'resources/app/node_modules';
 export const REQUIRED = [
-  { label: 'Daylens.exe', probe: 'Daylens.exe' },
+  { label: 'Daily.exe', probe: 'Daily.exe' },
   { label: 'OCR helper', probe: 'resources/ocr-helper.ps1' },
   { label: 'tray icon', probe: 'resources/tray.png' },
   { label: 'tray icon @2x', probe: 'resources/tray@2x.png' },
