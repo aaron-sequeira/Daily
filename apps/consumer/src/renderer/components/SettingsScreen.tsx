@@ -103,7 +103,7 @@ export function SettingsScreen({ settings, onChange, onRedo }: { settings: Dayle
       <ModelSection settings={settings} />
       <WriterSection />
       <ReportsSettings />
-      <PopupsSection />
+      <PopupsSection settings={settings} onChange={onChange} />
       <RemindersSection />
 
       <div className="grp">

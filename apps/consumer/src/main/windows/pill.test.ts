@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createPillManager, pillMessage, type PillWindowLike } from './pill';
+import { createPillManager, islandPlacement, pillMessage, ISLAND_W, type PillWindowLike } from './pill';
 import type { PillNudge } from '../coach/types';
 
 class FakeWin implements PillWindowLike {
@@ -146,5 +146,65 @@ describe('pill manager', () => {
     m.show(n(1));
     wins[0].crash();
     expect(vis).toEqual([]);
+  });
+});
+
+describe('the Island (resting pill)', () => {
+  const rest = { total: '3h 27m', focus: 'Visual Studio Code' };
+  const make = () => {
+    const wins: FakeWin[] = [];
+    const vis: boolean[] = [];
+    const m = createPillManager({ makeWindow: () => { const w = new FakeWin(); wins.push(w); return w; }, placement: () => ({ x: 640, y: 8 }), onAction: () => {}, onVisible: (v) => vis.push(v) });
+    return { m, wins, vis };
+  };
+
+  it('shows the resting pill on its own, without holding Ctrl+Alt+D', () => {
+    const { m, wins, vis } = make();
+    m.setResting(rest);
+    expect(wins).toHaveLength(1);
+    wins[0].fireReady();
+    expect(wins[0].sent).toEqual([['pill:rest', rest]]);
+    expect(wins[0].shown).toBe(1);
+    expect(wins[0].pos).toEqual([640, 8]);
+    expect(wins[0].ignore).toBe(true);
+    expect(vis).toEqual([]); // no cards: the shortcut stays free
+    m.setResting({ total: '3h 28m', focus: 'Chrome' });
+    expect(wins).toHaveLength(1);
+    expect(wins[0].sent.at(-1)).toEqual(['pill:rest', { total: '3h 28m', focus: 'Chrome' }]);
+  });
+
+  it('resting keeps the window open after the last card', () => {
+    const { m, wins, vis } = make();
+    m.setResting(rest);
+    m.show(n(1)); wins[0].fireReady();
+    expect(vis).toEqual([true]);
+    m.handle({ type: 'action', id: 1, action: 'primary' });
+    m.handle({ type: 'empty' });
+    expect(wins[0].destroyed).toBe(false);
+    expect(vis).toEqual([true, false]); // cards gone: shortcut released
+    m.show(n(2));
+    expect(wins).toHaveLength(1); // same window
+    expect(wins[0].sent.at(-1)).toEqual(['pill:show', n(2)]);
+  });
+
+  it('setResting(null) closes it once empty', () => {
+    const { m, wins } = make();
+    m.setResting(rest); wins[0].fireReady();
+    m.setResting(null);
+    expect(wins[0].destroyed).toBe(true);
+    // with a card still showing, it waits for the card to finish
+    m.setResting(rest); wins[1].fireReady();
+    m.show(n(3));
+    m.setResting(null);
+    expect(wins[1].destroyed).toBe(false);
+    expect(wins[1].sent.at(-1)).toEqual(['pill:rest', null]);
+    m.handle({ type: 'action', id: 3, action: 'dismiss' });
+    m.handle({ type: 'empty' });
+    expect(wins[1].destroyed).toBe(true);
+  });
+
+  it('placement is top centre of the work area', () => {
+    expect(islandPlacement({ x: 0, y: 0, width: 1920, height: 1040 })).toEqual({ x: (1920 - ISLAND_W) / 2, y: 8 });
+    expect(islandPlacement({ x: -1920, y: 40, width: 1920, height: 1000 })).toEqual({ x: -1920 + (1920 - ISLAND_W) / 2, y: 48 });
   });
 });

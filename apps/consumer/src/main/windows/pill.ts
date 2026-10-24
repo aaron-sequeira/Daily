@@ -29,6 +29,8 @@ export function createPillManager(deps: {
   let ready = false;
   let visible = false;
   let queue: PillNudge[] = [];
+  // The Island's resting pill (today's total and current app): while set, the window stays open between cards.
+  let resting: IslandRest | null = null;
   const setVisible = (v: boolean): void => {
     if (visible === v) return;
     visible = v;
@@ -51,9 +53,16 @@ export function createPillManager(deps: {
     setVisible(true);
   };
 
-  return {
-    show(n: PillNudge): boolean {
-      try {
+  const close = (): void => {
+    const w = win;
+    win = null;
+    ready = false;
+    w?.destroy();
+    setVisible(false);
+  };
+
+  /** Makes the window if there isn't a live one. Throws if it can't be created. */
+  const ensureWindow = (): void => {
         if (!win || win.isDestroyed()) {
           // The old window is gone (crashed, or never existed): any ids it was
           // showing will never come back with a real action, so report them
@@ -75,8 +84,18 @@ export function createPillManager(deps: {
           const p = deps.placement();
           w.setPosition(p.x, p.y);
           w.setIgnoreMouseEvents(true);
-          w.onReady(() => { ready = true; flush(); });
+          w.onReady(() => {
+            ready = true;
+            if (resting) { w.send('pill:rest', resting); w.showInactive(); }
+            flush();
+          });
         }
+  };
+
+  return {
+    show(n: PillNudge): boolean {
+      try {
+        ensureWindow();
         queue.push(n);
         flush();
         return true;
@@ -85,6 +104,24 @@ export function createPillManager(deps: {
         win = null;
         return false;
       }
+    },
+    /** The Island at rest: shown while non-null; null hides it (the window closes once no card is left). */
+    setResting(r: IslandRest | null): void {
+      resting = r;
+      if (r) {
+        try {
+          const fresh = !win || win.isDestroyed();
+          ensureWindow();
+          if (!fresh && ready) win!.send('pill:rest', r);
+        } catch (e) {
+          console.error('[pill] window failed:', e);
+          win = null;
+        }
+        return;
+      }
+      if (!win || win.isDestroyed()) return;
+      win.send('pill:rest', null);
+      if (!visible && outstanding.size === 0 && queue.length === 0) close();
     },
     dismissAll(): void {
       // Nudges still queued (window not ready yet) never reached the renderer, so report
@@ -105,14 +142,15 @@ export function createPillManager(deps: {
         deps.onAction(msg.id, msg.action);
       } else {
         if (outstanding.size > 0 || queue.length > 0) return; // stale 'empty': ignore
-        const w = win;
-        win = null;
-        ready = false;
-        w?.destroy();
-        setVisible(false);
+        if (resting) setVisible(false); // back to the resting pill: the window stays
+        else close();
       }
     }
   };
 }
 
-export const PILL_W = 400, PILL_H = 260, PILL_MARGIN = 16;
+export interface IslandRest { total: string; focus: string }
+export const ISLAND_W = 640, ISLAND_H = 420, ISLAND_TOP = 8;
+/** Top centre of a display's work area. */
+export const islandPlacement = (wa: { x: number; y: number; width: number; height: number }): { x: number; y: number } =>
+  ({ x: wa.x + Math.round((wa.width - ISLAND_W) / 2), y: wa.y + ISLAND_TOP });

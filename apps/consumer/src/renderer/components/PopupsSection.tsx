@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { CoachView } from '../../main/ipc';
+import type { DaylensSettings } from '../../main/settings';
 import { NUDGE_LOOK } from '../../shared/nudgeLook';
 import { api } from '../lib/api';
 import { LIMIT_CHOICES, addLimit, limitSuggestions, snoozeText } from '../lib/coach';
@@ -7,7 +8,7 @@ import { formatHm } from '../lib/format';
 
 const KIND_TEXT = { health: 'Eye breaks, stretching, wind-down, daily goal', behaviour: 'Doom-scrolling, scattered, app limits', tip: 'Short tips when you seem stuck', win: 'Deep-work streaks and good days', reminder: 'Water, meals, tea and your own reminders' } as const;
 
-export function PopupsSection() {
+export function PopupsSection({ settings, onChange }: { settings: DaylensSettings; onChange: (s: DaylensSettings) => void }) {
   const [view, setView] = useState<CoachView | null>(null);
   const [distractions, setDistractions] = useState<string[]>([]);
   const [app, setApp] = useState('');
@@ -29,6 +30,11 @@ export function PopupsSection() {
   return (
     <div className="grp">
       <h4>Pop-ups</h4>
+      <div className="srow">
+        <p>Show the Island at the top of the screen<small>A small pill with today's time and what you're on. Pop-ups drop down from it, then it settles back.</small></p>
+        <button className={`sw${settings.islandResting ? ' on' : ''}`} aria-label="Show the Island at the top of the screen" aria-pressed={settings.islandResting}
+          onClick={() => { api.settings.set({ islandResting: !settings.islandResting }).then(onChange).catch((e) => console.error(e)); }} />
+      </div>
       {(Object.keys(NUDGE_LOOK) as (keyof typeof NUDGE_LOOK)[]).map((k) => (
         <div className="srow" key={k}>
           <p>{NUDGE_LOOK[k].emoji} {NUDGE_LOOK[k].label}<small>{KIND_TEXT[k]}</small></p>
@@ -68,7 +74,7 @@ export function PopupsSection() {
         )}
       </div>
       <div className="srow">
-        <p>See what a pop-up looks like<small>Shows a sample in the top-right corner.</small></p>
+        <p>See what a pop-up looks like<small>Drops a sample down from the Island at the top of the screen.</small></p>
         <button className="btn s" onClick={() => { void api.coach.test(); }}>Test a pop-up</button>
       </div>
     </div>

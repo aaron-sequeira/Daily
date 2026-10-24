@@ -25,6 +25,7 @@ export const DEFAULT_SETTINGS = {
   screenReadingAsked: false,
   screenshots: false,
   screenshotsAsked: false,
+  islandResting: true,
   nudgeKinds: '{"health":true,"behaviour":true,"tip":true,"win":true}',
   snoozeUntil: 0,
   appLimits: '[]',
@@ -53,6 +54,7 @@ export const settingsPatch = z.object({
   rawTextRetentionDays: z.union([z.literal(1), z.literal(7), z.literal(30)]),
   screenReadingAsked: z.boolean(),
   screenshots: z.boolean(),
-  screenshotsAsked: z.boolean()
+  screenshotsAsked: z.boolean(),
+  islandResting: z.boolean()
 }).partial().strict();
 export type SettingsPatch = z.infer<typeof settingsPatch>;

@@ -1,10 +1,10 @@
 import { BrowserWindow, ipcMain } from 'electron';
-import { PILL_H, PILL_W, type PillWindowLike } from './pill';
+import { ISLAND_H, ISLAND_W, type PillWindowLike } from './pill';
 
 /** Real Electron window for the pill (never focusable: it must not steal typing). */
 export function electronPillWindow(preload: string, load: (w: BrowserWindow) => void, onMessage: (raw: unknown) => void): PillWindowLike {
   const w = new BrowserWindow({
-    width: PILL_W, height: PILL_H, frame: false, transparent: true, focusable: false, skipTaskbar: true, resizable: false,
+    width: ISLAND_W, height: ISLAND_H, frame: false, transparent: true, focusable: false, skipTaskbar: true, resizable: false,
     hasShadow: false, show: false, alwaysOnTop: true,
     webPreferences: { preload, contextIsolation: true, nodeIntegration: false }
   });
@@ -24,7 +24,7 @@ export function electronPillWindow(preload: string, load: (w: BrowserWindow) => 
     showInactive: () => w.showInactive(),
     // setBounds (not setPosition) so the OS doesn't apply its own DPI-driven resize
     // when the window is created on, or moved across, a different-DPI monitor.
-    setPosition: (x, y) => { if (!w.isDestroyed()) w.setBounds({ x: Math.round(x), y: Math.round(y), width: PILL_W, height: PILL_H }); },
+    setPosition: (x, y) => { if (!w.isDestroyed()) w.setBounds({ x: Math.round(x), y: Math.round(y), width: ISLAND_W, height: ISLAND_H }); },
     destroy: () => { if (!w.isDestroyed()) w.destroy(); },
     isDestroyed: () => w.isDestroyed(),
     onReady: (cb) => { w.webContents.once('did-finish-load', cb); },

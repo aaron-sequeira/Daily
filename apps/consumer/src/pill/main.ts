@@ -2,6 +2,7 @@ import './pill.css';
 import type { PillApi } from '../preload/pill';
 import type { PillNudge } from '../main/coach/types';
 import { NUDGE_LOOK } from '../shared/nudgeLook';
+import { LOGO, LOGO_COLORS } from '../renderer/components/logoPaths';
 import {
   MAX_CARDS, OPEN_AFTER_MS, AUTO_HIDE_MS,
   PILL_COLLAPSED_H, PILL_OPEN_H, PILL_OPEN_FEWER_H,
@@ -31,11 +32,28 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
   return e;
 }
 
+/** Sunny, small and without the tile, for the resting Island (built from the generated logo data only). */
+function sunny(): string {
+  const m = LOGO.small, c = LOGO_COLORS;
+  const pen = (d: string, color: string, w: number): string => `<path d="${d}" fill="none" stroke="${color}" stroke-width="${w}" stroke-linecap="round"/>`;
+  return `<svg viewBox="4 14 92 60" width="30" height="20" aria-hidden="true"><clipPath id="rest-clip"><rect width="100" height="${m.clipY}"/></clipPath>`
+    + `<circle cx="${m.sun.cx}" cy="${m.sun.cy}" r="${m.sun.r}" fill="${c.sun}" clip-path="url(#rest-clip)"/>`
+    + pen(m.face.eyes, c.face, m.width[2]) + pen(m.face.smile, c.face, m.width[3]) + pen(m.rays, c.sun, m.width[0]) + pen(m.horizon, c.horizon, m.width[1]) + '</svg>';
+}
+
 /** Runs only when the preload actually exposed window.pill — a missing/failed preload
  * (or the page loaded outside Electron) must do nothing, not throw. */
 function init(pillApi: PillApi): void {
   const stack = document.getElementById('stack')!;
   let cards: Card[] = [];
+  // The Island at rest: hidden until main sends today's numbers, and while a card is down.
+  const rest = el('div', 'rest off');
+  const restSun = el('span', 'sun'); restSun.innerHTML = sunny();
+  const restTotal = el('b');
+  const restFocus = el('span', 'focus');
+  rest.append(restSun, restTotal, restFocus);
+  stack.before(rest);
+  const syncRest = (): void => { rest.classList.toggle('away', cards.some((c) => !c.done)); };
   const hoveredIds = new Set<number>();
 
   /** Paints the progress bar from the card's actual remaining time (not a fixed
@@ -108,6 +126,7 @@ function init(pillApi: PillApi): void {
     });
     const live = cards.filter((c) => !c.done);
     const front = live[live.length - 1];
+    syncRest();
     stack.classList.toggle('fan', canFan(frontHeight(front), Math.max(0, live.length - 1)));
   }
 
@@ -205,6 +224,10 @@ function init(pillApi: PillApi): void {
   }
 
   pillApi.onShow(show);
+  pillApi.onRest((r) => {
+    rest.classList.toggle('off', !r);
+    if (r) { restTotal.textContent = r.total; restFocus.textContent = r.focus; restFocus.hidden = !r.focus; }
+  });
   // Bulk dismiss (Ctrl+Alt+D, "Delete my activity") is not a per-nudge dismissal: report 'expired' so it
   // never counts toward the dismissal back-off.
   pillApi.onDismissAll(() => [...cards].forEach((c) => finish(c, 'expired')));

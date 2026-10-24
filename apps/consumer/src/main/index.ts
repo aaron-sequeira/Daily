@@ -43,7 +43,8 @@ import { repeatedSearches, searchTitlesFrom, switchesBetween } from './coach/act
 import { limitUsage } from './coach/rules/behaviour';
 import { parseTip, tipAllowedMinutes, tipInput, tipPrompt, tipRewriteAllowed, TIP_JSON_SCHEMA } from './coach/tip';
 import { parseExclusions } from './screen/exclusions';
-import { createPillManager, pillMessage, PILL_W, PILL_MARGIN } from './windows/pill';
+import { createPillManager, pillMessage, islandPlacement } from './windows/pill';
+import { displayAppName } from '../shared/categories';
 import { electronPillWindow } from './windows/pillElectron';
 import { breakOutcome, createBreakOverlay, breakMessage, PRESETS } from './windows/breakOverlay';
 import { electronBreakWindow } from './windows/breakOverlayElectron';
@@ -297,10 +298,8 @@ if (!app.requestSingleInstanceLock()) {
         const m = pillMessage.safeParse(raw);
         if (m.success) pill.handle(m.data);
       }),
-      placement: () => {
-        const wa = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
-        return { x: wa.x + wa.width - PILL_W - PILL_MARGIN, y: wa.y + PILL_MARGIN };
-      },
+      // The Island lives at the top centre of the primary display.
+      placement: () => islandPlacement(screen.getPrimaryDisplay().workArea),
       // Ctrl+Alt+D is AltGr+D on many Windows layouts: hold it only while pills are on screen.
       onVisible: (visible) => {
         if (!visible) { globalShortcut.unregister(DISMISS_ALL_KEY); return; }
@@ -819,6 +818,23 @@ if (!app.requestSingleInstanceLock()) {
     });
     stopTracking = () => tracker.stop();
 
+    // The Island at rest: today's screen time (as Today counts it) and the app in front.
+    const hm = (sec: number): string => { const m = Math.floor(sec / 60); return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`; };
+    const syncIsland = (): void => {
+      try {
+        const s = settings.get();
+        if (!s.islandResting || !s.consentGranted || s.trackingPaused) { pill.setResting(null); return; }
+        const now = Date.now();
+        const sec = loadTodayView(repo, s, localDate(now), now, (l) => labelStore.labelsForDay(l), (l) => coachStore.completedBreaksForDay(l)).screenSec;
+        const cur = tracker.status().currentApp;
+        pill.setResting({ total: hm(sec), focus: cur ? displayAppName(cur) : '' });
+      } catch (e) {
+        console.error('[island] rest update failed:', e);
+      }
+    };
+    // ponytail: every 30 s, so the total can lag by up to half a minute; it shows minutes.
+    setInterval(syncIsland, 30_000);
+
     const reader = createScreenReader({
       ocr, foreground: new ActiveWinForegroundSource(), settings: () => settings.get(),
       idleSec: () => powerMonitor.getSystemIdleTime(), store: screenStore, now: () => Date.now(),
@@ -851,6 +867,7 @@ if (!app.requestSingleInstanceLock()) {
     setInterval(retention, 6 * 60 * 60 * 1000);
 
     function refreshTray(): void {
+      syncIsland();
       const paused = settings.get().trackingPaused;
       tray?.setContextMenu(Menu.buildFromTemplate([
         { label: 'Open Daily', click: showWindow },
@@ -877,7 +894,7 @@ if (!app.requestSingleInstanceLock()) {
 
     registerIpc({
       repo, settings, tracker, setTracking,
-      onSettingsChanged: () => { applyLoginItem(); syncOcr(); syncModel(); retention(); },
+      onSettingsChanged: () => { applyLoginItem(); syncOcr(); syncModel(); retention(); syncIsland(); },
       now: () => Date.now(),
       labelsFor: (date) => labelStore.labelsForDay(date),
       breaksFor: (date) => coachStore.completedBreaksForDay(date),
