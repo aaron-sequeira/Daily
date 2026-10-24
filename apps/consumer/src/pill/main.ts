@@ -23,6 +23,8 @@ interface Card {
   hideStartedAt: number | null; // wall-clock time the current run began, only while autoHide.running
   hideTimer?: ReturnType<typeof setTimeout>;
   openTimer?: ReturnType<typeof setTimeout>;
+  /** Asked a follow-up: stays open (no auto-hide) until closed or acted on. */
+  pinned?: boolean;
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
@@ -55,6 +57,7 @@ function init(pillApi: PillApi): void {
   stack.before(rest);
   const syncRest = (): void => { rest.classList.toggle('away', cards.some((c) => !c.done)); };
   const hoveredIds = new Set<number>();
+  let thinking: number | null = null; // the card whose question is with the model: one at a time
 
   /** Paints the progress bar from the card's actual remaining time (not a fixed
    * duration) so a paused-then-resumed, or hover-armed, card's bar always starts
@@ -100,8 +103,16 @@ function init(pillApi: PillApi): void {
     paintBar(c);
   }
 
+  /** A card with follow-ups grows to fit its chips and answer (cards without keep the CSS heights). */
+  function fit(c: Card): void {
+    if (!c.n.questions?.length) return;
+    const full = c.el.querySelector('.full') as HTMLElement;
+    c.el.style.height = c.el.classList.contains('open') ? `${50 + full.offsetHeight + 30}px` : '';
+  }
+
   function frontHeight(front: Card | undefined): number {
     if (!front || !front.el.classList.contains('open')) return PILL_COLLAPSED_H;
+    if (front.el.style.height) return parseFloat(front.el.style.height);
     return front.n.offerFewer ? PILL_OPEN_FEWER_H : PILL_OPEN_H;
   }
 
@@ -115,6 +126,7 @@ function init(pillApi: PillApi): void {
       c.el.classList.toggle('behind', r.depth > 0);
       c.el.classList.toggle('b2', r.depth > 1);
       c.el.classList.toggle('open', r.open);
+      fit(c);
       if (r.open && !wasOpen && c.openReady) {
         // Newly open (promoted to front, or just opened): repaint the bar from the
         // CURRENT remaining time, not the stale --left/--dur from its last arm/pause.
@@ -135,7 +147,7 @@ function init(pillApi: PillApi): void {
     stack.classList.toggle('hovering', any);
     pillApi.hover(any);
     cards.forEach((c) => {
-      if (c.done || !c.openReady) return;
+      if (c.done || !c.openReady || c.pinned) return;
       if (any) pauseAutoHide(c); else resumeAutoHide(c);
     });
   }
@@ -161,6 +173,7 @@ function init(pillApi: PillApi): void {
   function finish(c: Card, action: Action): void {
     if (c.done) return;
     c.done = true;
+    if (thinking === c.n.id) thinking = null;
     if (c.hideTimer !== undefined) clearTimeout(c.hideTimer);
     if (c.openTimer !== undefined) clearTimeout(c.openTimer);
     pillApi.action(c.n.id, action);
@@ -194,6 +207,27 @@ function init(pillApi: PillApi): void {
     acts.append(...(secondary ? [primary, secondary, snooze] : [primary, snooze]));
     full.append(el('b', undefined, n.title), el('p', undefined, n.body), acts);
     const card: Card = { n, el: root, done: false, openReady: false, autoHide: { remainingMs: AUTO_HIDE_MS, running: false }, hideStartedAt: null };
+    if (n.questions?.length) {
+      root.classList.add('asks');
+      const chips = el('div', 'chips');
+      const answer = el('p', 'answer');
+      for (const q of n.questions.slice(0, 3)) {
+        const chip = el('button', 'chip', q);
+        chip.onclick = () => {
+          if (thinking !== null || card.done) return; // one question at a time
+          thinking = n.id;
+          card.pinned = true;
+          root.classList.add('pinned');
+          pauseAutoHide(card);
+          answer.textContent = 'Thinking…';
+          answer.classList.add('on', 'wait');
+          fit(card);
+          pillApi.ask(n.id, q);
+        };
+        chips.append(chip);
+      }
+      full.append(chips, answer);
+    }
     if (n.offerFewer) { const f = el('button', 'fewer-link', 'Show fewer like this?'); full.append(f); root.classList.add('fewer'); f.onclick = () => finish(card, 'fewer'); }
     const bar = el('div', 'bar'); bar.append(el('i'));
     root.append(head, full, bar);
@@ -224,6 +258,15 @@ function init(pillApi: PillApi): void {
   }
 
   pillApi.onShow(show);
+  pillApi.onAnswer(({ id, text }) => {
+    if (thinking === id) thinking = null;
+    const c = cards.find((x) => x.n.id === id && !x.done);
+    const answer = c?.el.querySelector('.answer');
+    if (!c || !answer) return;
+    answer.textContent = text;
+    answer.classList.remove('wait');
+    fit(c);
+  });
   pillApi.onRest((r) => {
     rest.classList.toggle('off', !r);
     if (r) { restTotal.textContent = r.total; restFocus.textContent = r.focus; restFocus.hidden = !r.focus; }

@@ -6,5 +6,5 @@ export interface Candidate { ruleId: string; kind: Kind; key: string; mini: stri
 export interface NudgeRow { id: number; at: number; date: string; kind: Kind; ruleId: string; key: string; title: string; body: string; status: NudgeStatus; }
 export interface RecentRead { at: number; appName: string; windowTitle: string | null; category: string | null; conf: number | null; stuck: number | null; distraction: number | null; }
 export interface AppLimit { app: string; minutes: number; }
-export interface PillNudge { id: number; kind: Kind; mini: string; stat: string; title: string; body: string; primaryLabel: string; offerFewer: boolean; secondaryLabel?: string; }
+export interface PillNudge { id: number; kind: Kind; mini: string; stat: string; title: string; body: string; primaryLabel: string; offerFewer: boolean; secondaryLabel?: string; /** Follow-ups the local model can answer (Island). */ questions?: string[]; }
 export type PillAction = 'primary' | 'secondary' | 'dismiss' | 'snooze' | 'fewer' | 'expired';

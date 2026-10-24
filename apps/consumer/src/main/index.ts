@@ -42,6 +42,7 @@ import { parseFewer, parseKinds, parseLimits } from './coach/settings';
 import { repeatedSearches, searchTitlesFrom, switchesBetween } from './coach/activity';
 import { limitUsage } from './coach/rules/behaviour';
 import { longestStretch } from './coach/rules/moments';
+import { ASK_JSON_SCHEMA, askPrompt, offerQuestions, parseAnswer, questionsFor } from './island/ask';
 import { parseTip, tipAllowedMinutes, tipInput, tipPrompt, tipRewriteAllowed, TIP_JSON_SCHEMA } from './coach/tip';
 import { parseExclusions } from './screen/exclusions';
 import { createPillManager, pillMessage, islandPlacement } from './windows/pill';
@@ -243,6 +244,7 @@ if (!app.requestSingleInstanceLock()) {
     // settles — not when the tip rewrite's own 20s race ends): two-way mutual exclusion with labelling/reports,
     // since a local write already in flight keeps its forked process alive past the 20s cap.
     let tipWriting = false;
+    let askIsland: (id: number, q: string) => Promise<void> = async () => {}; // set once the writer exists, below
     const scheduler = createLabelScheduler({
       store: labelStore, fork: forkBrain, modelReady: () => downloader.status().state === 'ready',
       modelDir, now: () => Date.now(), onChange: () => win?.webContents.send(CH.eventsUpdate),
@@ -292,13 +294,14 @@ if (!app.requestSingleInstanceLock()) {
         win?.webContents.send(CH.eventsUpdate);
       }
     });
-    const primaryActions = new Map<number, { kind: string; action: string; reminderId?: number }>();
+    const primaryActions = new Map<number, { kind: string; action: string; reminderId?: number; ruleId?: string; title?: string }>();
     let testPillId = 0; // decrementing counter for "Test a pop-up": unique negative ids, never collide with real (positive) nudge ids
     const pill = createPillManager({
       makeWindow: () => electronPillWindow(join(__dirname, '../preload/pill.js'), (w) => loadPage(w, 'pill'), (raw) => {
         const m = pillMessage.safeParse(raw);
         if (m.success) pill.handle(m.data);
       }),
+      onAsk: (id, q) => { void askIsland(id, q); },
       // The Island lives at the top centre of the primary display.
       placement: () => islandPlacement(screen.getPrimaryDisplay().workArea),
       // Ctrl+Alt+D is AltGr+D on many Windows layouts: hold it only while pills are on screen.
@@ -392,7 +395,7 @@ if (!app.requestSingleInstanceLock()) {
       record: (c, status, now) => {
         const id = coachStore.record({ at: now, date: localDate(now), kind: c.kind, ruleId: c.ruleId, key: c.key, title: c.title, body: c.body, status });
         if (status === 'shown') {
-          primaryActions.set(id, { kind: c.kind, action: c.primary.action, reminderId: c.reminderId });
+          primaryActions.set(id, { kind: c.kind, action: c.primary.action, reminderId: c.reminderId, ruleId: c.ruleId, title: c.title });
           if (c.reminderId !== undefined) reminderStore.markShown(c.reminderId, now, localDate(now));
         }
         return id;
@@ -401,7 +404,7 @@ if (!app.requestSingleInstanceLock()) {
         coachStore.setStatus(id, st);
         if (st !== 'shown') primaryActions.delete(id); // only a 'shown' row still needs its primary-action metadata
       },
-      show: (n) => pill.show(n)
+      show: (n) => pill.show({ ...n, questions: offerQuestions(writerDl.status().state === 'ready', primaryActions.get(n.id)?.ruleId ?? '') })
     };
     const coach = createCoach(coachDeps);
     let coaching = false;
@@ -486,7 +489,7 @@ if (!app.requestSingleInstanceLock()) {
       child.on('error', (type) => console.error('[writer] utility process error:', type));
       return { post: (m) => child.postMessage(m), onMessage: (cb) => { child.on('message', cb); }, onExit: (cb) => { child.on('exit', cb); }, kill: () => { child.kill(); } };
     };
-    const writer = createWriter({
+    const writerDeps: Parameters<typeof createWriter>[0] = {
       mode: () => settings.get().writerMode,
       local: () => (writerDl.status().state === 'ready'
         ? { modelPath: join(writerDirFor(writerTier()), WRITER_MODELS[writerTier()].file), model: WRITER_MODELS[writerTier()].label }
@@ -500,7 +503,38 @@ if (!app.requestSingleInstanceLock()) {
           .finally(() => clearTimeout(t));
       },
       cloudModel: () => settings.get().aiModel
-    });
+    };
+    const writer = createWriter(writerDeps);
+    // The Island's follow-ups use only the model on this PC: window titles never leave it, even in cloud mode.
+    const localWriter = createWriter({ ...writerDeps, mode: () => 'local' });
+    let asking = false;
+    const askLocal = async (system: string, user: string): Promise<string | null> => {
+      if (writerDl.status().state !== 'ready' || tipWriting || reportScheduler.running() !== null
+        || scheduler.status().state === 'running' || freemem() < writerNeedBytes(writerTier())) return null;
+      try {
+        tipWriting = true; // labelling and reports wait for it, as for a tip
+        const r = await localWriter.write({ kind: 'tip', system, user, schema: ASK_JSON_SCHEMA, maxTokens: 160, parse: parseAnswer });
+        return r.ok ? r.value.answer : null;
+      } catch {
+        return null;
+      } finally {
+        tipWriting = false;
+      }
+    };
+    askIsland = async (id, q) => {
+      const meta = primaryActions.get(id);
+      // Only a question this card offered; one at a time (the pill also ignores a second tap while thinking).
+      if (asking || !meta?.ruleId || !questionsFor(meta.ruleId).includes(q)) return;
+      asking = true;
+      try {
+        const now = Date.now();
+        const chapters = buildChapters(sessionsToEpisodes(repo.getFocusSessions(localDate(now)), now));
+        const { system, user } = askPrompt(q, { nowLabel: new Date(now).toTimeString().slice(0, 5), chapters, nudgeTitle: meta.title ?? '' });
+        pill.answer(id, (await askLocal(system, user)) ?? "I couldn't work that out just now.");
+      } finally {
+        asking = false;
+      }
+    };
     // The live AI-tip rewrite (Phase 6b task 6): personalises a stuck_tip/repeat_search pop-up when the writer is
     // usable and idle, with a hard 20 s cap; any failure (unusable, busy, timeout, bad answer) keeps the template.
     // Titles pass the user's exclusion patterns (tipInput); the cloud never sees screen text. Never logs tip text.

@@ -208,3 +208,18 @@ describe('the Island (resting pill)', () => {
     expect(islandPlacement({ x: -1920, y: 40, width: 1920, height: 1000 })).toEqual({ x: -1920 + (1920 - ISLAND_W) / 2, y: 48 });
   });
 });
+
+describe('follow-up questions', () => {
+  it('forwards an ask and sends the answer back', () => {
+    const asks: [number, string][] = [];
+    const w = new FakeWin();
+    const m = createPillManager({ makeWindow: () => w, placement: () => ({ x: 0, y: 0 }), onAction: () => {}, onAsk: (id, q) => asks.push([id, q]) });
+    m.show(n(1)); w.fireReady();
+    expect(pillMessage.safeParse({ type: 'ask', id: 1, q: 'What was I working on?' }).success).toBe(true);
+    expect(pillMessage.safeParse({ type: 'ask', id: 1, q: 'x'.repeat(201) }).success).toBe(false);
+    m.handle({ type: 'ask', id: 1, q: 'What was I working on?' });
+    expect(asks).toEqual([[1, 'What was I working on?']]);
+    m.answer(1, 'You were in Code.');
+    expect(w.sent.at(-1)).toEqual(['pill:answer', { id: 1, text: 'You were in Code.' }]);
+  });
+});

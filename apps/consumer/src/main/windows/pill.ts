@@ -16,7 +16,8 @@ export interface PillWindowLike {
 export const pillMessage = z.discriminatedUnion('type', [
   z.object({ type: z.literal('hover'), hover: z.boolean() }).strict(),
   z.object({ type: z.literal('action'), id: z.number().int(), action: z.enum(['primary', 'secondary', 'dismiss', 'snooze', 'fewer', 'expired']) }).strict(),
-  z.object({ type: z.literal('empty') }).strict()
+  z.object({ type: z.literal('empty') }).strict(),
+  z.object({ type: z.literal('ask'), id: z.number().int(), q: z.string().min(1).max(200) }).strict()
 ]);
 export type PillMessage = z.infer<typeof pillMessage>;
 
@@ -24,6 +25,8 @@ export function createPillManager(deps: {
   makeWindow(): PillWindowLike; placement(): { x: number; y: number }; onAction(id: number, action: PillAction): void;
   /** true when a window first shows, false when it is destroyed (index.ts holds Ctrl+Alt+D only while visible). */
   onVisible?(visible: boolean): void;
+  /** A follow-up question tapped under card `id`. */
+  onAsk?(id: number, q: string): void;
 }) {
   let win: PillWindowLike | null = null;
   let ready = false;
@@ -123,6 +126,9 @@ export function createPillManager(deps: {
       win.send('pill:rest', null);
       if (!visible && outstanding.size === 0 && queue.length === 0) close();
     },
+    answer(id: number, text: string): void {
+      if (win && !win.isDestroyed()) win.send('pill:answer', { id, text });
+    },
     dismissAll(): void {
       // Nudges still queued (window not ready yet) never reached the renderer, so report
       // them ourselves and drop them here. A bulk dismiss (Ctrl+Alt+D, "Delete my activity")
@@ -137,6 +143,8 @@ export function createPillManager(deps: {
     handle(msg: PillMessage): void {
       if (msg.type === 'hover') {
         win?.setIgnoreMouseEvents(!msg.hover);
+      } else if (msg.type === 'ask') {
+        deps.onAsk?.(msg.id, msg.q);
       } else if (msg.type === 'action') {
         outstanding.delete(msg.id);
         deps.onAction(msg.id, msg.action);

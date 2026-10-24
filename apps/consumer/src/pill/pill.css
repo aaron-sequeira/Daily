@@ -103,3 +103,15 @@ html, body { margin: 0; background: transparent; overflow: hidden; font-family: 
 #stack.hovering .pill.open .bar i { animation-play-state: paused; }
 
 @media (prefers-reduced-motion: reduce) { .pill, .pill *, .rest { transition: opacity .2s !important; animation: none !important; } }
+
+/* ---- follow-up questions (answered on this PC) ---- */
+.pill.asks .full { right: auto; width: 344px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.chip { border: 1px solid rgba(255, 255, 255, .18); background: none; color: var(--cream); font: inherit; font-size: 11.5px;
+  border-radius: 999px; padding: 5px 11px; cursor: pointer; transition: background .2s; }
+.chip:hover { background: rgba(255, 255, 255, .1); }
+.answer { display: none; margin-top: 10px; padding: 10px 12px; border-radius: 14px; background: rgba(255, 255, 255, .08);
+  font-size: 12.5px; line-height: 1.5; color: var(--cream); }
+.answer.on { display: block; }
+.answer.wait { opacity: .6; }
+.pill.pinned .bar { opacity: 0 !important; }
