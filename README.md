@@ -10,7 +10,7 @@ _Formerly Daylens._
 
 A private, on-device companion for Windows that shows where your screen time goes, writes you a daily and weekly report, and nudges you toward healthier habits — breaks, water, meals and more.
 
-[![Download](https://img.shields.io/badge/Download-v1.0.1-171717?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/aaron-sequeira/Daylens/releases/latest)
+[![Download](https://img.shields.io/badge/Download-v1.1.0-171717?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/aaron-sequeira/Daylens/releases/latest)
 
 **[daily website →](https://aaron-sequeira.github.io/Daylens/)**
 
