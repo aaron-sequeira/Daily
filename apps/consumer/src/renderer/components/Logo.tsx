@@ -2,7 +2,8 @@ import { useEffect, useId, useState } from 'react';
 import { LOGO, LOGO_COLORS } from './logoPaths';
 import { logoStartState, markAppOpenPlayed, type LogoAnimate } from '../lib/logo';
 
-/** The Daily Sunrise mark. `animate` draws it in (horizon → sun rises and traces itself → rays), starting the first
+/** The Daily mark (Sunny over the horizon, as on the phone). `animate` draws it in (horizon → Sunny rises → rays → he
+ * smiles), starting the first
  * time the document is visible, so a window started hidden at login plays it when the user first opens it. */
 export function Logo({ variant, size, animate = 'none', decorative = false }: { variant: 'full' | 'small'; size: number; animate?: LogoAnimate; decorative?: boolean }) {
   const m = LOGO[variant];
@@ -20,15 +21,19 @@ export function Logo({ variant, size, animate = 'none', decorative = false }: { 
   return (
     <svg className={`dl-logo dl-${state}`} viewBox="0 0 100 100" width={size} height={size}
       role={decorative ? undefined : 'img'} aria-label={decorative ? undefined : 'Daily'} aria-hidden={decorative || undefined}>
-      <rect x="2" y="2" width="96" height="96" rx="24" fill={LOGO_COLORS.tile} />
-      <g transform="translate(50 50) scale(0.86) translate(-50 -50)">
-        <clipPath id={clipId}><rect x="0" y="0" width="100" height={m.clipY} /></clipPath>
-        <g clipPath={`url(#${clipId})`}>
-          <g className="dl-sun"><path className="dl-c" d={m.circle} {...stroke(LOGO_COLORS.sun, m.width[0])} /></g>
-          <path className="dl-r" d={m.rays} {...stroke(LOGO_COLORS.sun, m.width[1])} />
+      <rect width="100" height="100" rx="24" fill={LOGO_COLORS.tile} />
+      <clipPath id={clipId}><rect x="0" y="0" width="100" height={m.clipY} /></clipPath>
+      <g clipPath={`url(#${clipId})`}>
+        <g className="dl-sun">
+          <circle cx={m.sun.cx} cy={m.sun.cy} r={m.sun.r} fill={LOGO_COLORS.sun} />
+          <g className="dl-face">
+            <path d={m.face.eyes} fill="none" stroke={LOGO_COLORS.face} strokeWidth={m.width[2]} strokeLinecap="round" />
+            <path d={m.face.smile} fill="none" stroke={LOGO_COLORS.face} strokeWidth={m.width[3]} strokeLinecap="round" />
+          </g>
         </g>
-        <path className="dl-h" d={m.horizon} {...stroke(LOGO_COLORS.horizon, m.width[2])} />
       </g>
+      <path className="dl-r" d={m.rays} {...stroke(LOGO_COLORS.sun, m.width[0])} />
+      <path className="dl-h" d={m.horizon} {...stroke(LOGO_COLORS.horizon, m.width[1])} />
     </svg>
   );
 }

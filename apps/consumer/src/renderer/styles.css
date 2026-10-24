@@ -418,17 +418,20 @@ body:has(.print-root), #root:has(.print-root) { height: auto; overflow: visible;
 /* ---------- Sunrise logo draw-in (Logo.tsx) ---------- */
 /* pathLength=1 on every pen stroke. Dash 1 + gap 2 with offset 1.01 hides a stroke completely (no round-cap dot at
    its start) until the pen reaches it; offset 0 shows it whole. */
-.dl-logo .dl-c, .dl-logo .dl-r, .dl-logo .dl-h { stroke-dasharray: 1 2; stroke-dashoffset: 0; }
-.dl-pre .dl-c, .dl-pre .dl-r, .dl-pre .dl-h, .dl-play .dl-c, .dl-play .dl-r, .dl-play .dl-h { stroke-dashoffset: 1.01; }
+.dl-logo .dl-r, .dl-logo .dl-h { stroke-dasharray: 1 2; stroke-dashoffset: 0; }
+.dl-pre .dl-r, .dl-pre .dl-h, .dl-play .dl-r, .dl-play .dl-h { stroke-dashoffset: 1.01; }
+.dl-pre .dl-face, .dl-play .dl-face { opacity: 0; }
 .dl-pre .dl-sun, .dl-play .dl-sun { transform: translateY(10px); }
 .dl-play .dl-h { animation: dl-pen .5s cubic-bezier(.65, 0, .35, 1) .2s forwards; }
-.dl-play .dl-c { animation: dl-pen .7s cubic-bezier(.65, 0, .35, 1) .55s forwards; }
+.dl-play .dl-face { animation: dl-smile .35s ease 1.5s forwards; }
 .dl-play .dl-r { animation: dl-pen .8s cubic-bezier(.65, 0, .35, 1) 1.1s forwards; }
 .dl-play .dl-sun { animation: dl-rise .9s var(--ease) .5s forwards; }
 @keyframes dl-pen { to { stroke-dashoffset: 0; } }
 @keyframes dl-rise { to { transform: translateY(0); } }
+@keyframes dl-smile { to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
-  .dl-logo .dl-c, .dl-logo .dl-r, .dl-logo .dl-h { stroke-dasharray: none !important; stroke-dashoffset: 0 !important; animation: none !important; }
+  .dl-logo .dl-r, .dl-logo .dl-h { stroke-dasharray: none !important; stroke-dashoffset: 0 !important; animation: none !important; }
+  .dl-logo .dl-face { opacity: 1 !important; animation: none !important; }
   .dl-logo .dl-sun { transform: none !important; animation: none !important; }
 }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
