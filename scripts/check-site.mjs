@@ -39,7 +39,7 @@ if (/(^|[^s]\s)\.reveal\s*\{[^}]*opacity:\s*0/.test(css)) fail.push('.reveal is 
 if (!/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[^@]*animation:\s*none\s*!important[^@]*transition:\s*none\s*!important/.test(css)) {
   fail.push('missing prefers-reduced-motion rule that turns off animation and transition');
 }
-if (!/<picture>\s*<source media="\(prefers-reduced-motion: reduce\)" srcset="[^"]+">\s*<img src="assets\/daylens-showreel-teaser\.gif"/.test(html)) {
+if (!/<picture>\s*<source media="\(prefers-reduced-motion: reduce\)" srcset="[^"]+">\s*<img src="assets\/daily-showreel-teaser\.gif"/.test(html)) {
   fail.push('the teaser GIF needs a still <source> for prefers-reduced-motion');
 }
 if (!/\.reel a:focus-visible\s*\{[^}]*outline-color:\s*var\(--sun\)/.test(css)) fail.push('focus ring on the dark reel panel needs the sun outline (violet is under 3:1 there)');
@@ -51,7 +51,7 @@ const visible = html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/\s(?:src
 if (/daylens/i.test(visible)) fail.push(`"Daylens" is still visible: ${visible.match(/.{0,40}daylens.{0,40}/i)?.[0]}`);
 if (!/<title>Daily /.test(html)) fail.push('the title must start with "Daily"');
 if (!html.includes('daylensMotion')) fail.push('head script needs the fallback that un-hides content when main.js never runs');
-for (const f of ['assets/daylens-showreel.mp4', 'assets/daylens-showreel-teaser.gif']) {
+for (const f of ['assets/daily-showreel.mp4', 'assets/daily-showreel-teaser.gif']) {
   if (existsSync(join(root, f)) && statSync(join(root, f)).size > 95 * 1024 * 1024) fail.push(`${f} is over GitHub's 100 MB file limit`);
 }
 
