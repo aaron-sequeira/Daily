@@ -40,6 +40,9 @@ describe('installer.nsh', () => {
     expect(nsh).toContain('Also delete your Daily history');
     expect(nsh).toContain('RMDir /r "$APPDATA\\Daily"');
     expect(nsh).toContain('RMDir /r "$APPDATA\\Daylens"'); // a copy left behind when the folder could not be moved
+    // never another app's folder: only one holding Daily's database
+    expect(nsh).toContain('${If} ${FileExists} "$APPDATA\\Daily\\daylens.sqlite"');
+    expect(nsh).toContain('${If} ${FileExists} "$APPDATA\\Daylens\\daylens.sqlite"');
   });
   it('silences the prompt under a silent uninstall (/S) by defaulting to No', () => {
     expect(nsh).toMatch(/" \/SD IDNO IDNO daylens_keep/); // NSIS: MessageBox flags text [/SD IDx] [IDx label]

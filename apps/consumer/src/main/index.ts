@@ -74,7 +74,15 @@ import { writerState, navDates, needGb, freeGb, settledDay, type ReportView, typ
 app.setName('Daily');
 app.setAppUserModelId('ai.worksight.daylens'); // unchanged since Daylens: matches the installer's shortcut and login item
 // Before anything touches userData (now %APPDATA%\Daily): bring a Daylens user's data over.
-try { migrateUserData(app.getPath('appData')); } catch (e) { console.warn('[migrate] could not bring the old Daylens data over', e); }
+const migration = ((): ReturnType<typeof migrateUserData> => {
+  try { return migrateUserData(app.getPath('appData')); } catch (e) { console.warn('[migrate] could not bring the old Daylens data over', e); return 'failed'; }
+})();
+if (migration === 'failed') {
+  // Starting now would create an empty database and hide the user's history; quitting lets the next launch retry.
+  dialog.showErrorBox('Daily', "Daily couldn't bring over your history and settings from the old Daylens app.\n\n"
+    + 'Close the old Daylens app if it is still open (check the tray), make sure there is free disk space, then start Daily again.');
+}
+if (migration === 'failed' || migration === 'busy') process.exit(0); // busy: another launch is moving the data right now
 const startHidden = process.argv.includes('--hidden');
 let win: BrowserWindow | null = null;
 let tray: Tray | null = null;

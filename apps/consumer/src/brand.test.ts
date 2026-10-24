@@ -33,4 +33,7 @@ describe('brand', () => {
     }
     expect(hits).toEqual([]);
   });
+  it('the package description (Windows shows it in Task Manager) says Daily', () => {
+    expect(JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf8')).description).toMatch(/^Daily: /);
+  });
 });
