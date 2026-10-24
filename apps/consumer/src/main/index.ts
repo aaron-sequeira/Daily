@@ -68,10 +68,13 @@ import { buildDayDetail, type DayDetail } from './report/detail';
 import { finalCategory } from './brain/finalCategory';
 import { buildReportInput, buildStats, buildWeek, forCloud, type ReportStats, type WriterWeek } from './report/input';
 import type { ReportCandidate } from './report/candidates';
+import { migrateUserData } from './migrate';
 import { writerState, navDates, needGb, freeGb, settledDay, type ReportView, type WriterView, type WriterState } from './report/view';
 
-app.setName('Daylens');
-app.setAppUserModelId('ai.worksight.daylens'); // matches the installer's shortcut, so the taskbar groups them
+app.setName('Daily');
+app.setAppUserModelId('ai.worksight.daylens'); // unchanged since Daylens: matches the installer's shortcut and login item
+// Before anything touches userData (now %APPDATA%\Daily): bring a Daylens user's data over.
+try { migrateUserData(app.getPath('appData')); } catch (e) { console.warn('[migrate] could not bring the Daylens data over', e); }
 const startHidden = process.argv.includes('--hidden');
 let win: BrowserWindow | null = null;
 let tray: Tray | null = null;
