@@ -42,7 +42,7 @@ export function waitingText(v: Pick<ReportView, 'memoryShort' | 'needGb' | 'free
   if (v.memoryShort) {
     return `Waiting for memory to ${rewrite ? 'rewrite' : 'write'}: needs ${v.needGb.toFixed(1)} GB free, ${v.freeGb.toFixed(1)} GB free now. It starts by itself when memory frees up.`;
   }
-  return 'Waiting for Daylens to finish another job. It starts by itself when that is done.';
+  return 'Waiting for Daily to finish another job. It starts by itself when that is done.';
 }
 
 export interface DetailPanel { title: string; rows: { name: string; min: number; sub: string[] }[]; }

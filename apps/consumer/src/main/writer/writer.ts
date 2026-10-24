@@ -40,7 +40,7 @@ export function createWriter(deps: {
           const value = parsed === null ? null : job.parse(parsed);
           if (value !== null) return { ok: true, value, model: deps.cloudModel() };
         }
-        return { ok: false, reason: 'The AI returned an answer Daylens could not read.' };
+        return { ok: false, reason: 'The AI returned an answer Daily could not read.' };
       }
       const m = deps.local();
       if (!m) return { ok: false, reason: 'no_model' };
@@ -56,7 +56,7 @@ export function createWriter(deps: {
       }
       if (!r.ok) return { ok: false, reason: r.message, local: r.reason };
       const value = job.parse(r.json);
-      return value === null ? { ok: false, reason: 'The writer returned an answer Daylens could not read.', local: 'invalid' } : { ok: true, value, model: m.model };
+      return value === null ? { ok: false, reason: 'The writer returned an answer Daily could not read.', local: 'invalid' } : { ok: true, value, model: m.model };
     }
   };
 }

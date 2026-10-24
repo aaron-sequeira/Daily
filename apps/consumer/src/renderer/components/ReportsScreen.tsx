@@ -322,7 +322,7 @@ export function ReportsScreen({ print = false, date: fixedDate }: { print?: bool
 
         {kind !== 'report' && kind !== 'empty' && view.candidates.length > 0 && (
           <div className="report-card">
-            <h2>What Daylens noticed</h2>
+            <h2>What Daily noticed</h2>
             <ul className="candidates">
               {view.candidates.map((c) => (
                 <li key={c.id}>

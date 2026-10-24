@@ -60,7 +60,7 @@ export function TodayScreen({ settings, onChange }: { settings: DaylensSettings;
 
         <p className="sec">Where your time went</p>
         {cards.length === 0 ? (
-          <div className="empty">Nothing tracked yet. Keep Daylens running and this fills in as you use your PC.</div>
+          <div className="empty">Nothing tracked yet. Keep Daily running and this fills in as you use your PC.</div>
         ) : (
           <div className="grid">
             {cards.map((c, i) => (

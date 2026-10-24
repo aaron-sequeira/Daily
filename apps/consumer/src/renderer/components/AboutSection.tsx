@@ -9,7 +9,7 @@ export function AboutSection() {
   return (
     <div className="grp">
       <h4>About</h4>
-      <div className="srow"><p>Daylens {about.version}<small>{about.credits.join(' ')}</small></p></div>
+      <div className="srow"><p>Daily {about.version}<small>{about.credits.join(' ')}</small></p></div>
     </div>
   );
 }

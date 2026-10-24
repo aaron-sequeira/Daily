@@ -1,4 +1,4 @@
-export const pdfFileName = (date: string): string => `Daylens-${date}.pdf`;
+export const pdfFileName = (date: string): string => `Daily-${date}.pdf`;
 
 export const PDF_OPTIONS = {
   pageSize: 'A4', printBackground: true,

@@ -19,10 +19,10 @@ describe('complete', () => {
     let url = '', body: any, headers: any;
     const fetchFn = (async (u: string, init: any) => { url = u; body = JSON.parse(init.body); headers = init.headers;
       return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: '{"a":1}' } }] }) }; }) as unknown as typeof fetch;
-    const r = await complete({ ...req, json: true }, { apiKey: 'sk', model: 'gpt', provider: 'openai', fetchFn, title: 'Daylens' });
+    const r = await complete({ ...req, json: true }, { apiKey: 'sk', model: 'gpt', provider: 'openai', fetchFn, title: 'Daily' });
     expect(url).toBe('https://api.openai.com/v1/chat/completions');
     expect(body.response_format).toEqual({ type: 'json_object' });
-    expect(headers['X-Title']).toBe('Daylens');
+    expect(headers['X-Title']).toBe('Daily');
     expect(r).toEqual({ ok: true, text: '{"a":1}' });
   });
   it('omits response_format when json is not set', async () => {

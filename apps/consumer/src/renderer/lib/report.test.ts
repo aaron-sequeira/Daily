@@ -50,8 +50,8 @@ describe('report UI helpers', () => {
     expect(waitingText(short, false)).toBe('Waiting for memory to write: needs 2.1 GB free, 0.4 GB free now. It starts by itself when memory frees up.');
     // Rounded GB can look equal (2.1 vs 2.1) while the bytes are short: the byte-exact flag from main decides.
     expect(waitingText({ memoryShort: true, needGb: 2.1, freeGb: 2.1 } as never, true)).toMatch(/^Waiting for memory/);
-    // Enough memory (or cloud): it's waiting on another Daylens job, not memory.
-    expect(waitingText({ memoryShort: false, needGb: 2.1, freeGb: 0.4 } as never, true)).toMatch(/^Waiting for Daylens to finish another job/);
+    // Enough memory (or cloud): it's waiting on another Daily job, not memory.
+    expect(waitingText({ memoryShort: false, needGb: 2.1, freeGb: 0.4 } as never, true)).toMatch(/^Waiting for Daily to finish another job/);
   });
   it('splits a search snippet into plain and highlighted parts on the control-character markers, never a literal [ or ]', () => {
     expect(snippetParts('You worked in \u0001Figma\u0002 all day')).toEqual([

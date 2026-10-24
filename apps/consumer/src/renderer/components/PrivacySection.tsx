@@ -56,7 +56,7 @@ export function PrivacySection({ settings, onChange }: { settings: DaylensSettin
         <h4>Screen reading</h4>
         <div className="srow">
           <p>Read on-screen text
-            <small>Reads the text of the window in front every 30 seconds so Daylens can understand what you're doing. The screenshot is never saved; only the text is kept, on this PC.</small>
+            <small>Reads the text of the window in front every 30 seconds so Daily can understand what you're doing. The screenshot is never saved; only the text is kept, on this PC.</small>
           </p>
           <button className={`sw${view.screenReading ? ' on' : ''}`} aria-label="Read on-screen text" aria-pressed={view.screenReading}
             onClick={() => { void set({ screenReading: !view.screenReading }); }} />

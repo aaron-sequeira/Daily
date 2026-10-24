@@ -114,7 +114,7 @@ export function tipRewriteAllowed(i: TipRewriteGate): boolean {
 }
 
 const TIP_SYSTEM = [
-  "You are Daylens, a warm, concise coach rewriting a short pop-up tip about the person's computer use right now.",
+  "You are Daily, a warm, concise coach rewriting a short pop-up tip about the person's computer use right now.",
   'Write in second person ("you"), plain friendly English, no emoji, no markdown.',
   "Always write to the reader as 'you' / 'your'. Never use 'I', 'me', 'my' or 'we'.",
   'Give exactly one short, practical, kind suggestion, in the same spirit as the template tip but more personal '

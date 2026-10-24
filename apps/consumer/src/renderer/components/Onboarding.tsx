@@ -111,7 +111,7 @@ export function Onboarding({ mode, initial, initialScreen, initialStartup, onDon
           <div className="ob-logo"><Logo variant="full" size={96} animate="mount" /></div>
           <p className="ob-kicker"><i style={{ background: 'var(--mint)' }}>☀</i>Welcome</p>
           <h1 tabIndex={-1}>See your day<br /><b>clearly.</b></h1>
-          <p className="lead">Daylens quietly notices how you use your PC and nudges you toward healthier habits. First, a few quick questions so it can get to know you.</p>
+          <p className="lead">Daily quietly notices how you use your PC and nudges you toward healthier habits. First, a few quick questions so it can get to know you.</p>
           <div className="promise">
             <div><i style={{ background: 'var(--mint)' }}>🔒</i><span><b>Everything stays on this PC.</b> No account, no cloud, no uploads.</span></div>
             <div><i style={{ background: 'var(--lav)' }}>🪟</i><span>Records <b>which app and window</b> is in front, and for how long.</span></div>
@@ -207,7 +207,7 @@ export function Onboarding({ mode, initial, initialScreen, initialStartup, onDon
         return (<>
           <p className="ob-kicker"><i style={{ background: 'var(--sky)' }}>👀</i>Your screen</p>
           <h1 tabIndex={-1}>Let me understand<br /><b>your screen?</b></h1>
-          <p className="lead" style={{ marginBottom: 14 }}>With this on, Daylens reads the text of the window in front every 30 seconds, so it can tell coding from scrolling and give you better tips.</p>
+          <p className="lead" style={{ marginBottom: 14 }}>With this on, Daily reads the text of the window in front every 30 seconds, so it can tell coding from scrolling and give you better tips.</p>
           <div className="promise">
             <div><i style={{ background: 'var(--mint)' }}>🔒</i><span><b>Text only, on this PC.</b> The screenshot is never saved or sent anywhere.</span></div>
             <div><i style={{ background: 'var(--lav)' }}>🙈</i><span>Skips <b>password managers, banking and private windows</b>. You can add more in Settings.</span></div>
@@ -231,8 +231,8 @@ export function Onboarding({ mode, initial, initialScreen, initialStartup, onDon
             ))}
           </div>
           <div className="ob-screen ob-startup">
-            <span>Start Daylens when Windows starts<small>Opens quietly in the tray, so your day is tracked from the first minute.</small></span>
-            <button className={`sw${startup ? ' on' : ''}`} aria-label="Start Daylens when Windows starts" aria-pressed={startup} onClick={() => setStartup((v) => !v)} />
+            <span>Start Daily when Windows starts<small>Opens quietly in the tray, so your day is tracked from the first minute.</small></span>
+            <button className={`sw${startup ? ' on' : ''}`} aria-label="Start Daily when Windows starts" aria-pressed={startup} onClick={() => setStartup((v) => !v)} />
           </div>
           {error && <p className="ob-error" role="alert">{error}</p>}
           {nav(mode === 'redo' ? 'Save my answers ✨' : 'Start my day ✨', () => { void finish(); })}

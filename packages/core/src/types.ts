@@ -8,7 +8,7 @@ export interface ForegroundInfo {
   appPath: string | null;
   title: string | null;
   pid: number;
-  bounds?: Rect | null; // window bounds from active-win (Daylens: capture crop + fullscreen detection)
+  bounds?: Rect | null; // window bounds from active-win (Daily: capture crop + fullscreen detection)
 }
 
 export interface InputCounts {

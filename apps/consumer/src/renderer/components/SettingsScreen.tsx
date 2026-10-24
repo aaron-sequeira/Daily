@@ -117,7 +117,7 @@ export function SettingsScreen({ settings, onChange, onRedo }: { settings: Dayle
         </div>
         {nameError && <p className="srow-error" role="alert">{nameError}</p>}
         <div className="srow">
-          <p>What Daylens knows about you<small>{profileSummary(profile)}</small></p>
+          <p>What Daily knows about you<small>{profileSummary(profile)}</small></p>
           <button className="btn s" onClick={onRedo}>Redo the questions</button>
         </div>
       </div>

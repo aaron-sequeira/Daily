@@ -112,9 +112,9 @@ describe('summaries', () => {
     expect(rows[0].strong).toBe('a bit of everything');
     expect(rows[3].strong).toBe('');
   });
-  it('profileSummary lists what Daylens knows', () => {
+  it('profileSummary lists what Daily knows', () => {
     expect(profileSummary(null)).toBe('');
-    expect(profileSummary(p())).toBe('Nothing yet. Answer a few questions to personalise Daylens.');
+    expect(profileSummary(p())).toBe('Nothing yet. Answer a few questions to personalise Daily.');
     expect(profileSummary(p({ roles: ['dev'], goals: ['focus'], distractions: ['Instagram'] }))).toBe('Coding · Deeper focus · watching Instagram');
   });
 });

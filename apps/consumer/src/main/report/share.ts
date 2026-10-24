@@ -6,9 +6,9 @@ const MAILTO_MAX = 1800;
 export const autoSavePath = (folder: string, date: string): string => join(folder, pdfFileName(date));
 
 export function mailtoUrl(date: string, r: ReportJson | null): string {
-  const subject = `Daylens — ${date}`;
+  const subject = `Daily — ${date}`;
   const sentences = (r?.story.match(/[^.!?]+[.!?]+/g) ?? []).slice(0, 3).map((s) => s.trim()).join(' ');
-  let body = r ? `${r.headline}\n\n${sentences}\n\n(The full report is attached as a PDF.)` : `Daylens report for ${date} (PDF attached).`;
+  let body = r ? `${r.headline}\n\n${sentences}\n\n(The full report is attached as a PDF.)` : `Daily report for ${date} (PDF attached).`;
   const make = (b: string): string => `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(b)}`;
   // Array.from splits on code points, not UTF-16 code units: a plain slice() could cut a surrogate pair (an
   // emoji) in half and leave a lone surrogate, which encodeURIComponent throws on.
@@ -42,7 +42,7 @@ export async function autoSavePdf(date: string, folder: string, deps: AutoSaveDe
     return 'ok';
   } catch (e) {
     const m = e instanceof Error ? e.message : String(e);
-    return /EACCES|EPERM|permission/i.test(m) ? "Daylens doesn't have permission to save in that folder." : "The PDF couldn't be saved to the auto-save folder.";
+    return /EACCES|EPERM|permission/i.test(m) ? "Daily doesn't have permission to save in that folder." : "The PDF couldn't be saved to the auto-save folder.";
   }
 }
 

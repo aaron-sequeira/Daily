@@ -3,7 +3,7 @@ import { exportPdf, pdfFileName, PDF_OPTIONS, printUrl } from './reportPdf';
 
 describe('report pdf', () => {
   it('names files and prints A4 with backgrounds', () => {
-    expect(pdfFileName('2026-09-26')).toBe('Daylens-2026-09-26.pdf');
+    expect(pdfFileName('2026-09-26')).toBe('Daily-2026-09-26.pdf');
     expect(PDF_OPTIONS).toMatchObject({ pageSize: 'A4', printBackground: true });
   });
   it('builds the print target for dev and packaged builds', () => {

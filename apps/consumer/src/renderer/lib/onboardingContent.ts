@@ -112,7 +112,7 @@ export function cardsFor(step: number, p: Profile): OrbitCard[] {
 export function bubbleFor(step: number, p: Profile, screen = false): string {
   const name = p.name.trim();
   switch (step) {
-    case 0: return "Hi! I'm Daylens. Let's get to know each other.";
+    case 0: return "Hi! I'm Daily. Let's get to know each other.";
     case 1: return name ? `Lovely to meet you, ${name}. What do you do here?` : 'What should I call you?';
     case 2: return p.goals.length ? `Got it: ${p.goals.length} goal${p.goals.length > 1 ? 's' : ''}. I'll focus on those.` : "Pick what you want help with. I won't nag about the rest.";
     case 3: return `I'll protect ${focusWindow(p)} for deep work and nudge you before ${clock(p.bed)}.`;
@@ -147,5 +147,5 @@ export function profileSummary(p: Profile | null): string {
     p.goals.map((g) => GOAL_INFO[g].title).join(', '),
     p.distractions.length ? `watching ${p.distractions.join(', ')}` : ''
   ].filter(Boolean);
-  return parts.length ? parts.join(' · ') : 'Nothing yet. Answer a few questions to personalise Daylens.';
+  return parts.length ? parts.join(' · ') : 'Nothing yet. Answer a few questions to personalise Daily.';
 }

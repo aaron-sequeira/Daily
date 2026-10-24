@@ -74,7 +74,7 @@ import { writerState, navDates, needGb, freeGb, settledDay, type ReportView, typ
 app.setName('Daily');
 app.setAppUserModelId('ai.worksight.daylens'); // unchanged since Daylens: matches the installer's shortcut and login item
 // Before anything touches userData (now %APPDATA%\Daily): bring a Daylens user's data over.
-try { migrateUserData(app.getPath('appData')); } catch (e) { console.warn('[migrate] could not bring the Daylens data over', e); }
+try { migrateUserData(app.getPath('appData')); } catch (e) { console.warn('[migrate] could not bring the old Daylens data over', e); }
 const startHidden = process.argv.includes('--hidden');
 let win: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -196,7 +196,7 @@ if (!app.requestSingleInstanceLock()) {
       }
     });
     const forkBrain = (): BrainChild => {
-      const child = utilityProcess.fork(join(__dirname, 'brain.js'), [], { serviceName: 'Daylens Brain', stdio: 'ignore' });
+      const child = utilityProcess.fork(join(__dirname, 'brain.js'), [], { serviceName: 'Daily Brain', stdio: 'ignore' });
       // Electron emits 'error' (then 'exit') when the Brain crashes; an unhandled 'error' would throw in main.
       // The 'exit' that follows is what fails the batch.
       child.on('error', (type) => console.error('[brain] utility process error:', type));
@@ -445,7 +445,7 @@ if (!app.requestSingleInstanceLock()) {
       });
     };
     const forkWriter = (): WriterChild => {
-      const child = utilityProcess.fork(join(__dirname, 'writer.js'), [], { serviceName: 'Daylens Writer', stdio: 'ignore' });
+      const child = utilityProcess.fork(join(__dirname, 'writer.js'), [], { serviceName: 'Daily Writer', stdio: 'ignore' });
       child.on('error', (type) => console.error('[writer] utility process error:', type));
       return { post: (m) => child.postMessage(m), onMessage: (cb) => { child.on('message', cb); }, onExit: (cb) => { child.on('exit', cb); }, kill: () => { child.kill(); } };
     };
@@ -459,7 +459,7 @@ if (!app.requestSingleInstanceLock()) {
         const s = settings.get();
         const ctrl = new AbortController();
         const t = setTimeout(() => ctrl.abort(), ms);
-        return complete(req, { apiKey: secrets.get(s.aiProvider), model: s.aiModel, provider: s.aiProvider as AiProvider, baseUrl: s.aiBaseUrl, title: 'Daylens', signal: ctrl.signal })
+        return complete(req, { apiKey: secrets.get(s.aiProvider), model: s.aiModel, provider: s.aiProvider as AiProvider, baseUrl: s.aiBaseUrl, title: 'Daily', signal: ctrl.signal })
           .finally(() => clearTimeout(t));
       },
       cloudModel: () => settings.get().aiModel
@@ -825,7 +825,7 @@ if (!app.requestSingleInstanceLock()) {
     function refreshTray(): void {
       const paused = settings.get().trackingPaused;
       tray?.setContextMenu(Menu.buildFromTemplate([
-        { label: 'Open Daylens', click: showWindow },
+        { label: 'Open Daily', click: showWindow },
         { label: paused ? 'Resume tracking' : 'Pause tracking', click: () => setTracking(paused) },
         settings.get().snoozeUntil > Date.now()
           ? { label: 'Resume pop-ups', click: () => { settings.set({ snoozeUntil: 0 }); refreshTray(); } }
@@ -856,7 +856,7 @@ if (!app.requestSingleInstanceLock()) {
       coach: {
         held: () => coachStore.heldForDay(localDate(Date.now())).map(({ id, at, kind, title, body }) => ({ id, at, kind, title, body })),
         dismissHeld: (id) => { if (coachStore.expireHeld(id)) win?.webContents.send(CH.eventsUpdate); },
-        test: () => { pill.show({ id: --testPillId, kind: 'health', mini: 'Eye break', stat: 'test', title: 'Give your eyes a break', body: 'This is how Daylens pop-ups look. They never take your keyboard focus.', primaryLabel: 'Nice', offerFewer: false }); },
+        test: () => { pill.show({ id: --testPillId, kind: 'health', mini: 'Eye break', stat: 'test', title: 'Give your eyes a break', body: 'This is how Daily pop-ups look. They never take your keyboard focus.', primaryLabel: 'Nice', offerFewer: false }); },
         onChanged: () => refreshTray()
       },
       reports: {
@@ -1083,7 +1083,7 @@ if (!app.requestSingleInstanceLock()) {
         lastRead: () => screenStore.lastWithText(),
         exportData: async () => {
           const r = await dialog.showSaveDialog(win!, {
-            title: 'Export your Daylens data', defaultPath: `daylens-export-${localDate(Date.now())}.json`,
+            title: 'Export your Daily data', defaultPath: `daily-export-${localDate(Date.now())}.json`,
             filters: [{ name: 'JSON', extensions: ['json'] }]
           });
           if (r.canceled || !r.filePath) return { saved: false };
@@ -1152,7 +1152,7 @@ if (!app.requestSingleInstanceLock()) {
 
     try {
       tray = new Tray(app.isPackaged ? join(process.resourcesPath, 'tray.png') : join(__dirname, '../../resources/tray.png'));
-      tray.setToolTip('Daylens');
+      tray.setToolTip('Daily');
       tray.on('click', showWindow);
       refreshTray();
     } catch (e) {

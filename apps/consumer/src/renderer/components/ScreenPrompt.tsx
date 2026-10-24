@@ -25,7 +25,7 @@ export function ScreenPrompt({ settings, onChange }: { settings: DaylensSettings
       <div className="sp-card" role="region" aria-label="Screen reading">
         <span className="sp-ico" aria-hidden="true">👀</span>
         <div>
-          <b>Let Daylens understand your screen?</b>
+          <b>Let Daily understand your screen?</b>
           <p>It reads the text of the window in front every 30 seconds to tell coding from scrolling. Text only, never screenshots, and it stays on this PC. Needs a one-time 1.7 GB download.</p>
         </div>
         <div className="sp-actions">

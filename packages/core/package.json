@@ -2,7 +2,7 @@
   "name": "@worksight/core",
   "version": "0.0.0",
   "private": true,
-  "description": "Shared tracking, SQLite storage and rollups for WorkSight Agent and Daylens",
+  "description": "Shared tracking, SQLite storage and rollups for WorkSight Agent and Daily",
   "exports": {
     ".": "./src/index.ts",
     "./adapters": "./src/adapters.ts",
